@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Жизнь в одном месте — дизайн-пакет</title>
+<meta name="description" content="Личная операционная система: интерактивный прототип, вайрфреймы и хендофф для разработки.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23a63a35'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23f3dfdc'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prata&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-1:#f3dfdc; --bg-2:#eccfc9; --bg-3:#e6c2bb;
+  --card:#fbf4ec; --accent:#a63a35; --deep:#8e2b32; --warm:#b04a3c;
+  --ink:#53403a; --ink-2:#8d6a60; --ink-3:#9c6b60;
+  --line:#dcb3a6; --track:#eeded2; --caramel:#c98d6b;
+  --shadow:0 8px 20px rgba(122,62,58,.12);
+  --shadow-lg:0 20px 44px rgba(122,62,58,.22);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; font-family:Jost,system-ui,sans-serif; color:var(--ink);
+  background:linear-gradient(175deg,var(--bg-1) 0%,var(--bg-2) 55%,var(--bg-3) 100%);
+  background-attachment:fixed; min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1040px; margin:0 auto; padding:clamp(28px,6vw,72px) clamp(18px,4vw,32px) 64px}
+h1,h2,h3{font-family:Prata,Georgia,serif; color:var(--deep); font-weight:400; line-height:1.14; margin:0}
+a{color:var(--deep)}
+
+/* ── hero ───────────────────────────────────────────── */
+.hero{display:grid; grid-template-columns:1fr minmax(0,300px); gap:clamp(20px,4vw,44px); align-items:center; margin-bottom:clamp(32px,5vw,56px)}
+.eyebrow{font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3); margin:0 0 14px}
+h1{font-size:clamp(30px,5.4vw,50px)}
+.lede{font-size:clamp(14px,1.6vw,16.5px); color:var(--ink-2); line-height:1.5; max-width:46ch; margin:16px 0 0}
+.hero figure{margin:0; border-radius:26px; overflow:hidden; box-shadow:var(--shadow-lg)}
+.hero img{display:block; width:100%; height:100%; aspect-ratio:3/4; object-fit:cover}
+
+/* ── principles ─────────────────────────────────────── */
+.tags{display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 0; padding:0; list-style:none}
+.tags li{font-size:12.5px; color:var(--deep); border:1px solid var(--line); border-radius:99px; padding:5px 13px; background:rgba(255,250,243,.65)}
+
+/* ── main cards ─────────────────────────────────────── */
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:clamp(14px,2.4vw,22px)}
+.card{
+  background:var(--card); border-radius:22px; padding:clamp(20px,2.8vw,28px);
+  box-shadow:var(--shadow); display:flex; flex-direction:column; gap:10px;
+  text-decoration:none; color:inherit; border:1.5px solid transparent;
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+a.card:hover{transform:translateY(-2px); box-shadow:var(--shadow-lg); border-color:var(--line)}
+a.card:active{transform:scale(.99)}
+.card .kicker{font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3)}
+.card h2{font-size:clamp(19px,2.4vw,23px)}
+.card p{margin:0; font-size:13.5px; line-height:1.5; color:var(--ink-2)}
+.card .go{margin-top:auto; padding-top:12px; font-size:13.5px; color:var(--accent); font-weight:500}
+
+/* ── sections ───────────────────────────────────────── */
+section{margin-top:clamp(38px,6vw,64px)}
+.sec-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:18px}
+.sec-head h2{font-size:clamp(21px,2.8vw,27px)}
+.sec-head span{font-size:12.5px; color:var(--ink-3)}
+
+.panel{background:var(--card); border-radius:22px; padding:clamp(20px,2.8vw,28px); box-shadow:var(--shadow)}
+.screens{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px 22px}
+.screens li{font-size:13.5px; line-height:1.45; padding-left:16px; position:relative; color:var(--ink)}
+.screens li::before{content:''; position:absolute; left:0; top:8px; width:6px; height:6px; border-radius:99px; background:var(--caramel)}
+.screens b{font-weight:500}
+.screens em{font-style:normal; color:var(--ink-2); font-size:12.5px}
+
+.rounds{display:flex; flex-wrap:wrap; gap:8px; margin:0; padding:0; list-style:none}
+.rounds a{font-size:12.5px; color:var(--deep); text-decoration:none; border:1px solid var(--line); border-radius:99px; padding:6px 14px; background:rgba(255,250,243,.65); display:inline-block; transition:all .15s}
+.rounds a:hover{border-color:var(--accent); background:#f6dfd2}
+
+/* ── tokens ─────────────────────────────────────────── */
+.swatches{display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:12px; margin:0; padding:0; list-style:none}
+.sw{border-radius:14px; overflow:hidden; box-shadow:0 4px 12px rgba(122,62,58,.1); background:var(--card)}
+.sw i{display:block; height:52px}
+.sw span{display:block; padding:8px 10px; font-size:11.5px; line-height:1.35; color:var(--ink-2)}
+.sw span b{display:block; color:var(--ink); font-weight:500; font-size:12px}
+.type-row{display:flex; flex-wrap:wrap; gap:26px; margin-top:20px; padding-top:20px; border-top:1px solid var(--track)}
+.type-row div{flex:1 1 200px}
+.type-row p{margin:6px 0 0; font-size:12.5px; color:var(--ink-2)}
+.type-prata{font-family:Prata,serif; font-size:26px; color:var(--deep)}
+.type-jost{font-size:20px; font-weight:500}
+
+/* ── note + footer ──────────────────────────────────── */
+.note{border:1.5px dashed var(--line); border-radius:20px; padding:clamp(18px,2.6vw,24px); background:rgba(251,244,236,.55)}
+.note h2{font-size:19px; margin-bottom:8px}
+.note p{margin:0 0 8px; font-size:13.5px; line-height:1.55; color:var(--ink-2)}
+.note p:last-child{margin-bottom:0}
+.note code{font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#f6dfd2; border-radius:5px; padding:1px 6px; color:var(--deep)}
+footer{margin-top:clamp(38px,6vw,60px); padding-top:22px; border-top:1px solid rgba(220,179,166,.6); font-size:12.5px; color:var(--ink-3); display:flex; flex-wrap:wrap; gap:6px 18px}
+footer a{color:var(--ink-3)}
+
+@media (max-width:720px){
+  .hero{grid-template-columns:1fr}
+  .hero figure{max-width:260px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Дизайн-пакет · хендофф</p>
+      <h1>Вся жизнь —<br>в одном месте</h1>
+      <p class="lede">Личная операционная система: цели года → квартала → месяца → недели → дня, мягкая RPG-геймификация, кривая энергии совы и ИИ-«Летописец». Без стриков и чувства вины.</p>
+      <ul class="tags">
+        <li>Без вины</li>
+        <li>Энергия-first</li>
+        <li>«Зачем» у каждой задачи</li>
+        <li>ИИ прозрачен</li>
+        <li>Недели отдыха</li>
+      </ul>
+    </div>
+    <figure><img src="../assets/illustration_01.png" alt="3D-иллюстрация в тёплой осенней палитре"></figure>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="../">
+      <span class="kicker">Рабочая версия</span>
+      <h2>Приложение</h2>
+      <p>То, что выросло из этого пакета: живое приложение с сохранением данных, офлайном и установкой на телефон.</p>
+      <span class="go">Открыть приложение →</span>
+    </a>
+    <a class="card" href="../Prototype.dc.html">
+      <span class="kicker">High-fidelity</span>
+      <h2>Интерактивный прототип</h2>
+      <p>Рабочий прототип со всей логикой состояний: онбординг, День, Планы, Сферы, Привычки, Тело, Внутри, Я и шторки. Финальные цвета, типографика и копирайтинг — воссоздавать близко к пикселю.</p>
+      <span class="go">Открыть прототип →</span>
+    </a>
+    <a class="card" href="../Wireframes.dc.html">
+      <span class="kicker">8 раундов</span>
+      <h2>Вайрфреймы</h2>
+      <p>История исследования: раунды 1–6 — лоу-фай структура и флоу, раунды 7–8 — хай-фай экраны в стилистике прототипа. Здесь живут экраны, не вошедшие в прототип.</p>
+      <span class="go">Открыть вайрфреймы →</span>
+    </a>
+    <a class="card" href="https://github.com/LiraV/Life-os/blob/main/README.md">
+      <span class="kicker">Для разработки</span>
+      <h2>Хендофф-документ</h2>
+      <p>Полное описание экранов, интеракций, состояния, дизайн-токенов, ассетов и рекомендаций по стеку — README пакета.</p>
+      <span class="go">Читать README →</span>
+    </a>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>Экраны прототипа</h2>
+      <span>телефон 400×830, скруглённая карточка 42px</span>
+    </div>
+    <div class="panel">
+      <ul class="screens">
+        <li><b>Онбординг</b> <em>— 3 шага: привет, тело и ритм, «знакомься: ты»</em></li>
+        <li><b>День</b> <em>— кривая энергии, квесты, совет Летописца</em></li>
+        <li><b>Планы</b> <em>— неделя / месяц / год, боссы и кварталы</em></li>
+        <li><b>Сферы</b> <em>— древо обучения, ферма идей блога и ещё 4 механики</em></li>
+        <li><b>Привычки «Ритм»</b> <em>— неделя и месяц, без стриков</em></li>
+        <li><b>Здоровье «Тело»</b> <em>— цикл и замеры раз в месяц</em></li>
+        <li><b>Внутри</b> <em>— чат с Летописцем, тесты, дневник</em></li>
+        <li><b>Я</b> <em>— потребности, глава, круг ролей, жемчужина дня</em></li>
+        <li><b>Шторки</b> <em>— редактор квеста и цели, рефлексия, тосты</em></li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Раунды вайрфреймов</h2>
+      <span>прямые ссылки внутрь файла</span>
+    </div>
+    <ul class="rounds">
+      <li><a href="../Wireframes.dc.html#t1">1 · 4 направления</a></li>
+      <li><a href="../Wireframes.dc.html#t2">2 · Риффы</a></li>
+      <li><a href="../Wireframes.dc.html#t3">3 · Синтез</a></li>
+      <li><a href="../Wireframes.dc.html#t4">4 · RPG-режим</a></li>
+      <li><a href="../Wireframes.dc.html#t5">5 · Время, цели, Летописец</a></li>
+      <li><a href="../Wireframes.dc.html#t6">6 · Воркфлоу и настройки</a></li>
+      <li><a href="../Wireframes.dc.html#t7">7 · Хай-фай: целостный дизайн</a></li>
+      <li><a href="../Wireframes.dc.html#t8">8 · Хай-фай: остальные экраны</a></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Палитра и типографика</h2>
+      <span>тёплая осень, «розовый час»</span>
+    </div>
+    <div class="panel">
+      <ul class="swatches">
+        <li class="sw"><i style="background:#a63a35"></i><span><b>#a63a35</b>Акцент, CTA</span></li>
+        <li class="sw"><i style="background:linear-gradient(135deg,#8e2b32,#b04a3c)"></i><span><b>#8e2b32 → #b04a3c</b>Заголовки, AI</span></li>
+        <li class="sw"><i style="background:#fbf4ec"></i><span><b>#fbf4ec</b>Карточка</span></li>
+        <li class="sw"><i style="background:linear-gradient(175deg,#f3dfdc,#e6c2bb)"></i><span><b>#f3dfdc → #e6c2bb</b>Фон экрана</span></li>
+        <li class="sw"><i style="background:#c98d6b"></i><span><b>#c98d6b</b>Карамель, полоски</span></li>
+        <li class="sw"><i style="background:#53403a"></i><span><b>#53403a</b>Текст, тост</span></li>
+        <li class="sw"><i style="background:#6e4a48"></i><span><b>#6e4a48</b>Нижний бар</span></li>
+        <li class="sw"><i style="background:#f7ecdf"></i><span><b>#f7ecdf</b>Drawer</span></li>
+      </ul>
+      <div class="type-row">
+        <div>
+          <div class="type-prata">Prata · заголовки</div>
+          <p>19–32px, цвет #8e2b32</p>
+        </div>
+        <div>
+          <div class="type-jost">Jost · текст и UI</div>
+          <p>400/500/600 · основной 13.5px, подписи 11–12.5px, CTA 14.5px</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="note">
+      <h2>Это дизайн-референс, не production-код</h2>
+      <p>Файлы <code>.dc.html</code> — интерактивные дизайн-референсы. Задача разработчика — воссоздать эти экраны в целевом стеке (для MVP разумны React Native или Flutter), используя HTML как источник точных цветов, отступов, копирайтинга и логики поведения.</p>
+      <p>Логика прототипа написана как React-класс <code>class Component</code> внутри <code>Prototype.dc.html</code>: state, обработчики и производные значения читаются прямо из кода. Файл <code>support.js</code> — рантайм прототипа, в реализацию не переносится.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>«Жизнь в одном месте» · дизайн-пакет</span>
+    <a href="https://github.com/LiraV/Life-os">Репозиторий на GitHub</a>
+    <span>Иллюстрации — <code style="font-family:ui-monospace,monospace">assets/</code></span>
+  </footer>
+
+</div>
+</body>
+</html>

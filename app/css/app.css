@@ -1,0 +1,199 @@
+/* «Жизнь в одном месте» — тёплая осенняя палитра из хендоффа.
+   На телефоне приложение занимает весь экран, на широком — карточка 400×830. */
+
+:root{
+  --bg1:#f3dfdc; --bg2:#eccfc9; --bg3:#e6c2bb; --around:#c99aa1;
+  --card:#fbf4ec; --card-mute:rgba(251,244,236,.55);
+  --accent:#a63a35; --deep:#8e2b32; --warm:#b04a3c; --on-accent:#fff6ee;
+  --ink:#53403a; --ink2:#8d6a60; --ink3:#7d635a; --ink4:#9c6b60;
+  --line:#dcb3a6; --track:#eeded2; --caramel:#c98d6b;
+  --tag-bg:#f6dfd2; --nav:#6e4a48; --nav-off:#d8b8ae; --drawer:#f7ecdf;
+  --shadow:0 8px 20px rgba(122,62,58,.12);
+  --r-card:20px; --r-phone:42px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:Jost,system-ui,-apple-system,sans-serif; color:var(--ink);
+  background:var(--around); overscroll-behavior:none; -webkit-font-smoothing:antialiased;
+  display:flex; justify-content:center; align-items:flex-start;
+}
+button{font:inherit; color:inherit; border:0; background:none; cursor:pointer}
+input,textarea,select{font:inherit; color:inherit}
+h1,h2,h3{margin:0; font-weight:400}
+
+/* ── каркас ─────────────────────────────────────────────────── */
+.app{
+  position:relative; width:100%; max-width:440px; height:100dvh;
+  display:flex; flex-direction:column; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom));
+  background:linear-gradient(175deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
+  overflow:hidden;
+}
+@media (min-width:560px) and (min-height:880px){
+  body{align-items:center; padding:24px 0}
+  .app{height:830px; max-width:400px; border-radius:var(--r-phone); padding:16px 14px 12px;
+       box-shadow:0 26px 60px rgba(122,62,58,.35), inset 0 1px 0 rgba(255,255,255,.6)}
+}
+
+.statusbar{display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--ink4); flex:none; min-height:16px}
+.statusbar b{font-weight:500; color:var(--deep)}
+
+.scr{flex:1; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:11px; padding:2px 2px 8px;
+     scrollbar-width:none; -webkit-overflow-scrolling:touch}
+.scr::-webkit-scrollbar{display:none}
+
+/* ── типографика ────────────────────────────────────────────── */
+.title{font-family:Prata,Georgia,serif; color:var(--deep); line-height:1.12; font-size:23px}
+.title.big{font-size:30px}
+.sub{font-size:12.5px; color:var(--ink2); line-height:1.4}
+.ink{font-size:13.5px; color:var(--ink); line-height:1.45}
+.lab{font-size:12px; color:var(--ink3)}
+.caps{font-size:10.5px; letter-spacing:.4px; text-transform:uppercase; color:var(--ink4)}
+
+/* ── карточки ───────────────────────────────────────────────── */
+.card{background:var(--card); border-radius:var(--r-card); padding:13px 15px; box-shadow:var(--shadow);
+      display:flex; flex-direction:column; gap:8px; flex:none}
+.card.mute{background:var(--card-mute); box-shadow:none}
+.card.dash{background:transparent; border:1.5px dashed var(--line); box-shadow:none}
+.row{display:flex; align-items:center; gap:8px}
+.row.tight{gap:6px}
+.row.between{justify-content:space-between}
+.grow{flex:1; min-width:0}
+.ellip{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+.tag{font-size:10.5px; color:var(--deep); background:var(--tag-bg); border-radius:99px; padding:2px 9px; white-space:nowrap; flex:none}
+.tag.boss{background:var(--accent); color:var(--on-accent)}
+
+.bar{flex:1; height:7px; border-radius:99px; background:var(--track); overflow:hidden}
+.bar i{display:block; height:100%; border-radius:99px; background:var(--caramel); transition:width .3s ease}
+.bar i.hot{background:var(--accent)}
+
+/* ── кнопки и пилюли ────────────────────────────────────────── */
+.btn{background:var(--accent); color:var(--on-accent); border-radius:99px; padding:12px 18px; font-size:14.5px;
+     text-align:center; box-shadow:0 8px 18px rgba(166,58,53,.35); transition:transform .15s; flex:none; width:100%}
+.btn:hover{transform:translateY(-1px)} .btn:active{transform:scale(.98)}
+.btn-ghost{font-size:13px; color:var(--ink2); padding:9px; text-align:center; width:100%}
+.btn-ghost.danger{color:var(--accent)}
+.pill{font-size:12.5px; color:var(--deep); border:1px solid var(--line); border-radius:99px; padding:5px 12px;
+      background:rgba(255,250,243,.65); transition:all .15s; flex:none}
+.pill:hover{border-color:var(--accent)}
+.pill.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
+.pills{display:flex; gap:7px; flex-wrap:wrap; flex:none}
+.add{border:1.5px dashed var(--line); border-radius:var(--r-card); padding:11px; font-size:13px; color:var(--ink2);
+     background:transparent; width:100%; text-align:center}
+.add:hover{border-color:var(--accent); color:var(--deep)}
+
+.stepper{display:flex; align-items:center; justify-content:space-between; gap:8px; flex:none}
+.arrow{width:30px; height:30px; border-radius:99px; font-size:16px; color:var(--deep); line-height:1;
+       display:flex; align-items:center; justify-content:center; flex:none}
+.arrow[disabled]{opacity:.28; pointer-events:none}
+.arrow:hover{background:rgba(255,250,243,.6)}
+
+/* ── квесты ─────────────────────────────────────────────────── */
+.quest{display:flex; align-items:flex-start; gap:10px; background:var(--card); border-radius:var(--r-card);
+       padding:11px 13px; box-shadow:var(--shadow); flex:none}
+.quest.done{opacity:.65}
+.quest.done .q-title{text-decoration:line-through}
+.check{width:22px; height:22px; border-radius:8px; border:1.5px solid var(--line); flex:none; margin-top:1px;
+       display:flex; align-items:center; justify-content:center; color:transparent; font-size:13px; transition:all .18s}
+.check.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
+.q-title{font-size:13.5px; color:var(--ink); line-height:1.35}
+.q-meta{display:flex; gap:6px; align-items:center; margin-top:3px; flex-wrap:wrap}
+.q-time{font-size:11.5px; color:var(--ink4)}
+.q-edit{font-size:11.5px; color:var(--ink2); flex:none; padding:4px}
+
+/* ── энергия ────────────────────────────────────────────────── */
+.curve{display:flex; align-items:flex-end; gap:5px; height:54px}
+.curve div{flex:1; border-radius:6px 6px 3px 3px; background:var(--track); position:relative}
+.curve div.hot{background:var(--accent)}
+.curve div.now{outline:2px solid var(--deep); outline-offset:1px}
+.curve-x{display:flex; gap:5px; font-size:9px; color:var(--ink4)}
+.curve-x span{flex:1; text-align:center}
+input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
+.range-ends{display:flex; justify-content:space-between; font-size:11px; color:var(--ink4)}
+
+/* ── AI-пузырь ──────────────────────────────────────────────── */
+.ai{background:linear-gradient(135deg,var(--deep),var(--warm)); border-radius:20px 20px 20px 6px; padding:12px 15px;
+    color:#ffeee2; font-size:13.5px; line-height:1.45; box-shadow:0 10px 22px rgba(142,43,50,.3); flex:none}
+.me{background:var(--card); border-radius:20px 20px 6px 20px; padding:11px 15px; color:var(--ink); font-size:13.5px;
+    align-self:flex-end; max-width:82%; box-shadow:var(--shadow); flex:none}
+
+/* ── сетки ──────────────────────────────────────────────────── */
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.tile{background:var(--card); border-radius:var(--r-card); padding:9px; box-shadow:var(--shadow); text-align:left;
+      display:flex; flex-direction:column; gap:5px}
+.tile img{width:100%; height:70px; object-fit:cover; border-radius:14px; display:block}
+.tile-badge{position:relative; margin-top:-24px; margin-left:6px; align-self:flex-start; font-size:9.5px; color:#fff6ee;
+            background:rgba(110,60,55,.62); border-radius:99px; padding:2px 8px}
+.tile b{font-size:13px; font-weight:500}
+.tile span{font-size:11.5px; color:var(--ink2); line-height:1.3}
+
+/* ── привычки ───────────────────────────────────────────────── */
+.role{display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:8px 10px;
+      background:rgba(255,250,243,.6); border-radius:14px}
+
+.hab-grid{display:flex; gap:5px; justify-content:space-between}
+.hab-cell{width:28px; height:28px; border-radius:10px; background:var(--track); font-size:10px; color:var(--ink4);
+          display:flex; align-items:center; justify-content:center; flex:1; transition:all .15s}
+.hab-cell.on{background:var(--accent); color:var(--on-accent)}
+.hab-cell.today{outline:1.5px solid var(--accent); outline-offset:1px; color:var(--deep)}
+.hab-cell.on.today{color:var(--on-accent)}
+
+/* ── нижний бар и drawer ────────────────────────────────────── */
+.nav{flex:none; background:var(--nav); border-radius:99px; padding:7px 8px; display:flex; justify-content:space-between;
+     box-shadow:0 10px 22px rgba(90,45,42,.3)}
+.nav button{font-size:12px; color:var(--nav-off); padding:6px 11px; border-radius:99px; transition:all .15s; white-space:nowrap}
+.nav button.on{background:var(--deep); color:var(--on-accent)}
+
+.drawer-wrap{position:absolute; inset:0; background:rgba(90,45,42,.35); z-index:6; display:flex}
+.drawer{width:236px; max-width:78%; background:var(--drawer); border-radius:var(--r-phone) 28px 28px var(--r-phone);
+        padding:calc(20px + env(safe-area-inset-top)) 14px 14px; display:flex; flex-direction:column; gap:8px;
+        box-shadow:12px 0 40px rgba(90,45,42,.3); animation:din .22s ease-out}
+@keyframes din{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+.drawer-head{display:flex; gap:10px; align-items:center; padding:0 6px 10px}
+.avatar{width:42px; height:42px; border-radius:99px; background:linear-gradient(160deg,var(--deep),var(--warm));
+        color:var(--on-accent); display:flex; align-items:center; justify-content:center; font-family:Prata,serif; font-size:18px; flex:none}
+.drawer button.item{text-align:left; font-size:13.5px; color:var(--ink); padding:10px 12px; border-radius:14px; border:1.5px solid transparent}
+.drawer button.item.on{border-color:var(--line); background:rgba(255,250,243,.6)}
+
+/* ── шторки, тосты ──────────────────────────────────────────── */
+.overlay{position:absolute; inset:0; background:rgba(90,45,42,.35); z-index:8; display:flex; flex-direction:column;
+         justify-content:flex-end; padding:12px}
+.sheet{background:var(--card); border-radius:26px; padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+       display:flex; flex-direction:column; gap:10px; max-height:88%; overflow-y:auto; box-shadow:0 -10px 40px rgba(90,45,42,.3);
+       animation:sin .22s ease-out}
+@keyframes sin{from{transform:translateY(14px); opacity:.4}to{transform:translateY(0); opacity:1}}
+.grab{width:38px; height:4px; border-radius:99px; background:var(--track); align-self:center; flex:none}
+.sheet-title{font-family:Prata,serif; font-size:18px; color:var(--deep)}
+.sheet-sub{font-size:12.5px; color:var(--ink2); margin-top:-4px}
+.sheet-body{display:flex; flex-direction:column; gap:11px}
+.sheet-actions{display:flex; flex-direction:column; gap:2px; padding-top:2px}
+
+.fld{display:flex; flex-direction:column; gap:6px}
+.fld>span{font-size:12px; color:var(--ink3); display:flex; justify-content:space-between; align-items:baseline}
+.fld>span b{color:var(--deep); font-weight:500}
+.fld>span i{font-style:normal; color:var(--ink4)}
+.fld input[type=text],.fld input[type=number],.fld input[type=date],.fld input[type=time],.fld textarea,.fld select{
+  background:rgba(255,250,243,.8); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:13.5px; width:100%}
+.fld textarea{resize:vertical; min-height:64px}
+.fld input:focus,.fld textarea:focus{outline:none; border-color:var(--accent)}
+.fld-note{margin:0; font-size:12px; color:var(--ink2); line-height:1.45}
+.opts{display:flex; gap:7px; flex-wrap:wrap}
+.opt{font-size:12.5px; color:var(--deep); border:1px solid var(--line); border-radius:99px; padding:6px 13px;
+     background:rgba(255,250,243,.65)}
+.opt.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
+
+.toast{position:absolute; left:50%; bottom:76px; transform:translateX(-50%); background:#53403a; color:#ffeee2;
+       font-size:13px; border-radius:99px; padding:9px 18px; box-shadow:0 10px 24px rgba(0,0,0,.3); z-index:9;
+       animation:tin .25s; max-width:88%; text-align:center}
+@keyframes tin{from{opacity:0; transform:translate(-50%,10px)}to{opacity:1; transform:translate(-50%,0)}}
+
+.empty{text-align:center; color:var(--ink2); font-size:13px; padding:18px 10px; line-height:1.5}
+.hero-img{width:100%; height:120px; object-fit:cover; border-radius:18px; display:block; flex:none}
+.list{display:flex; flex-direction:column; gap:8px}
+.chk-row{display:flex; align-items:flex-start; gap:9px; font-size:13.5px; line-height:1.35}
+.chk-row .check{width:20px; height:20px; border-radius:7px}
+.chk-row.done span{text-decoration:line-through; opacity:.6}
+
+@media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
