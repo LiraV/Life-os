@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Prata&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#c99aa1;font-family:Jost,sans-serif;display:flex;justify-content:center;align-items:flex-start;padding:30px 12px;min-height:100vh;box-sizing:border-box}
+a{color:#8e2b32}a:hover{color:#6e1f26}
+.app{position:relative;width:400px;height:830px;border-radius:42px;padding:18px 16px 14px;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;background:linear-gradient(175deg,#f3dfdc 0%,#eccfc9 55%,#e6c2bb 100%);box-shadow:0 26px 60px rgba(122,62,58,.35),inset 0 1px 0 rgba(255,255,255,.6);overflow:hidden}
+.scr{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:11px;padding:2px;scrollbar-width:none}
+.scr::-webkit-scrollbar{display:none}
+.hfstat{display:flex;justify-content:space-between;font-size:11px;color:#9c6b60;flex:none}
+.hft{font-family:Prata,serif;color:#8e2b32;line-height:1.12}
+.hfsub{font-size:12.5px;color:#8d6a60;line-height:1.4}
+.hfcard{background:#fbf4ec;border-radius:20px;padding:13px 15px;box-shadow:0 8px 20px rgba(122,62,58,.12);display:flex;flex-direction:column;gap:8px;flex:none}
+.hfink{font-size:13.5px;color:#53403a;line-height:1.4}
+.hfbar{flex:1;height:7px;border-radius:99px;background:#eeded2}
+.hffill{height:100%;border-radius:99px;background:#c98d6b}
+.hffill.hot{background:#a63a35}
+.hfrow{display:flex;align-items:center;gap:8px}
+.hflab{font-size:12px;color:#7d635a}
+.hfpill{font-size:12.5px;color:#8e2b32;border:1px solid #dcb3a6;border-radius:99px;padding:4px 12px;background:rgba(255,250,243,.65);cursor:pointer;transition:all .15s}
+.hfpill:hover{border-color:#a63a35}
+.hfbtn{background:#a63a35;color:#fff6ee;border-radius:99px;padding:12px 18px;font-size:14.5px;text-align:center;box-shadow:0 8px 18px rgba(166,58,53,.35);cursor:pointer;transition:transform .15s;flex:none}
+.hfbtn:hover{transform:translateY(-1px)}
+.hfbtn:active{transform:scale(.98)}
+.drawer{width:236px;height:100%;background:#f7ecdf;border-radius:42px 28px 28px 42px;padding:20px 14px 14px;display:flex;flex-direction:column;gap:9px;box-sizing:border-box;box-shadow:12px 0 40px rgba(90,45,42,.3);animation:din .22s ease-out}
+@keyframes din{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+.hfnav{flex:none;background:#6e4a48;border-radius:99px;padding:11px 16px;display:flex;justify-content:space-between;font-size:12px;color:#d8b8ae;box-shadow:0 10px 22px rgba(90,45,42,.3)}
+.hfnav span{cursor:pointer;transition:color .15s}
+.hfnav span:hover{color:#fff6ee}
+.hftag{font-size:10.5px;color:#8e2b32;background:#f6dfd2;border-radius:99px;padding:2px 9px;white-space:nowrap}
+.hfai{background:linear-gradient(135deg,#8e2b32,#b04a3c);border-radius:20px 20px 20px 6px;padding:12px 15px;color:#ffeee2;font-size:13.5px;line-height:1.45;box-shadow:0 10px 22px rgba(142,43,50,.3);flex:none}
+.hfme{background:#fbf4ec;border-radius:20px 20px 6px 20px;padding:11px 15px;color:#53403a;font-size:13.5px;align-self:flex-end;max-width:82%;box-shadow:0 6px 14px rgba(122,62,58,.12);flex:none}
+.hfimg{border-radius:22px;background:linear-gradient(160deg,#f0c9b6,#dd9d90 60%,#c97f7e);display:flex;align-items:flex-end;padding:10px;box-sizing:border-box;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+.hfimg span{font-size:10.5px;color:#fff6ee;background:rgba(110,60,55,.55);border-radius:99px;padding:2px 10px}
+input[type=range]{width:100%;accent-color:#a63a35;height:22px;margin:0}
+.overlay{position:absolute;inset:0;background:rgba(90,45,42,.35);border-radius:42px;display:flex;flex-direction:column;justify-content:flex-end;padding:14px;box-sizing:border-box;z-index:5}
+.sheet{background:#fbf4ec;border-radius:26px;padding:16px;display:flex;flex-direction:column;gap:11px;box-shadow:0 -10px 40px rgba(90,45,42,.3)}
+@keyframes tin{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+.toast{position:absolute;left:50%;bottom:86px;transform:translateX(-50%);background:#53403a;color:#ffeee2;font-size:13px;border-radius:99px;padding:9px 18px;box-shadow:0 10px 24px rgba(0,0,0,.3);animation:tin .25s;z-index:9;white-space:nowrap}
+</style>
+</helmet>
+<div class="app">
+
+<sc-if value="{{isOnb}}" hint-placeholder-val="{{ true }}">
+  <div class="hfstat"><span>{{onbStepLabel}}</span><span>⌁ ▦ ▮</span></div>
+  <sc-if value="{{onb0}}" hint-placeholder-val="{{ true }}">
+    <div class="scr">
+      <div class="hft" style="font-size:32px;margin-top:8px">Вся жизнь —<br>в одном месте</div>
+      <div class="hfsub" style="font-size:14px">Ты — персонаж. Сферы — твоя игра.<br>Без стриков и чувства вины.</div>
+      <div style="border-radius:22px;overflow:hidden;min-height:280px;box-shadow:0 10px 24px rgba(122,62,58,.2)"><img src="uploads/10_3D_illustrations/illustration_01.png" style="width:100%;height:280px;object-fit:cover;display:block" alt=""></div>
+      <div class="hfcard">
+        <div class="hfink"><b>Создаём персонажа</b></div>
+        <div class="hfrow"><div style="width:44px;height:44px;border-radius:15px;background:linear-gradient(145deg,#e8c9a8,#d9a08b);display:flex;align-items:center;justify-content:center;font-family:Prata,serif;font-size:18px;color:#7a3b24">{{initial}}</div><div class="hfink">{{userName}}<br><span class="hfsub">аватар: выбрать позже</span></div></div>
+      </div>
+    </div>
+    <div class="hfbtn" onClick="{{onbNext}}">Начать · 3 минуты</div>
+    <div class="hfsub" style="text-align:center" onClick="{{skipOnb}}">пропустить онбординг</div>
+  </sc-if>
+  <sc-if value="{{onb1}}" hint-placeholder-val="{{ false }}">
+    <div class="scr">
+      <div class="hft" style="font-size:26px">Тело и ритм</div>
+      <div class="hfsub">двигай слайдеры — всё можно менять потом</div>
+      <div class="hfcard"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Сон</b></span><span class="hftag">{{sleepLabel}}</span></div><input type="range" min="6" max="11" step="0.5" value="{{sleep}}" onChange="{{setSleep}}"><div class="hfrow" style="justify-content:space-between"><span class="hflab">6ч</span><span class="hflab">11ч</span></div></div>
+      <div class="hfcard"><span class="hfink"><b>Хронотип</b></span><div class="hfrow" style="gap:6px;flex-wrap:wrap">
+        <sc-for list="{{chronoOpts}}" as="c" hint-placeholder-count="3"><span class="hfpill" style="{{c.st}}" onClick="{{c.pick}}">{{c.t}}</span></sc-for>
+      </div></div>
+      <div class="hfcard"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Интроверсия</b></span><span class="hftag">{{introLabel}}</span></div><input type="range" min="0" max="100" value="{{intro}}" onChange="{{setIntro}}"><div class="hfrow" style="justify-content:space-between"><span class="hflab">люди</span><span class="hflab">тишина</span></div></div>
+      <div class="hfcard"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Активность</b></span><span class="hftag">{{actLabel}}</span></div><input type="range" min="0" max="100" value="{{act}}" onChange="{{setAct}}"><div class="hfrow" style="justify-content:space-between"><span class="hflab">покой</span><span class="hflab">движение</span></div></div>
+    </div>
+    <div class="hfbtn" onClick="{{onbNext}}">Дальше</div>
+  </sc-if>
+  <sc-if value="{{onb2}}" hint-placeholder-val="{{ false }}">
+    <div class="scr">
+      <div class="hft" style="font-size:26px">Знакомься: ты</div>
+      <div class="hfrow" style="gap:6px;flex-wrap:wrap"><span class="hfpill" style="{{pillOn}}">{{chrono}}</span><span class="hfpill" style="{{pillOn}}">Спринтер</span><span class="hfpill" style="{{pillOn}}">Перфекционистка</span><span class="hfpill">? ? ?</span></div>
+      <div class="hfcard"><span class="hfink"><b>Я уже подстроилось</b></span><span class="hfsub">· фокус-блоки — {{focusTime}}<br>· лимит 3 дела в день<br>· сон {{sleepLabel}} — неприкосновенен<br>· недели отдыха предлагаю сама</span></div>
+      <div class="hfai">Дальше меня учат твои чекины, рефлексии и дневник. Каждую правку покажу — и её можно отменить.</div>
+    </div>
+    <div class="hfbtn" onClick="{{enterApp}}">В первый день →</div>
+  </sc-if>
+</sc-if>
+
+<sc-if value="{{isApp}}" hint-placeholder-val="{{ false }}">
+  <div class="hfstat"><span>{{clock}}</span><span>⌁ ▦ ▮</span></div>
+
+  <sc-if value="{{tabDay}}" hint-placeholder-val="{{ false }}">
+    <div class="scr">
+      <div class="hfrow" style="justify-content:space-between">
+        <span class="hfpill" style="{{prevSt}}" onClick="{{prevDay}}">‹</span>
+        <div style="text-align:center"><div class="hft" style="font-size:23px">{{dayTitle}}</div><div class="hfsub">{{daySub}}</div></div>
+        <span class="hfpill" style="{{nextSt}}" onClick="{{nextDay}}">›</span>
+      </div>
+      <div class="hfcard">
+        <div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Энергия</b></span><span class="hftag">сова · пик вечером</span></div>
+        <div style="display:flex;align-items:flex-end;gap:4px;height:46px">
+          <sc-for list="{{ebars}}" as="b" hint-placeholder-count="6"><div style="flex:1;border-radius:4px 4px 0 0;height:{{b.h}};background:{{b.c}}"></div></sc-for>
+        </div>
+        <input type="range" min="0" max="100" value="{{energy}}" onChange="{{setEnergy}}">
+        <div class="hfrow" style="justify-content:space-between"><span class="hflab">сейчас: {{energyLabel}}</span><span class="hflab">потяни слайдер</span></div>
+      </div>
+      <sc-for list="{{dayQuests}}" as="q" hint-placeholder-count="3">
+        <div class="hfcard" style="gap:6px;{{q.extra}}">
+          <div class="hfrow" style="justify-content:space-between">
+            <div class="hfrow" style="cursor:pointer" onClick="{{q.toggle}}"><div style="width:18px;height:18px;border:1.5px solid #c98d6b;border-radius:6px;flex:none;background:{{q.bg}}"></div><span class="hfink" style="text-decoration:{{q.deco}}"><b>{{q.time}} · {{q.title}}</b></span></div>
+            <span class="hftag">{{q.tag}}</span>
+          </div>
+          <span class="hfsub" style="cursor:pointer" onClick="{{q.edit}}">настроить ›</span>
+        </div>
+      </sc-for>
+      <div class="hfai">{{aiDay}}</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{tabPlans}}" hint-placeholder-val="{{ false }}">
+    <div class="scr">
+      <div class="hfrow" style="gap:6px">
+        <sc-for list="{{horizons}}" as="h" hint-placeholder-count="4"><span class="hfpill" style="{{h.st}}" onClick="{{h.pick}}">{{h.t}}</span></sc-for>
+      </div>
+      <sc-if value="{{hWeek}}" hint-placeholder-val="{{ false }}">
+        <div class="hfrow" style="justify-content:space-between"><span class="hfpill" style="{{wPrevSt}}" onClick="{{wPrev}}">‹</span><div style="text-align:center"><div class="hft" style="font-size:22px">{{weekTitle}}</div><div class="hfsub">{{weekSub}}</div></div><span class="hfpill" style="{{wNextSt}}" onClick="{{wNext}}">›</span></div>
+        <sc-if value="{{wCur}}" hint-placeholder-val="{{ true }}">
+        <div class="hfcard" style="border:1.5px solid #dcb3a6"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Босс: черновик главы 2</b></span><span class="hftag">Диплом</span></div><div class="hfrow"><div class="hfbar"><div class="hffill hot" style="width:60%"></div></div><span class="hflab">2/3 блока</span></div><span class="hfsub" style="cursor:pointer" onClick="{{editBoss}}">изменить ›</span></div>
+        <div class="hfcard"><div class="hfrow" style="justify-content:space-between"><span class="hfink">Съёмка + пост</span><span class="hftag">Блог</span></div></div>
+        <div class="hfcard"><div class="hfrow" style="justify-content:space-between"><span class="hfink">Зал ×2 · пластика · конюшня</span><span class="hftag">Спорт</span></div></div>
+        <div class="hfai">Вс — планёрка со мной: 30 минут, с чаем.</div>
+        </sc-if>
+        <sc-if value="{{wOther}}" hint-placeholder-val="{{ false }}">
+        <div class="hfcard"><span class="hfink">{{wOtherText}}</span></div>
+        <div class="hfcard" style="border:1.5px dashed #dcb3a6;background:rgba(251,244,236,.6)"><span class="hfsub">Редактируется только текущая неделя — прошлое отпускаем, будущее собираем на планёрке.</span></div>
+        </sc-if>
+      </sc-if>
+      <sc-if value="{{hMonth}}" hint-placeholder-val="{{ true }}">
+        <div class="hfrow" style="justify-content:space-between"><span class="hfpill" style="{{mPrevSt}}" onClick="{{mPrev}}">‹</span><div style="text-align:center"><div class="hft" style="font-size:22px">{{monthTitle}}</div><div class="hfsub">{{monthSub}}</div></div><span class="hfpill" style="{{mNextSt}}" onClick="{{mNext}}">›</span></div>
+        <sc-if value="{{mOther}}" hint-placeholder-val="{{ false }}"><div class="hfcard"><span class="hfink">{{mOtherText}}</span></div></sc-if>
+        <sc-if value="{{mCur}}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{monthGoals}}" as="g" hint-placeholder-count="3">
+          <div class="hfcard"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>{{g.title}}</b></span><span class="hftag">{{g.tag}}</span></div><div class="hfrow"><div class="hfbar"><div class="hffill" style="width:{{g.w}};background:{{g.col}}"></div></div><span class="hflab">{{g.lab}}</span></div><div class="hfrow" style="justify-content:space-between"><span class="hfsub">{{g.sub}}</span><span class="hfsub" style="cursor:pointer" onClick="{{g.edit}}">изменить ›</span></div></div>
+        </sc-for>
+        <div class="hfcard" style="border:1.5px dashed #dcb3a6;background:rgba(251,244,236,.6)"><span class="hfsub">После победы над главой — неделя отдыха: предложу сама, сроки Q3 сдвинутся.</span></div>
+        </sc-if>
+      </sc-if>
+      <sc-if value="{{hYear}}" hint-placeholder-val="{{ false }}">
+        <div class="hfrow" style="justify-content:space-between"><span class="hfpill" style="{{yPrevSt}}" onClick="{{yPrev}}">‹</span><div style="text-align:center"><div class="hft" style="font-size:22px">{{yearTitle}}</div><div class="hfsub">{{yearSub}}</div></div><span class="hfpill" style="{{yNextSt}}" onClick="{{yNext}}">›</span></div>
+        <sc-if value="{{yOther}}" hint-placeholder-val="{{ false }}"><div class="hfcard"><span class="hfink">{{yOtherText}}</span></div></sc-if>
+        <sc-if value="{{yCur}}" hint-placeholder-val="{{ true }}">
+        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="uploads/10_3D_illustrations/illustration_10.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
+        <div class="hfcard" style="border:1.5px solid #dcb3a6"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Q3 · сейчас</b></span><span class="hflab">55%</span></div><div class="hfbar"><div class="hffill hot" style="width:55%"></div></div><span class="hfsub">диплом: 2 главы · блог: рубрика живёт</span></div>
+        <div class="hfcard" style="background:rgba(251,244,236,.55)"><span class="hfink"><b>Q4</b></span><span class="hfsub">главы 3-4 · Милан (сундук) · первый кавер</span></div>
+        <div class="hfcard" style="background:rgba(251,244,236,.55)"><span class="hfink"><b>Q1'27</b></span><span class="hfsub">предзащита · блог 10к</span></div>
+        <div class="hfcard" style="background:rgba(251,244,236,.55)"><span class="hfink"><b>Q2'27</b></span><span class="hfsub">защита · финальный босс года</span></div>
+        </sc-if>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{tabSpheres}}" hint-placeholder-val="{{ false }}">
+    <sc-if value="{{noSphere}}" hint-placeholder-val="{{ true }}">
+      <div class="scr">
+        <div class="hft" style="font-size:26px">Сферы</div>
+        <div class="hfsub">у каждой — своя механика · тапни</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <sc-for list="{{spheres}}" as="sp" hint-placeholder-count="0">
+            <div class="hfcard" style="gap:5px;cursor:pointer;padding:10px" onClick="{{sp.open}}">
+              <div style="border-radius:14px;overflow:hidden;height:70px;position:relative;background:#eeded2 center/cover url({{sp.img}})"><span style="position:absolute;left:6px;bottom:6px;font-size:10px;color:#fff6ee;background:rgba(110,60,55,.6);border-radius:99px;padding:2px 8px">{{sp.m}}</span></div>
+              <span class="hfink"><b>{{sp.n}}</b></span><span class="hfsub">{{sp.s}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div class="hfcard" style="flex-direction:row;justify-content:space-between;align-items:center"><span class="hfink"><b>Хобби</b> · конный, вокал, пластика</span><span class="hftag">коллекция</span></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{sphereEdu}}" hint-placeholder-val="{{ false }}">
+      <div class="scr">
+        <div class="hfrow"><span class="hfpill" onClick="{{closeSphere}}">← Сферы</span></div>
+        <div class="hft" style="font-size:26px">Диплом · древо</div>
+        <div class="hfcard" style="opacity:.75"><div class="hfrow" style="justify-content:space-between"><span class="hfink">✦ Глава 1</span><span class="hftag">пройдена</span></div></div>
+        <div class="hfcard" style="border:1.5px solid #dcb3a6">
+          <div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>✦ Глава 2</b></span><span class="hftag" style="background:#a63a35;color:#fff6ee">босс недели</span></div>
+          <div class="hfrow"><div class="hfbar"><div class="hffill hot" style="width:{{eduProgress}}"></div></div><span class="hflab">{{eduProgress}}</span></div>
+          <div class="hfrow" style="cursor:pointer;opacity:.6"><span style="color:#a63a35">✓</span><span class="hfink">План главы</span></div>
+          <div class="hfrow" style="cursor:pointer" onClick="{{toggleDraft}}"><div style="width:16px;height:16px;border:1.5px solid #c98d6b;border-radius:5px;flex:none;background:{{draftBg}}"></div><span class="hfink">Черновик · 2 вечерних блока</span></div>
+          <div class="hfrow" style="cursor:pointer" onClick="{{toggleSend}}"><div style="width:16px;height:16px;border:1.5px solid #c98d6b;border-radius:5px;flex:none;background:{{sendBg}}"></div><span class="hfink">Отправить научнику</span></div>
+        </div>
+        <div class="hfcard" style="background:rgba(251,244,236,.55)"><span class="hfsub">Глава 3 · откроется после 2</span></div>
+        <sc-if value="{{bossDown}}" hint-placeholder-val="{{ false }}">
+          <div class="hfai">Босс повержен! Большой этап позади. Предлагаю неделю отдыха — треки роста на паузу, остаются конюшня, вокал и сон.</div>
+          <div class="hfrow" style="gap:8px"><span class="hfpill" style="{{pillOn}}" onClick="{{takeRest}}">Да, беру неделю</span><span class="hfpill" onClick="{{skipRest}}">Продолжаю</span></div>
+        </sc-if>
+      </div>
+    </sc-if>
+    <sc-if value="{{sphereBlog}}" hint-placeholder-val="{{ false }}">
+      <div class="scr">
+        <div class="hfrow"><span class="hfpill" onClick="{{closeSphere}}">← Сферы</span></div>
+        <div class="hft" style="font-size:26px">Блог · ферма</div>
+        <div class="hfsub">идеи зреют, посты — урожай</div>
+        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="uploads/10_3D_illustrations/illustration_06.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
+        <div style="display:flex;gap:10px">
+          <div class="hfcard" style="flex:1;align-items:center;gap:4px"><div class="hfimg" style="min-height:52px;width:100%;border-radius:14px"><span>росток</span></div><span class="hfink">капсула</span><span class="hfsub">идея</span></div>
+          <div class="hfcard" style="flex:1;align-items:center;gap:4px"><div class="hfimg" style="min-height:52px;width:100%;border-radius:14px;background:linear-gradient(160deg,#e8c9a8,#cf9a72)"><span>бутон</span></div><span class="hfink">осень-лук</span><span class="hfsub">черновик</span></div>
+          <div class="hfcard" style="flex:1;align-items:center;gap:4px;border:1.5px solid #dcb3a6"><div class="hfimg" style="min-height:52px;width:100%;border-radius:14px;background:linear-gradient(160deg,#c98d6b,#a63a35)"><span>цветок</span></div><span class="hfink"><b>про Милан</b></span><span class="hflab" style="color:#a63a35">{{milanState}}</span></div>
+        </div>
+        <div class="hfcard"><span class="hfink"><b>Грядка недели</b> · 1 съёмка + 1 текст</span><span class="hfsub">из цели «4 поста + рубрика»</span></div>
+        <sc-if value="{{notPublished}}" hint-placeholder-val="{{ true }}"><div class="hfbtn" onClick="{{publish}}">Опубликовать «про Милан» · Письмо +20</div></sc-if>
+        <sc-if value="{{published}}" hint-placeholder-val="{{ false }}"><div class="hfai">Урожай собран! 2 из 4 постов августа. Красиво вышло — в духе «Эстета достижений».</div></sc-if>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{tabInner}}" hint-placeholder-val="{{ false }}">
+    <div class="scr">
+      <div class="hfrow" style="gap:6px">
+        <sc-for list="{{innerTabs}}" as="it" hint-placeholder-count="3"><span class="hfpill" style="{{it.st}}" onClick="{{it.pick}}">{{it.t}}</span></sc-for>
+      </div>
+      <sc-if value="{{innerChat}}" hint-placeholder-val="{{ true }}">
+        <div class="hfrow" style="justify-content:space-between"><div class="hft" style="font-size:24px">Летописец</div><span class="hftag">пишет твою игру</span></div>
+        <sc-for list="{{chat}}" as="m" hint-placeholder-count="2">
+          <sc-if value="{{m.isAi}}" hint-placeholder-val="{{ true }}"><div class="hfai">{{m.text}}</div></sc-if>
+          <sc-if value="{{m.isMe}}" hint-placeholder-val="{{ false }}"><div class="hfme">{{m.text}}</div></sc-if>
+        </sc-for>
+        <div class="hfrow" style="flex-wrap:wrap;gap:6px">
+          <sc-for list="{{replies}}" as="r" hint-placeholder-count="2"><span class="hfpill" onClick="{{r.pick}}">{{r.t}}</span></sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{innerTests}}" hint-placeholder-val="{{ false }}">
+        <sc-if value="{{noTest}}" hint-placeholder-val="{{ true }}">
+          <div class="hft" style="font-size:24px">Тесты</div>
+          <div class="hfsub">находки, не домашка — каждый меняет игру</div>
+          <sc-if value="{{noTrait}}" hint-placeholder-val="{{ true }}"><div class="hfcard" style="border:1.5px solid #dcb3a6;cursor:pointer" onClick="{{startTest}}"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Мотивация</b></span><span class="hftag">3 вопроса</span></div><span class="hfsub">откроет скрытую черту · перенастроит награды</span></div></sc-if>
+          <sc-if value="{{hasTrait}}" hint-placeholder-val="{{ false }}"><div class="hfcard" style="opacity:.75"><div class="hfrow" style="justify-content:space-between"><span class="hfink">Мотивация</span><span class="hftag">пройден ✓</span></div><span class="hfsub">черта: Эстет достижений</span></div></sc-if>
+          <div class="hfcard"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Хронотип точнее</b></span><span class="hftag">3 мин</span></div><span class="hfsub">уточнит кривую энергии</span></div>
+          <div class="hfcard" style="opacity:.75"><div class="hfrow" style="justify-content:space-between"><span class="hfink">Ценности</span><span class="hftag">пройден ✓</span></div><span class="hfsub">«глубина > охват»</span></div>
+          <div class="hfcard" style="background:rgba(251,244,236,.55)"><div class="hfrow" style="justify-content:space-between"><span class="hfink">Стресс-реакция</span><span class="hftag">🔒</span></div><span class="hfsub">откроется после 2 недель дневника</span></div>
+        </sc-if>
+        <sc-if value="{{testAsking}}" hint-placeholder-val="{{ false }}">
+          <div class="hfsub" style="letter-spacing:.4px">МОТИВАЦИЯ · {{testNum}} / 3</div>
+          <div class="hft" style="font-size:22px">{{testQ}}</div>
+          <sc-for list="{{testOpts}}" as="o" hint-placeholder-count="4"><div class="hfcard" style="cursor:pointer" onClick="{{o.pick}}"><span class="hfink">{{o.t}}</span></div></sc-for>
+          <div class="hfrow"><div class="hfbar"><div class="hffill hot" style="width:{{testProgress}}"></div></div></div>
+          <div class="hfsub" style="text-align:center">без правильных ответов — собираю твой профиль наград</div>
+        </sc-if>
+        <sc-if value="{{testResult}}" hint-placeholder-val="{{ false }}">
+          <div class="hft" style="font-size:24px">Новая черта</div>
+          <div class="hfrow"><span class="hfpill" style="{{pillOn}};font-size:14px;padding:6px 16px">Эстет достижений ✦</span></div>
+          <div class="hfcard"><span class="hfsub">Тебя мотивирует не количество, а «сделано красиво». Галочки — слабая награда.</span></div>
+          <div class="hfcard"><span class="hfink"><b>Что перестроится</b></span><span class="hfsub">· вместо счётчика — «жемчужина дня»<br>· награды визуальные: страница «печатается» в журнал<br>· уведомления: «покажи класс» вместо «не забудь»</span></div>
+          <div class="hfbtn" onClick="{{acceptTrait}}">Принять</div>
+          <div class="hfsub" style="text-align:center;cursor:pointer" onClick="{{declineTrait}}">оставить как было</div>
+        </sc-if>
+      </sc-if>
+      <sc-if value="{{innerDiary}}" hint-placeholder-val="{{ false }}">
+        <div class="hft" style="font-size:24px">Дневник</div>
+        <div class="hfsub">собирается сам из рефлексий и чата</div>
+        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="uploads/10_3D_illustrations/illustration_03.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
+        <sc-for list="{{diary}}" as="d" hint-placeholder-count="3">
+          <div class="hfcard" style="{{d.extra}}"><span class="hflab">{{d.when}}</span><span class="hfink">{{d.text}}</span></div>
+        </sc-for>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{tabMe}}" hint-placeholder-val="{{ false }}">
+    <div class="scr">
+      <div class="hfrow" style="gap:12px"><div style="width:60px;height:60px;border-radius:20px;background:linear-gradient(145deg,#e8c9a8,#c97f7e);display:flex;align-items:center;justify-content:center;font-family:Prata,serif;font-size:24px;color:#7a3b24">{{initial}}</div><div><div class="hft" style="font-size:22px">{{userName}}</div><div class="hfsub" style="letter-spacing:.4px">СОВА-ВИЗИОНЕР · УР. 12</div></div></div>
+      <div class="hfrow" style="gap:5px;flex-wrap:wrap"><span class="hftag">перфекционистка</span><span class="hftag">спринтер</span><sc-if value="{{hasTrait}}" hint-placeholder-val="{{ false }}"><span class="hftag" style="background:#a63a35;color:#fff6ee">эстет достижений ✦</span></sc-if><sc-if value="{{noTrait}}" hint-placeholder-val="{{ true }}"><span class="hftag">? ? ?</span></sc-if></div>
+      <div class="hfcard">
+        <div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Потребности</b></span><span class="hflab" style="color:#a63a35">{{needsNote}}</span></div>
+        <div class="hfrow"><span class="hflab" style="width:82px">Сон</span><div class="hfbar"><div class="hffill" style="width:88%"></div></div><span class="hflab">{{sleepLabel}}</span></div>
+        <div class="hfrow"><span class="hflab" style="width:82px">Движение</span><div class="hfbar"><div class="hffill" style="width:{{moveW}}"></div></div><span class="hflab">{{moveNote}}</span></div>
+        <div class="hfrow"><span class="hflab" style="width:82px">Еда</span><div class="hfbar"><div class="hffill" style="width:62%"></div></div><span class="hflab">белок ↓</span></div>
+        <div class="hfrow"><span class="hflab" style="width:82px;color:{{creCol}}">Творчество</span><div class="hfbar"><div class="hffill" style="width:{{creW}};background:{{creCol}}"></div></div><span class="hflab" style="color:{{creCol}}">{{creNote}}</span></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div class="hfcard" style="flex:1;gap:5px"><span class="hflab" style="letter-spacing:.4px">ГЛАВА СЕЙЧАС</span><span class="hft" style="font-size:14px">«Август. Черновик»</span><div class="hfbar"><div class="hffill hot" style="width:60%"></div></div><span class="hfsub">неделя 3 из 5</span></div>
+        <div class="hfcard" style="flex:1;gap:5px"><span class="hflab" style="letter-spacing:.4px">ЖЕМЧУЖИНА ДНЯ</span><span class="hfink">{{pearl}}</span><span class="hflab" style="color:#a63a35">✦</span></div>
+      </div>
+      <div class="hfcard">
+        <div class="hfink"><b>Круг ролей</b></div>
+        <div class="hfrow"><span class="hflab" style="width:96px">Учёная</span><div class="hfbar"><div class="hffill" style="width:85%"></div></div><span class="hflab">сытая</span></div>
+        <div class="hfrow"><span class="hflab" style="width:96px">Атлет</span><div class="hfbar"><div class="hffill" style="width:{{moveW}}"></div></div><span class="hflab">в форме</span></div>
+        <div class="hfrow"><span class="hflab" style="width:96px;color:{{creCol}}">Артистка</span><div class="hfbar"><div class="hffill" style="width:{{artW}};background:{{creCol}}"></div></div><span class="hflab" style="color:{{creCol}}">{{artNote}}</span></div>
+        <div class="hfrow"><span class="hflab" style="width:96px">Хранительница</span><div class="hfbar"><div class="hffill" style="width:70%"></div></div><span class="hflab">довольна</span></div>
+      </div>
+      <sc-if value="{{noVocal}}" hint-placeholder-val="{{ true }}">
+        <div class="hfai">Артистка две недели без вокала. Обсудим в чате?</div>
+        <div class="hfrow"><span class="hfpill" onClick="{{goChat}}">Открыть чат</span></div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{tabHabits}}" hint-placeholder-val="{{ false }}">
+    <div class="scr">
+      <div class="hft" style="font-size:26px">Привычки</div>
+      <div class="hfrow" style="gap:6px"><sc-for list="{{habModeOpts}}" as="hm" hint-placeholder-count="2"><span class="hfpill" style="{{hm.st}}" onClick="{{hm.pick}}">{{hm.t}}</span></sc-for></div>
+      <sc-if value="{{habWeek}}" hint-placeholder-val="{{ true }}">
+      <div class="hfsub">мягкий трекер: без стриков, ничего не сгорает</div>
+      <sc-for list="{{habitRows}}" as="h" hint-placeholder-count="5">
+        <div class="hfcard" style="gap:9px">
+          <div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>{{h.name}}</b></span><span class="hftag">{{h.count}}</span></div>
+          <div class="hfrow" style="justify-content:space-between">
+            <sc-for list="{{h.week}}" as="d" hint-placeholder-count="7">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer" onClick="{{d.pick}}"><div style="width:28px;height:28px;border-radius:10px;border:1.5px solid {{d.bd}};background:{{d.bg}}"></div><span style="font-size:10px;color:{{d.lc}}">{{d.l}}</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+      <div class="hfcard" style="border:1.5px dashed #dcb3a6;background:rgba(251,244,236,.6);cursor:pointer" onClick="{{addHabit}}"><span class="hfink">+ Новая привычка</span></div>
+      <div class="hfai">{{habitAi}}</div>
+      </sc-if>
+      <sc-if value="{{habMon}}" hint-placeholder-val="{{ false }}">
+      <div class="hfrow" style="justify-content:space-between"><span class="hfpill" style="{{hmPrevSt}}" onClick="{{hmPrev}}">‹</span><div class="hft" style="font-size:20px">{{habMonthTitle}}</div><span class="hfpill" style="{{hmNextSt}}" onClick="{{hmNext}}">›</span></div>
+      <div style="border-radius:18px;overflow:hidden;height:100px;flex:none"><img src="uploads/10_3D_illustrations/illustration_02.png" style="width:100%;height:100px;object-fit:cover;display:block" alt=""></div>
+      <sc-for list="{{habMonthRows}}" as="mr" hint-placeholder-count="5">
+        <div class="hfcard" style="gap:6px"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>{{mr.name}}</b></span><span class="hftag">{{mr.count}}</span></div><div class="hfrow"><div class="hfbar"><div class="hffill" style="width:{{mr.w}};background:{{mr.col}}"></div></div></div></div>
+      </sc-for>
+      <div class="hfai">{{habMonthAi}}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{tabHealth}}" hint-placeholder-val="{{ false }}">
+    <div class="scr">
+      <div class="hft" style="font-size:26px">Здоровье</div>
+      <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="uploads/10_3D_illustrations/illustration_09.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
+      <div class="hfcard">
+        <div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Цикл</b></span><span class="hftag">день 14 · овуляция</span></div>
+        <div class="hfrow"><div class="hfbar"><div class="hffill hot" style="width:50%"></div></div><span class="hflab">след. через 14 дн</span></div>
+        <span class="hfsub">кривая энергии учитывает фазу: эта неделя — пик, планируй смело; перед циклом — сама предложу мягкие дни</span>
+        <div class="hfrow" style="gap:6px;flex-wrap:wrap"><span class="hfpill" onClick="{{logPeriod}}">Отметить месячные</span><span class="hfpill" onClick="{{logSymptom}}">Симптом</span></div>
+      </div>
+      <div class="hfcard">
+        <div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Замеры тела</b></span><span class="hfsub">август</span></div>
+        <div class="hfrow"><span class="hflab" style="width:70px">Вес</span><span class="hfink"><b>57.2</b> кг</span><span class="hftag">−0.4 за месяц</span></div>
+        <div class="hfrow"><span class="hflab" style="width:70px">Талия</span><span class="hfink"><b>66</b> см</span><span class="hftag">−1 см</span></div>
+        <div class="hfrow"><span class="hflab" style="width:70px">Бёдра</span><span class="hfink"><b>94</b> см</span><span class="hftag">ровно</span></div>
+        <div class="hfrow"><span class="hflab" style="width:70px">Сон, ср.</span><span class="hfink"><b>9ч 20м</b></span><span class="hftag">цель 10ч</span></div>
+        <div class="hfbtn" onClick="{{addMeasure}}">+ Новый замер</div>
+      </div>
+      <div class="hfcard" style="border:1.5px dashed #dcb3a6;background:rgba(251,244,236,.6)"><span class="hfsub">Замеры — раз в месяц, без ежедневных весов. Тело — дом, не проект.</span></div>
+    </div>
+  </sc-if>
+
+  <div class="hfnav">
+    <span style="{{navMenu}}" onClick="{{openDrawer}}">☰ Ещё</span>
+    <span style="{{navDay}}" onClick="{{goDay}}">День</span>
+    <span style="{{navPlans}}" onClick="{{goPlans}}">Планы</span>
+    <span style="{{navInner}}" onClick="{{goInner}}">Внутри</span>
+    <span style="{{navMe}}" onClick="{{goMe}}">Я</span>
+  </div>
+
+  <sc-if value="{{drawerOn}}" hint-placeholder-val="{{ false }}">
+    <div class="overlay" style="flex-direction:row;justify-content:flex-start;padding:0" onClick="{{closeDrawer}}">
+      <div class="drawer" onClick="{{stop}}">
+        <div class="hfrow" style="gap:10px;padding:4px 4px 8px"><div style="width:44px;height:44px;border-radius:15px;background:linear-gradient(145deg,#e8c9a8,#c97f7e);display:flex;align-items:center;justify-content:center;font-family:Prata,serif;font-size:18px;color:#7a3b24">{{initial}}</div><div><div class="hft" style="font-size:18px">{{userName}}</div><div class="hfsub">сова-визионер · ур. 12</div></div></div>
+        <sc-for list="{{drawerItems}}" as="di" hint-placeholder-count="6">
+          <div class="hfcard" style="flex-direction:row;justify-content:space-between;align-items:center;cursor:pointer;padding:12px 14px;{{di.st}}" onClick="{{di.pick}}"><span class="hfink"><b>{{di.t}}</b></span><span class="hfsub">{{di.s}}</span></div>
+        </sc-for>
+        <div class="hfsub" style="margin-top:auto;text-align:center;padding-bottom:6px">свайп влево — закрыть</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{ false }}">
+    <div class="overlay" onClick="{{closeSheet}}">
+      <div class="sheet" onClick="{{stop}}">
+        <div style="width:36px;height:4px;border-radius:99px;background:#dcb3a6;align-self:center"></div>
+        <span class="hft" style="font-size:19px">{{sheetTitle}}</span>
+        <div class="hfrow"><span class="hflab" style="width:52px">Когда</span><sc-for list="{{whenOpts}}" as="w" hint-placeholder-count="3"><span class="hfpill" style="{{w.st}}" onClick="{{w.pick}}">{{w.t}}</span></sc-for></div>
+        <div class="hfrow"><span class="hflab" style="width:52px">Длина</span><sc-for list="{{lenOpts}}" as="l" hint-placeholder-count="3"><span class="hfpill" style="{{l.st}}" onClick="{{l.pick}}">{{l.t}} мин</span></sc-for></div>
+        <div class="hfrow"><span class="hflab" style="width:52px">Зачем</span><span class="hftag">→ Глава 2 → Q3 → «Свой голос»</span></div>
+        <div class="hfbtn" onClick="{{saveSheet}}">Сохранить</div>
+        <span class="hfsub" style="text-align:center;cursor:pointer" onClick="{{closeSheet}}">Закрыть — без вопросов и вины</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{goalOpen}}" hint-placeholder-val="{{ false }}">
+    <div class="overlay" onClick="{{closeGoal}}">
+      <div class="sheet" onClick="{{stop}}">
+        <div style="width:36px;height:4px;border-radius:99px;background:#dcb3a6;align-self:center"></div>
+        <span class="hft" style="font-size:19px">{{goalTitle}}</span>
+        <div class="hfrow"><span class="hflab" style="width:56px">Срок</span><sc-for list="{{dueOpts}}" as="d" hint-placeholder-count="3"><span class="hfpill" style="{{d.st}}" onClick="{{d.pick}}">{{d.t}}</span></sc-for></div>
+        <div class="hfrow"><span class="hflab" style="width:56px">Ведёт к</span><span class="hftag">Q3 → «Свой голос»</span></div>
+        <div class="hfrow" style="gap:8px"><span class="hfpill" style="flex:1;text-align:center" onClick="{{splitGoal}}">Разбить на этапы</span><span class="hfpill" style="flex:1;text-align:center" onClick="{{archiveGoal}}">В архив</span></div>
+        <div class="hfbtn" onClick="{{saveGoal}}">Сохранить</div>
+        <span class="hfsub" style="text-align:center;cursor:pointer" onClick="{{closeGoal}}">закрыть — без чувства вины</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{refOpen}}" hint-placeholder-val="{{ false }}">
+    <div class="overlay">
+      <div class="sheet">
+        <span class="hfsub" style="letter-spacing:.4px">ПОСЛЕ: ЗАЛ · 20:15</span>
+        <span class="hft" style="font-size:21px">Как прошло?</span>
+        <span class="hfink"><b>Тело</b></span>
+        <div class="hfrow" style="gap:6px;flex-wrap:wrap"><sc-for list="{{refBodyOpts}}" as="rb" hint-placeholder-count="3"><span class="hfpill" style="{{rb.st}}" onClick="{{rb.pick}}">{{rb.t}}</span></sc-for></div>
+        <span class="hfink"><b>Настроение</b></span>
+        <div class="hfrow" style="gap:6px;flex-wrap:wrap"><sc-for list="{{refMoodOpts}}" as="rm" hint-placeholder-count="3"><span class="hfpill" style="{{rm.st}}" onClick="{{rm.pick}}">{{rm.t}}</span></sc-for></div>
+        <div class="hfbtn" onClick="{{saveRef}}">Сохранить · Сила +15</div>
+        <span class="hfsub" style="text-align:center;cursor:pointer" onClick="{{skipRef}}">пропустить — ничего не случится</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{toastOn}}" hint-placeholder-val="{{ false }}">
+    <div class="toast">{{toast}}</div>
+  </sc-if>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;900px&quot;},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Лера&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Персонаж&quot;},&quot;skipOnboarding&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Прототип&quot;}}">
+class Component extends DCLogic {
+  state = {
+    phase: 'onb', onbStep: 0,
+    sleep: 10, intro: 70, act: 55, chrono: 'Сова',
+    tab: 'day', energy: 45,
+    quests: [
+      {id: 1, time: '11:00', title: 'Разгон · почта · итальянский', tag: 'фоном', done: false},
+      {id: 2, time: '19:00', title: 'Зал · сила', tag: 'Спорт', done: false},
+      {id: 3, time: '20:30', title: 'Глава 2 · черновик', tag: 'босс ★', done: false}
+    ],
+    questsY: [
+      {id: 11, time: '12:00', title: 'Созвоны ×2 · отчёт', tag: 'Работа', done: true},
+      {id: 12, time: '19:00', title: 'Итальянский · урок 12', tag: 'Хобби', done: true},
+      {id: 13, time: '21:00', title: 'План главы 2', tag: 'Диплом', done: true}
+    ],
+    questsT: [
+      {id: 21, time: '18:30', title: 'Лекция магистратуры', tag: 'Обучение', done: false},
+      {id: 22, time: '20:30', title: 'Конспект + вопросы', tag: 'Обучение', done: false}
+    ],
+    dayIdx: 0, goalSheet: null, goalDue: 'до 31.08',
+    weekOff: 0, monthOff: 0, yearOff: 0, habMode: 'Неделя', habMonthOff: 0, drawerOpen: false,
+    habits: [
+      {id: 1, name: 'Итальянский 15 мин', days: [1, 1, 0, 0, 0, 0, 0]},
+      {id: 2, name: 'Вода 6 стаканов', days: [1, 0, 0, 0, 0, 0, 0]},
+      {id: 3, name: 'Растяжка вечером', days: [0, 1, 0, 0, 0, 0, 0]},
+      {id: 4, name: 'Сон до 00:30', days: [1, 1, 0, 0, 0, 0, 0]},
+      {id: 5, name: 'Страница дневника', days: [0, 0, 0, 0, 0, 0, 0]}
+    ],
+    sheet: null, sheetWhen: '20:30 пик', sheetLen: '90',
+    horizon: 'Месяц', sphere: null,
+    draft: false, sent: false, restTaken: false, publishedPost: false,
+    inner: 'Чат', stage: 0, vocal: false,
+    chat: [{who: 'ai', text: 'Энергия вчера просела после созвонов. Сегодня их два — поставить «тихий час» после?'}],
+    testOn: false, testStep: 0, testFin: false, trait: false,
+    refOpen: false, refBody: null, refMood: null, refSaved: false,
+    toast: null
+  };
+  componentDidMount() { if (this.props.skipOnboarding) this.setState({phase: 'app'}); }
+  toastMsg(t) {
+    this.setState({toast: t});
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => this.setState({toast: null}), 2400);
+  }
+  say(me, ai, patch) {
+    this.setState(s => ({chat: [...s.chat, {who: 'me', text: me}], ...(patch || {})}));
+    setTimeout(() => this.setState(s => ({chat: [...s.chat, {who: 'ai', text: ai}]})), 550);
+  }
+  renderVals() {
+    const S = this.state, P = this.props;
+    const set = o => this.setState(o);
+    const ON = 'background:#a63a35;border-color:#a63a35;color:#fff6ee';
+    const name = P.userName ?? 'Настя';
+    const TESTQ = [
+      {q: 'Что приятнее в конце дня?', o: ['Список закрытых задач', 'Одна вещь, сделанная блестяще', 'Чувство, что никого не подвела', 'Новая идея, которую хочется думать']},
+      {q: 'Какая похвала греет сильнее?', o: ['«Как ты всё успеваешь»', '«Как красиво сделано»', '«На тебя можно положиться»', '«Как ты это придумала»']},
+      {q: 'План рухнул. Что делаешь?', o: ['Пересобираю список', 'Спасаю главное и делаю его хорошо', 'Договариваюсь о новых сроках', 'Придумываю план с нуля']}
+    ];
+    const sleepLabel = (S.sleep % 1 ? S.sleep.toFixed(1) : S.sleep) + 'ч';
+    const low = S.energy < 30, high = S.energy > 70;
+    const bossQ = S.quests[2];
+    const aiDay = low
+      ? 'Вижу, энергия на дне. Давай облегчим вечер: главу сокращаю до 45 минут, зал — по желанию. Пик вернётся завтра.'
+      : high
+        ? 'Огонь! Раз энергия высокая — глава 2 в 20:30 сядет идеально. Зал перед ней только разгонит.'
+        : bossQ.done
+          ? 'Босс недели закрыт — красиво. Вечером просто отдых, ты заслужила.'
+          : 'Вечер твой. После зала фокус сядет идеально — я подвинула главу на 20:30.';
+    const eduPct = 34 + (S.draft ? 33 : 0) + (S.sent ? 33 : 0);
+    const cre = S.vocal ? 58 : 22, creCol = S.vocal ? '#c98d6b' : '#a63a35';
+    const gymDone = S.quests[1].done;
+    const replyStages = [
+      [
+        {t: 'Да, поставь тихий час', pick: () => { this.say('Да, поставь тихий час', 'Готово, «тихий час» после созвонов. И смотри: Артистка две недели без вокала. Четверг вечером свободен — позову её?', {stage: 1}); }},
+        {t: 'Не сейчас', pick: () => { this.say('Не сейчас', 'Ок, без давления. Кстати: Артистка две недели без вокала. Четверг вечером свободен — позову её?', {stage: 1}); }}
+      ],
+      [
+        {t: 'Да, вокал в четверг', pick: () => { this.say('Да, вокал в четверг', 'Записала: чт 19:30 — вокал. Творчество и Артистка пойдут вверх ✦ Загляни во вкладку «Я».', {stage: 2, vocal: true}); this.toastMsg('Творчество ↑ · Артистка рада'); }},
+        {t: 'Позже', pick: () => { this.say('Позже', 'Хорошо, напомню в воскресную планёрку. Она попросит вечер сама.', {stage: 2}); }}
+      ],
+      [
+        {t: 'Покажи мой день', pick: () => set({tab: 'day', sphere: null})},
+        {t: 'Спасибо', pick: () => { this.say('Спасибо', 'Всегда тут. Хорошего вечера — и помни: сигнал ко сну в 22:50.', {stage: 3}); }}
+      ],
+      []
+    ];
+    const mkPills = (opts, cur, key) => opts.map(t => ({t, st: cur === t ? ON : '', pick: () => set({[key]: t})}));
+    const grads = ['linear-gradient(160deg,#f0c9b6,#dd9d90)', 'linear-gradient(160deg,#e8c9a8,#cf9a72)', 'linear-gradient(160deg,#f0c9b6,#c97f7e)', 'linear-gradient(160deg,#dbb9a0,#b08268)', 'linear-gradient(160deg,#ecd3b4,#d0a678)', 'linear-gradient(160deg,#d8b8ae,#a97f7d)'];
+    const IMG = 'uploads/10_3D_illustrations/illustration_';
+    const sphereDefs = [
+      {n: 'Обучение', m: 'древо', s: eduPct >= 100 ? 'глава 2 сдана ✓' : 'босс: глава 2', key: 'edu', img: IMG + '09.png'},
+      {n: 'Работа', m: 'квесты', s: 'промо 80%', img: IMG + '02.png'},
+      {n: 'Блог', m: 'ферма идей', s: S.publishedPost ? 'пост опубликован ✓' : '1 пост созрел', key: 'blog', img: IMG + '06.png'},
+      {n: 'Спорт', m: 'статы', s: gymDone ? 'зал сегодня ✓' : 'зал сегодня', img: IMG + '05.png'},
+      {n: 'Питание', m: 'зелья', s: 'белок ↓', img: IMG + '04.png'},
+      {n: 'Бюджет', m: 'казна', s: 'сундук → Милан', img: IMG + '10.png'}
+    ];
+    const diary = [
+      S.refSaved && {when: 'сегодня · после зала', text: 'тело: ' + (S.refBody || 'норм') + ' · настроение: ' + (S.refMood || 'ровно'), extra: 'border:1.5px solid #dcb3a6'},
+      S.vocal && {when: 'сегодня · из чата', text: 'Вокал возвращается — чт 19:30. Артистка ждала две недели.', extra: ''},
+      {when: 'сб · после конюшни', text: '«Галоп без страха!» · Дух +20 ✦', extra: ''},
+      {when: 'пт · после пластики', text: 'тело: лёгкость · «связка получилась»', extra: ''},
+      {when: 'вс · планёрка', text: 'энергию дал вокал, забрали созвоны', extra: ''}
+    ].filter(Boolean);
+    const eh = [22, 38, 52, 88, 100, 42];
+    const nav = t => S.tab === t ? 'color:#fff6ee;background:#8e2b32;border-radius:99px;padding:3px 12px;margin:-3px -6px' : '';
+    const go = t => () => set({tab: t, sphere: null, testOn: false, testFin: false});
+    const dayKey = ['questsY', 'quests', 'questsT'][S.dayIdx + 1];
+    const curQuests = S[dayKey];
+    const dayTitles = ['Понедельник, 16', 'Вторник, 17', 'Среда, 18'];
+    const daySubs = ['вчера', 'сегодня · неделя 34', 'завтра'];
+    return {
+      userName: name, initial: name.trim().charAt(0).toUpperCase() || 'Я',
+      isOnb: S.phase === 'onb', isApp: S.phase === 'app',
+      onb0: S.onbStep === 0, onb1: S.onbStep === 1, onb2: S.onbStep === 2,
+      onbStepLabel: 'шаг ' + (S.onbStep + 1) + ' из 3',
+      onbNext: () => set({onbStep: S.onbStep + 1}),
+      skipOnb: () => set({phase: 'app'}),
+      enterApp: () => { set({phase: 'app'}); this.toastMsg('Портрет сохранён — я подстроилось'); },
+      sleep: S.sleep, intro: S.intro, act: S.act, sleepLabel,
+      setSleep: e => set({sleep: +e.target.value}),
+      setIntro: e => set({intro: +e.target.value}),
+      setAct: e => set({act: +e.target.value}),
+      introLabel: S.intro > 60 ? 'нужна тишина' : S.intro < 40 ? 'заряжаюсь от людей' : 'посередине',
+      actLabel: S.act > 60 ? 'много движения' : S.act < 40 ? 'мягкий ритм' : 'сбалансированно',
+      chrono: S.chrono,
+      chronoOpts: mkPills(['Жаворонок', 'Сова', 'Плавает'], S.chrono, 'chrono'),
+      focusTime: S.chrono === 'Жаворонок' ? 'утром, до 11:00' : S.chrono === 'Сова' ? 'после 18:00' : 'по чекину дня',
+      pillOn: ON, clock: '21:47',
+      tabDay: S.tab === 'day', tabPlans: S.tab === 'plans', tabSpheres: S.tab === 'spheres', tabInner: S.tab === 'inner', tabMe: S.tab === 'me',
+      navDay: nav('day'), navPlans: nav('plans'), navSpheres: nav('spheres'), navInner: nav('inner'), navMe: nav('me'),
+      goDay: go('day'), goPlans: go('plans'), goSpheres: go('spheres'), goInner: go('inner'), goMe: go('me'),
+      goChat: () => set({tab: 'inner', inner: 'Чат'}),
+      energy: S.energy, setEnergy: e => set({energy: +e.target.value}),
+      energyLabel: low ? 'на нуле' : high ? 'огонь' : 'раскачиваюсь',
+      ebars: eh.map((h, i) => ({h: h + '%', c: i === 4 ? '#a63a35' : i === 3 ? '#c98d6b' : h > 45 ? '#e5c3ac' : '#eeded2'})),
+      dayQuests: curQuests.map(q => ({
+        ...q,
+        bg: q.done ? '#a63a35' : '#fff',
+        deco: q.done ? 'line-through' : 'none',
+        extra: q.id === 3 && !q.done ? 'border:1.5px solid #dcb3a6' : q.done ? 'opacity:.65' : '',
+        toggle: () => {
+          const done = !q.done;
+          set({[dayKey]: curQuests.map(x => x.id === q.id ? {...x, done} : x)});
+          if (dayKey === 'quests' && q.id === 2 && done) setTimeout(() => this.setState({refOpen: true}), 350);
+          if (dayKey === 'quests' && q.id === 3 && done) this.toastMsg('Босс недели повержен ✦');
+        },
+        edit: () => set({sheet: q})
+      })),
+      aiDay: S.dayIdx === 0 ? aiDay : S.dayIdx === -1 ? 'Вчера закрыто 3 из 3 — ровный день без перегруза. План главы готов, поэтому сегодня черновик.' : 'Завтра пик отдаём магистратуре: лекция и конспект. Вечер после — свободен, Хранительница просила не занимать.',
+      prevDay: () => set({dayIdx: Math.max(-1, S.dayIdx - 1)}),
+      nextDay: () => set({dayIdx: Math.min(1, S.dayIdx + 1)}),
+      prevSt: S.dayIdx === -1 ? 'opacity:.35;pointer-events:none' : '',
+      nextSt: S.dayIdx === 1 ? 'opacity:.35;pointer-events:none' : '',
+      dayTitle: dayTitles[S.dayIdx + 1], daySub: daySubs[S.dayIdx + 1],
+      horizons: mkPills(['Неделя', 'Месяц', 'Год'], S.horizon, 'horizon'),
+      hWeek: S.horizon === 'Неделя', hMonth: S.horizon === 'Месяц', hYear: S.horizon === 'Год',
+      eduProgress: Math.min(eduPct, 100) + '%',
+      blogProgress: S.publishedPost ? '50%' : '25%', blogCount: S.publishedPost ? '2/4' : '1/4',
+      monthGoals: [
+        {title: 'Сдать главу 2', tag: '→ Q3', w: Math.min(eduPct, 100) + '%', col: '#a63a35', lab: Math.min(eduPct, 100) + '%', sub: 'босс-этапы — в Сферах'},
+        {title: '4 поста + рубрика', tag: '→ Q3', w: S.publishedPost ? '50%' : '25%', col: '#c98d6b', lab: S.publishedPost ? '2/4' : '1/4', sub: 'ферма блога'},
+        {title: 'Закрыть промо-квартал', tag: 'работа', w: '80%', col: '#c98d6b', lab: '80%', sub: 'спринт до 29.08'}
+      ].map(g => ({...g, edit: () => set({goalSheet: g.title})})),
+      editBoss: () => set({goalSheet: 'Босс: черновик главы 2'}),
+      goalOpen: !!S.goalSheet, goalTitle: S.goalSheet || '',
+      dueOpts: mkPills(['до 31.08', 'до 15.09', 'без срока'], S.goalDue, 'goalDue'),
+      closeGoal: () => set({goalSheet: null}),
+      splitGoal: () => { set({goalSheet: null}); this.toastMsg('Разбила на 3 этапа — смотри в Сферах'); },
+      archiveGoal: () => { set({goalSheet: null}); this.toastMsg('В архиве · без чувства вины'); },
+      saveGoal: () => { set({goalSheet: null}); this.toastMsg('Сохранено · ' + S.goalDue); },
+      tabHabits: S.tab === 'habits', navHabits: nav('habits'), goHabits: go('habits'),
+      habitRows: S.habits.map(h => ({
+        name: h.name,
+        count: h.days.filter(Boolean).length + ' из 7',
+        week: h.days.map((d, i) => ({
+          l: ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'][i],
+          bg: d ? '#a63a35' : '#fff',
+          bd: i === 1 ? '#a63a35' : '#dcb3a6',
+          lc: i === 1 ? '#a63a35' : '#9c6b60',
+          pick: () => set({habits: S.habits.map(x => x.id === h.id ? {...x, days: x.days.map((v, j) => j === i ? (v ? 0 : 1) : v)} : x)})
+        }))
+      })),
+      addHabit: () => this.toastMsg('В полной версии — конструктор привычки'),
+      habitAi: 'Неделя только началась. «Страница дневника» пока пустует — привяжем к вечернему сигналу 22:50?',
+      habModeOpts: mkPills(['Неделя', 'Месяц'], S.habMode, 'habMode'),
+      habWeek: S.habMode === 'Неделя', habMon: S.habMode === 'Месяц',
+      habMonthTitle: ['Июнь', 'Июль', 'Август'][S.habMonthOff + 2],
+      habMonthRows: S.habits.map((h, i) => {
+        const c = [[10, 5, 12, 16, 2], [18, 14, 9, 20, 6], [12, 8, 10, 15, 3]][S.habMonthOff + 2][i];
+        return {name: h.name, count: c + ' из 31', w: Math.round(c / 31 * 100) + '%', col: c > 12 ? '#a63a35' : '#c98d6b'};
+      }),
+      habMonthAi: S.habMonthOff === 0 ? 'Август идёт: «Сон до 00:30» держится лучше всех. Дневник ждёт вечернего сигнала — привяжем?' : S.habMonthOff === -1 ? 'Июль был сильным: 20 дней шагов. После сессии — заслуженный спад, так и надо.' : 'Июнь — месяц старта. Главное, что начали: остальное наросло само.',
+      hmPrev: () => set({habMonthOff: Math.max(-2, S.habMonthOff - 1)}),
+      hmNext: () => set({habMonthOff: Math.min(0, S.habMonthOff + 1)}),
+      hmPrevSt: S.habMonthOff === -2 ? 'opacity:.35;pointer-events:none' : '',
+      hmNextSt: S.habMonthOff === 0 ? 'opacity:.35;pointer-events:none' : '',
+      wCur: S.weekOff === 0, wOther: S.weekOff !== 0,
+      weekTitle: ['Неделя 33', 'Неделя 34', 'Неделя 35'][S.weekOff + 1],
+      weekSub: ['прошлая', 'собрана в вс · из целей августа', 'следующая'][S.weekOff + 1],
+      wOtherText: S.weekOff < 0 ? 'Закрыто 8 из 10. Лучший день — среда: зал + фокус. Две задачи переехали без вины.' : 'Пока пусто. Соберём в воскресенье на планёрке — из целей августа.',
+      wPrev: () => set({weekOff: Math.max(-1, S.weekOff - 1)}),
+      wNext: () => set({weekOff: Math.min(1, S.weekOff + 1)}),
+      wPrevSt: S.weekOff === -1 ? 'opacity:.35;pointer-events:none' : '',
+      wNextSt: S.weekOff === 1 ? 'opacity:.35;pointer-events:none' : '',
+      mCur: S.monthOff === 0, mOther: S.monthOff !== 0,
+      monthTitle: ['Июль', 'Август', 'Сентябрь'][S.monthOff + 1],
+      monthSub: ['сессия и выдох', 'глава сезона «Черновик» · из Q3', 'спланируем 31.08'][S.monthOff + 1],
+      mOtherText: S.monthOff < 0 ? 'Июль: 2 цели из 3, сессия сдана — и неделя отдыха после. Хорошая глава.' : 'Сентябрь откроется на планёрке выпуска 31 августа. Черновик целей уже ждёт в Летописце.',
+      mPrev: () => set({monthOff: Math.max(-1, S.monthOff - 1)}),
+      mNext: () => set({monthOff: Math.min(1, S.monthOff + 1)}),
+      mPrevSt: S.monthOff === -1 ? 'opacity:.35;pointer-events:none' : '',
+      mNextSt: S.monthOff === 1 ? 'opacity:.35;pointer-events:none' : '',
+      yCur: S.yearOff === 0, yOther: S.yearOff !== 0,
+      yearTitle: ['2025 · «Фундамент»', '2026 · «Свой голос»', '2027'][S.yearOff + 1],
+      yearSub: ['архив', 'тема года задаёт всё ниже · трогаем редко', 'после защиты'][S.yearOff + 1],
+      yOtherText: S.yearOff < 0 ? '2025 · «Фундамент»: бизнес-школа закрыта, блог начат. Лежит в архиве глав.' : '2027 начнётся с защиты. Дальше — пока мечты: Италия ближе, чем кажется.',
+      yPrev: () => set({yearOff: Math.max(-1, S.yearOff - 1)}),
+      yNext: () => set({yearOff: Math.min(1, S.yearOff + 1)}),
+      yPrevSt: S.yearOff === -1 ? 'opacity:.35;pointer-events:none' : '',
+      yNextSt: S.yearOff === 1 ? 'opacity:.35;pointer-events:none' : '',
+      tabHealth: S.tab === 'health', navHealth: nav('health'), goHealth: go('health'),
+      drawerOn: S.drawerOpen,
+      openDrawer: () => set({drawerOpen: true}),
+      closeDrawer: () => set({drawerOpen: false}),
+      navMenu: ['spheres', 'habits', 'health'].indexOf(S.tab) >= 0 ? 'color:#fff6ee;background:#8e2b32;border-radius:99px;padding:3px 12px;margin:-3px -6px' : '',
+      drawerItems: [
+        {t: 'Сферы', s: '7 активных', tab: 'spheres'},
+        {t: 'Привычки', s: 'ритм недели', tab: 'habits'},
+        {t: 'Здоровье', s: 'цикл · замеры', tab: 'health'},
+        {t: 'Дневник', s: 'записи', tab: 'inner', inner: 'Дневник'},
+        {t: 'Тесты', s: '1 новый', tab: 'inner', inner: 'Тесты'},
+        {t: 'Настройки', s: 'параметры · ИИ'}
+      ].map(di => ({
+        t: di.t, s: di.s,
+        st: (di.tab === S.tab && (!di.inner || di.inner === S.inner)) ? 'border:1.5px solid #dcb3a6' : '',
+        pick: () => {
+          if (!di.tab) { this.toastMsg('Настройки — в полной версии'); return; }
+          set({tab: di.tab, sphere: null, testOn: false, testFin: false, drawerOpen: false, ...(di.inner ? {inner: di.inner} : {})});
+        }
+      })),
+      logPeriod: () => this.toastMsg('Отмечено · пересчитаю кривую энергии'),
+      logSymptom: () => this.toastMsg('Записала в дневник тела'),
+      addMeasure: () => this.toastMsg('В полной версии — форма замеров'),
+      spheres: sphereDefs.map((sp, i) => ({...sp, grad: grads[i], open: () => sp.key ? set({sphere: sp.key}) : this.toastMsg('В полной версии — своя механика')})),
+      noSphere: !S.sphere, sphereEdu: S.sphere === 'edu', sphereBlog: S.sphere === 'blog',
+      closeSphere: () => set({sphere: null}),
+      draftBg: S.draft ? '#a63a35' : '#fff', sendBg: S.sent ? '#a63a35' : '#fff',
+      toggleDraft: () => set({draft: !S.draft}),
+      toggleSend: () => set({sent: !S.sent}),
+      bossDown: S.draft && S.sent && !S.restTaken,
+      takeRest: () => { set({restTaken: true}); this.toastMsg('Неделя отдыха с 24.08 · треки на паузе'); },
+      skipRest: () => { set({restTaken: true}); this.toastMsg('Ок. Предложу снова после защиты плана'); },
+      milanState: S.publishedPost ? 'в блоге ✓' : 'готов!',
+      notPublished: !S.publishedPost, published: S.publishedPost,
+      publish: () => { set({publishedPost: true}); this.toastMsg('Урожай +1 · Письмо +20 ✦'); },
+      innerTabs: mkPills(['Чат', 'Тесты', 'Дневник'], S.inner, 'inner'),
+      innerChat: S.inner === 'Чат', innerTests: S.inner === 'Тесты', innerDiary: S.inner === 'Дневник',
+      chat: S.chat.map(m => ({...m, isAi: m.who === 'ai', isMe: m.who === 'me'})),
+      replies: replyStages[Math.min(S.stage, 3)].map(r => ({t: r.t, pick: r.pick})),
+      noTest: !S.testOn && !S.testFin, testAsking: S.testOn && !S.testFin, testResult: S.testFin && !S.trait,
+      startTest: () => set({testOn: true, testStep: 0}),
+      testNum: S.testStep + 1,
+      testQ: TESTQ[Math.min(S.testStep, 2)].q,
+      testProgress: Math.round((S.testStep) / 3 * 100) + '%',
+      testOpts: TESTQ[Math.min(S.testStep, 2)].o.map(t => ({t, pick: () => {
+        if (S.testStep >= 2) set({testOn: false, testFin: true});
+        else set({testStep: S.testStep + 1});
+      }})),
+      acceptTrait: () => { set({trait: true, testFin: false}); this.toastMsg('Черта открыта: Эстет достижений ✦'); },
+      declineTrait: () => set({testFin: false}),
+      hasTrait: S.trait, noTrait: !S.trait,
+      diary,
+      needsNote: S.vocal ? '1 просела' : '2 просели',
+      moveW: gymDone ? '78%' : '55%', moveNote: gymDone ? 'зал ✓' : 'зал сегодня',
+      creW: cre + '%', creCol, creNote: S.vocal ? 'чт вокал ✓' : '← вокал?',
+      artW: (S.vocal ? 58 : 20) + '%', artNote: S.vocal ? 'ждёт четверг' : 'скучает',
+      pearl: S.publishedPost ? 'Пост «про Милан» — в блоге' : bossQ.done ? 'Черновик главы 2 — есть' : 'Галоп без страха — впервые',
+      noVocal: !S.vocal,
+      sheetOpen: !!S.sheet, sheetTitle: S.sheet ? S.sheet.title : '',
+      whenOpts: mkPills(['20:30 пик', 'завтра', 'выбрать'], S.sheetWhen, 'sheetWhen'),
+      lenOpts: mkPills(['45', '90', '120'], S.sheetLen, 'sheetLen'),
+      closeSheet: () => set({sheet: null}),
+      stop: e => e.stopPropagation(),
+      saveSheet: () => { set({sheet: null}); this.toastMsg('Сохранено · ' + S.sheetWhen + ' · ' + S.sheetLen + ' мин'); },
+      refOpen: S.refOpen,
+      refBodyOpts: mkPills(['устала', 'приятная усталость', 'лёгкость'], S.refBody, 'refBody'),
+      refMoodOpts: mkPills(['наполнилась', 'ровно', 'не зашло'], S.refMood, 'refMood'),
+      saveRef: () => { set({refOpen: false, refSaved: true}); this.toastMsg('В дневник · Сила +15 ✦'); },
+      skipRef: () => set({refOpen: false}),
+      toastOn: !!S.toast, toast: S.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
