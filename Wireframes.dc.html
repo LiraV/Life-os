@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- React UMD 18.3.1, vendored so the prototype renders without a CDN.
+     dc-runtime skips its unpkg fetch when window.React/ReactDOM already exist. -->
+<script src="./vendor/react.production.min.js"></script>
+<script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -1612,5 +1616,31 @@ a{color:#b3502f}a:hover{color:#8a3c22}
 <p class="dv-next">Дальше: «разверни <a class="dv-oid" href="#1a">1a</a> во весь флоу» · «дом из <a class="dv-oid" href="#1c">1c</a>, но с полками треков из <a class="dv-oid" href="#1b">1b</a>» · «покажи онбординг целиком»</p>
 </section>
 </x-dc>
+<!-- The canvas renders after the runtime boots, so the browser resolves a
+     deep link (#t5, #8e) before its target is laid out. Re-apply the hash
+     while the target keeps moving, then leave the scroll position alone. -->
+<script>
+(function () {
+  function jump() {
+    var id = decodeURIComponent(location.hash.slice(1));
+    if (!id) return;
+    var deadline = Date.now() + 8000, lastPos = null;
+    (function tick() {
+      var el = document.getElementById(id);
+      var box = el && el.getBoundingClientRect();
+      if (box && box.height > 0) {
+        // Document-space position: it shifts as the canvas renders above the
+        // target, but stays put when the reader scrolls — so we only re-align
+        // on real layout growth, never fighting a manual scroll.
+        var pos = Math.round(box.top + window.scrollY);
+        if (pos !== lastPos) { lastPos = pos; el.scrollIntoView(); }
+      }
+      if (Date.now() < deadline) requestAnimationFrame(tick);
+    })();
+  }
+  jump();
+  window.addEventListener('hashchange', jump);
+})();
+</script>
 </body>
 </html>
