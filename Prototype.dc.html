@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- React UMD 18.3.1, vendored so the prototype renders without a CDN.
+     dc-runtime skips its unpkg fetch when window.React/ReactDOM already exist. -->
+<script src="./vendor/react.production.min.js"></script>
+<script src="./vendor/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -55,7 +59,7 @@ input[type=range]{width:100%;accent-color:#a63a35;height:22px;margin:0}
     <div class="scr">
       <div class="hft" style="font-size:32px;margin-top:8px">Вся жизнь —<br>в одном месте</div>
       <div class="hfsub" style="font-size:14px">Ты — персонаж. Сферы — твоя игра.<br>Без стриков и чувства вины.</div>
-      <div style="border-radius:22px;overflow:hidden;min-height:280px;box-shadow:0 10px 24px rgba(122,62,58,.2)"><img src="uploads/10_3D_illustrations/illustration_01.png" style="width:100%;height:280px;object-fit:cover;display:block" alt=""></div>
+      <div style="border-radius:22px;overflow:hidden;min-height:280px;box-shadow:0 10px 24px rgba(122,62,58,.2)"><img src="assets/illustration_01.png" style="width:100%;height:280px;object-fit:cover;display:block" alt=""></div>
       <div class="hfcard">
         <div class="hfink"><b>Создаём персонажа</b></div>
         <div class="hfrow"><div style="width:44px;height:44px;border-radius:15px;background:linear-gradient(145deg,#e8c9a8,#d9a08b);display:flex;align-items:center;justify-content:center;font-family:Prata,serif;font-size:18px;color:#7a3b24">{{initial}}</div><div class="hfink">{{userName}}<br><span class="hfsub">аватар: выбрать позже</span></div></div>
@@ -151,7 +155,7 @@ input[type=range]{width:100%;accent-color:#a63a35;height:22px;margin:0}
         <div class="hfrow" style="justify-content:space-between"><span class="hfpill" style="{{yPrevSt}}" onClick="{{yPrev}}">‹</span><div style="text-align:center"><div class="hft" style="font-size:22px">{{yearTitle}}</div><div class="hfsub">{{yearSub}}</div></div><span class="hfpill" style="{{yNextSt}}" onClick="{{yNext}}">›</span></div>
         <sc-if value="{{yOther}}" hint-placeholder-val="{{ false }}"><div class="hfcard"><span class="hfink">{{yOtherText}}</span></div></sc-if>
         <sc-if value="{{yCur}}" hint-placeholder-val="{{ true }}">
-        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="uploads/10_3D_illustrations/illustration_10.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
+        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="assets/illustration_10.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
         <div class="hfcard" style="border:1.5px solid #dcb3a6"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Q3 · сейчас</b></span><span class="hflab">55%</span></div><div class="hfbar"><div class="hffill hot" style="width:55%"></div></div><span class="hfsub">диплом: 2 главы · блог: рубрика живёт</span></div>
         <div class="hfcard" style="background:rgba(251,244,236,.55)"><span class="hfink"><b>Q4</b></span><span class="hfsub">главы 3-4 · Милан (сундук) · первый кавер</span></div>
         <div class="hfcard" style="background:rgba(251,244,236,.55)"><span class="hfink"><b>Q1'27</b></span><span class="hfsub">предзащита · блог 10к</span></div>
@@ -201,7 +205,7 @@ input[type=range]{width:100%;accent-color:#a63a35;height:22px;margin:0}
         <div class="hfrow"><span class="hfpill" onClick="{{closeSphere}}">← Сферы</span></div>
         <div class="hft" style="font-size:26px">Блог · ферма</div>
         <div class="hfsub">идеи зреют, посты — урожай</div>
-        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="uploads/10_3D_illustrations/illustration_06.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
+        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="assets/illustration_06.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
         <div style="display:flex;gap:10px">
           <div class="hfcard" style="flex:1;align-items:center;gap:4px"><div class="hfimg" style="min-height:52px;width:100%;border-radius:14px"><span>росток</span></div><span class="hfink">капсула</span><span class="hfsub">идея</span></div>
           <div class="hfcard" style="flex:1;align-items:center;gap:4px"><div class="hfimg" style="min-height:52px;width:100%;border-radius:14px;background:linear-gradient(160deg,#e8c9a8,#cf9a72)"><span>бутон</span></div><span class="hfink">осень-лук</span><span class="hfsub">черновик</span></div>
@@ -258,7 +262,7 @@ input[type=range]{width:100%;accent-color:#a63a35;height:22px;margin:0}
       <sc-if value="{{innerDiary}}" hint-placeholder-val="{{ false }}">
         <div class="hft" style="font-size:24px">Дневник</div>
         <div class="hfsub">собирается сам из рефлексий и чата</div>
-        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="uploads/10_3D_illustrations/illustration_03.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
+        <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="assets/illustration_03.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
         <sc-for list="{{diary}}" as="d" hint-placeholder-count="3">
           <div class="hfcard" style="{{d.extra}}"><span class="hflab">{{d.when}}</span><span class="hfink">{{d.text}}</span></div>
         </sc-for>
@@ -316,7 +320,7 @@ input[type=range]{width:100%;accent-color:#a63a35;height:22px;margin:0}
       </sc-if>
       <sc-if value="{{habMon}}" hint-placeholder-val="{{ false }}">
       <div class="hfrow" style="justify-content:space-between"><span class="hfpill" style="{{hmPrevSt}}" onClick="{{hmPrev}}">‹</span><div class="hft" style="font-size:20px">{{habMonthTitle}}</div><span class="hfpill" style="{{hmNextSt}}" onClick="{{hmNext}}">›</span></div>
-      <div style="border-radius:18px;overflow:hidden;height:100px;flex:none"><img src="uploads/10_3D_illustrations/illustration_02.png" style="width:100%;height:100px;object-fit:cover;display:block" alt=""></div>
+      <div style="border-radius:18px;overflow:hidden;height:100px;flex:none"><img src="assets/illustration_02.png" style="width:100%;height:100px;object-fit:cover;display:block" alt=""></div>
       <sc-for list="{{habMonthRows}}" as="mr" hint-placeholder-count="5">
         <div class="hfcard" style="gap:6px"><div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>{{mr.name}}</b></span><span class="hftag">{{mr.count}}</span></div><div class="hfrow"><div class="hfbar"><div class="hffill" style="width:{{mr.w}};background:{{mr.col}}"></div></div></div></div>
       </sc-for>
@@ -328,7 +332,7 @@ input[type=range]{width:100%;accent-color:#a63a35;height:22px;margin:0}
   <sc-if value="{{tabHealth}}" hint-placeholder-val="{{ false }}">
     <div class="scr">
       <div class="hft" style="font-size:26px">Здоровье</div>
-      <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="uploads/10_3D_illustrations/illustration_09.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
+      <div style="border-radius:18px;overflow:hidden;height:104px;flex:none"><img src="assets/illustration_09.png" style="width:100%;height:104px;object-fit:cover;display:block" alt=""></div>
       <div class="hfcard">
         <div class="hfrow" style="justify-content:space-between"><span class="hfink"><b>Цикл</b></span><span class="hftag">день 14 · овуляция</span></div>
         <div class="hfrow"><div class="hfbar"><div class="hffill hot" style="width:50%"></div></div><span class="hflab">след. через 14 дн</span></div>
@@ -505,7 +509,7 @@ class Component extends DCLogic {
     ];
     const mkPills = (opts, cur, key) => opts.map(t => ({t, st: cur === t ? ON : '', pick: () => set({[key]: t})}));
     const grads = ['linear-gradient(160deg,#f0c9b6,#dd9d90)', 'linear-gradient(160deg,#e8c9a8,#cf9a72)', 'linear-gradient(160deg,#f0c9b6,#c97f7e)', 'linear-gradient(160deg,#dbb9a0,#b08268)', 'linear-gradient(160deg,#ecd3b4,#d0a678)', 'linear-gradient(160deg,#d8b8ae,#a97f7d)'];
-    const IMG = 'uploads/10_3D_illustrations/illustration_';
+    const IMG = 'assets/illustration_';
     const sphereDefs = [
       {n: 'Обучение', m: 'древо', s: eduPct >= 100 ? 'глава 2 сдана ✓' : 'босс: глава 2', key: 'edu', img: IMG + '09.png'},
       {n: 'Работа', m: 'квесты', s: 'промо 80%', img: IMG + '02.png'},
