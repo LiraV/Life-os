@@ -71,24 +71,54 @@ export const habitWeek = (habit, date) => weekDates(date).map(d => !!habit.log[d
 export const habitMonthCount = (habit, ym) => monthDates(ym).filter(d => habit.log[d]).length;
 
 // ── тело ────────────────────────────────────────────────────────
-const PHASES = [
-  { until: 5,  name: 'менструация', hint: 'мягкие дни — тяжёлое лучше отложить' },
-  { until: 12, name: 'фолликулярная', hint: 'сил прибавляется, хорошо начинать новое' },
-  { until: 16, name: 'овуляция', hint: 'пик — самое время для сложного' },
-  { until: 99, name: 'лютеиновая', hint: 'перед циклом — сама предложу мягкие дни' },
-];
+/** Пропуск в один-два дня внутри месячных — всё ещё те же месячные, а не новый цикл. */
+const MERGE_GAP = 3;
 
+/** Отмеченные дни, свёрнутые в блоки: [{ start, end, len, days }] по возрастанию. */
+export function periodBlocks() {
+  const marked = Object.keys(S.health.days || {}).filter(d => S.health.days[d]).sort();
+  const blocks = [];
+  marked.forEach(d => {
+    const last = blocks[blocks.length - 1];
+    if (last && diffDays(d, last.end) <= MERGE_GAP) { last.end = d; last.days.push(d); }
+    else blocks.push({ start: d, end: d, days: [d] });
+  });
+  return blocks.map(b => ({ ...b, len: diffDays(b.end, b.start) + 1 }));
+}
+
+/** Полная картина цикла — всё считается из отмеченных дней, ничего не зашито. */
 export function cycleInfo() {
-  const starts = [...S.health.periods].sort();
-  if (!starts.length) return null;
-  const last = starts[starts.length - 1];
-  const day = diffDays(todayISO(), last) + 1;
-  if (day < 1) return null;
-  // Средняя длина по последним циклам, пока данных мало — 28 дней.
-  const gaps = starts.slice(1).map((d, i) => diffDays(d, starts[i])).filter(g => g > 15 && g < 60);
-  const len = gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : 28;
-  const phase = PHASES.find(p => day <= p.until);
-  return { day, len, phase: phase.name, hint: phase.hint, pct: Math.min(100, Math.round((day / len) * 100)), last };
+  const blocks = periodBlocks();
+  if (!blocks.length) return null;
+
+  const starts = blocks.map(b => b.start);
+  const gaps = starts.slice(1).map((s, i) => diffDays(s, starts[i])).filter(g => g >= 15 && g <= 60);
+  const avgCycle = gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : 28;
+  const avgLen = Math.round(blocks.reduce((a, b) => a + b.len, 0) / blocks.length);
+
+  const t = todayISO();
+  // Последний блок, который уже начался: будущие отметки не считаем текущим циклом.
+  const past = blocks.filter(b => b.start <= t);
+  const last = past[past.length - 1];
+  if (!last) return { blocks, avgCycle, avgLen, gaps, day: null, next: blocks[0].start };
+
+  const day = diffDays(t, last.start) + 1;
+  const ovulation = Math.max(7, avgCycle - 14);
+  const bleeding = !!S.health.days[t] || day <= last.len;
+
+  let phase, hint;
+  if (bleeding) { phase = 'менструация'; hint = 'мягкие дни — тяжёлое лучше отложить'; }
+  else if (day < ovulation - 2) { phase = 'фолликулярная'; hint = 'сил прибавляется — хорошо начинать новое'; }
+  else if (day <= ovulation + 1) { phase = 'овуляция'; hint = 'пик — самое время для сложного'; }
+  else if (day >= avgCycle - 4) { phase = 'перед циклом'; hint = 'скоро начнётся — планируй мягче'; }
+  else { phase = 'лютеиновая'; hint = 'ровное время, силы понемногу убывают'; }
+
+  return {
+    blocks, avgCycle, avgLen, gaps, last, day, phase, hint, bleeding,
+    pct: Math.min(100, Math.round((day / avgCycle) * 100)),
+    next: addDays(last.start, avgCycle),
+    daysToNext: diffDays(addDays(last.start, avgCycle), t),
+  };
 }
 
 export function measureDeltas() {
@@ -171,6 +201,13 @@ export function chronicler(date) {
     out.push(`Энергия ${e} из 100. Оставь на сегодня одно главное, остальное перенесу без вопросов.`);
   } else if (e != null && e >= 80) {
     out.push(`Энергия ${e} — план по силам. Пик у тебя в ${peakLabel()}, тяжёлое ставь туда.`);
+  }
+
+  const cyc = cycleInfo();
+  if (cyc && cyc.day) {
+    if (cyc.bleeding) out.push('Идут месячные. Тяжёлое можно отложить — перенос сегодня совершенно нормален.');
+    else if (cyc.phase === 'перед циклом') out.push(`До следующего цикла ${cyc.daysToNext >= 0 ? cyc.daysToNext : 0} дн. Планирую мягче — не удивляйся.`);
+    else if (cyc.phase === 'овуляция') out.push('Овуляция — обычно это самые сильные дни. Хороший момент для сложного.');
   }
 
   const lowRole = roles().find(r => r.low);

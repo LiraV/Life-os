@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 1;
+const VERSION = 2;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -36,7 +36,7 @@ function blank() {
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
     habits: [],          // [{ id, name, log: { date: true } }]
-    health: { periods: [], measures: [], symptoms: [] },
+    health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
     diary: [],
     chat: [],
     tests: {},
@@ -45,22 +45,40 @@ function blank() {
 }
 
 function migrate(s) {
-  // Пока одна версия — задел на будущее: неизвестные поля дополняются из blank().
   const base = blank();
   const merged = { ...base, ...s, v: VERSION };
   merged.user = { ...base.user, ...(s.user || {}) };
   merged.health = { ...base.health, ...(s.health || {}) };
   merged.ui = { ...base.ui, ...(s.ui || {}) };
+
+  // v1 → v2: раньше хранились только даты начала цикла. Переносим их
+  // в отмеченные дни как есть — придумывать длительность за пользователя нельзя.
+  if (Array.isArray(merged.health.periods)) {
+    merged.health.days ||= {};
+    const moved = merged.health.periods.filter(d => typeof d === 'string');
+    moved.forEach(d => { merged.health.days[d] = true; });
+    delete merged.health.periods;
+    // Длительность в старом формате не хранилась — честно скажем об этом на экране.
+    if (moved.length) merged.health.startsOnlyNotice = true;
+  }
+  merged.health.days ||= {};
   return merged;
 }
+
+// Ставится в load(), если на диске лежит не текущий формат — тогда после
+// запуска сразу перезаписываем, чтобы старый формат не уехал в экспорт.
+let needsRewrite = false;
 
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return blank();
-    return migrate(JSON.parse(raw));
+    if (!raw) { needsRewrite = true; return blank(); }
+    const parsed = JSON.parse(raw);
+    if (parsed.v !== VERSION) needsRewrite = true;
+    return migrate(parsed);
   } catch (e) {
     console.warn('[lifeos] не удалось прочитать сохранение, начинаем заново', e);
+    needsRewrite = true;
     return blank();
   }
 }
@@ -81,6 +99,8 @@ export function save() {
     }
   }, 120);
 }
+
+if (needsRewrite) save();
 
 /** Единственный способ менять состояние: мутируем внутри, дальше — сохранение и перерисовка. */
 export function update(mutator) {
