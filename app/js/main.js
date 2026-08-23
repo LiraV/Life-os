@@ -160,8 +160,35 @@ setInterval(() => {
 if (!location.hash) location.hash = '#/day';
 render();
 
+// Приложение должно само догонять выложенную версию: спрашиваем воркер об
+// обновлении при запуске и при возврате на вкладку, а когда новый воркер
+// перехватывает управление — один раз перезагружаемся, чтобы поехал новый код.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      reg.update();
+      // Новый воркер уже готов, но ждёт закрытия старых вкладок — торопим его.
+      if (reg.waiting) reg.waiting.postMessage('skip-waiting');
+      reg.addEventListener('updatefound', () => {
+        reg.installing?.addEventListener('statechange', function () {
+          if (this.state === 'installed' && navigator.serviceWorker.controller) reg.waiting?.postMessage('skip-waiting');
+        });
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
+    } catch { /* без воркера приложение работает, просто без офлайна */ }
+  });
 }
 
 window.addEventListener('error', e => {

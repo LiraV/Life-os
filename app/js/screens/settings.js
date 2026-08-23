@@ -2,6 +2,7 @@
 
 import { S, update, exportJSON, importJSON, resetAll, level } from '../store.js';
 import { todayISO } from '../dates.js';
+import { BUILD } from '../version.js';
 import { h, field, toast, openSheet, confirmSheet } from '../ui.js';
 
 export function render() {
@@ -45,6 +46,13 @@ export function render() {
     </div>
 
     <div class="card">
+      <div class="caps">Версия</div>
+      <div class="row between"><span class="ink">Сборка</span><span class="lab">${BUILD}</span></div>
+      <div class="lab">Приложение обновляется само при запуске. Если номер сборки не меняется после выхода новой версии — обнови вручную.</div>
+      <button class="add" data-act="refresh">Обновить приложение</button>
+    </div>
+
+    <div class="card">
       <div class="caps">Установить на телефон</div>
       <div class="ink">iPhone: «Поделиться» → «На экран „Домой“». Android: меню браузера → «Установить приложение».</div>
       <div class="lab">После установки открывается без браузера и работает офлайн.</div>
@@ -62,6 +70,24 @@ export function render() {
 }
 
 export const actions = {
+  /** Сбросить кеш оболочки и перезапуститься — данные не трогаем, они в localStorage. */
+  refresh: async () => {
+    toast('Обновляю…');
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (e) {
+      console.warn('[lifeos] очистка кеша не удалась', e);
+    }
+    location.replace(location.pathname + '?v=' + Date.now() + location.hash);
+  },
+
   profile: () => openSheet({
     title: 'Мои параметры',
     body: [

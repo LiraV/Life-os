@@ -1,6 +1,10 @@
 // Офлайн-оболочка. Пути относительные — приложение живёт в подкаталоге на Pages.
-// Версию поднимаем при любом изменении файлов из SHELL.
-const VERSION = 'lifeos-v6';
+//
+// Код приложения отдаётся из сети в первую очередь, кеш — только запасной
+// вариант офлайна. Обратный порядок означал бы, что после выкладки на телефоне
+// ещё долго крутится старая сборка.
+const VERSION = 'lifeos-v7';
+const ASSETS = 'lifeos-assets-v1';
 const FONTS = 'lifeos-fonts-v1';
 
 const SHELL = [
@@ -13,6 +17,7 @@ const SHELL = [
   './app/js/dates.js',
   './app/js/selectors.js',
   './app/js/ui.js',
+  './app/js/version.js',
   './app/js/screens/onboarding.js',
   './app/js/screens/day.js',
   './app/js/screens/plans.js',
@@ -22,6 +27,9 @@ const SHELL = [
   './app/js/screens/inside.js',
   './app/js/screens/me.js',
   './app/js/screens/settings.js',
+];
+
+const MEDIA = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
@@ -35,58 +43,80 @@ const SHELL = [
   './assets/illustration_10.png',
 ];
 
+const isMedia = url => /\.(png|jpg|jpeg|svg|webp|woff2?)$/i.test(url.pathname);
+
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(VERSION)
-      // Один недоступный файл не должен ронять всю установку.
-      .then(c => Promise.allSettled(SHELL.map(u => c.add(u))))
-      .then(() => self.skipWaiting()),
-  );
+  e.waitUntil((async () => {
+    const code = await caches.open(VERSION);
+    // Один недоступный файл не должен ронять всю установку.
+    await Promise.allSettled(SHELL.map(u => code.add(u)));
+    const media = await caches.open(ASSETS);
+    await Promise.allSettled(MEDIA.map(u => media.match(u).then(hit => hit || media.add(u))));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== FONTS).map(k => caches.delete(k))))
-      .then(() => self.clients.claim()),
-  );
+  e.waitUntil((async () => {
+    const keep = [VERSION, ASSETS, FONTS];
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => !keep.includes(k)).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
+
+/** Из сети мимо HTTP-кеша, с записью в кеш; офлайн — из кеша.
+ *  Навигационный запрос нельзя пересобрать с параметрами — Safari бросает
+ *  на этом исключение, поэтому строим новый запрос по адресу. */
+async function networkFirst(req, cacheName) {
+  const cache = await caches.open(cacheName);
+  const isNav = req.mode === 'navigate';
+  const outgoing = isNav ? new Request(req.url, { cache: 'no-store', credentials: 'same-origin' }) : req;
+  try {
+    const res = await fetch(outgoing, isNav ? undefined : { cache: 'no-store' });
+    if (res && res.ok) cache.put(isNav ? './index.html' : req, res.clone());
+    return res;
+  } catch (err) {
+    const hit = await cache.match(isNav ? './index.html' : req) || await caches.match(req);
+    if (hit) return hit;
+    throw err;
+  }
+}
+
+/** Из кеша, обновление в фоне — для картинок и шрифтов, которые не меняются. */
+async function cacheFirst(req, cacheName) {
+  const cache = await caches.open(cacheName);
+  const hit = await cache.match(req);
+  const net = fetch(req).then(res => {
+    if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+    return res;
+  }).catch(() => hit);
+  return hit || net;
+}
 
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // Переходы: сначала сеть, при её отсутствии — сохранённая оболочка.
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
-        .then(res => { caches.open(VERSION).then(c => c.put('./index.html', res.clone())); return res; })
-        .catch(() => caches.match('./index.html').then(r => r || caches.match('./'))),
+      networkFirst(req, VERSION).catch(() => caches.match('./index.html').then(r => r || caches.match('./'))),
     );
     return;
   }
 
-  // Шрифты Google — из кеша, обновляются в фоне.
   if (/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) {
-    e.respondWith(
-      caches.open(FONTS).then(c => c.match(req).then(hit => {
-        const net = fetch(req).then(res => { if (res.ok || res.type === 'opaque') c.put(req, res.clone()); return res; }).catch(() => hit);
-        return hit || net;
-      })),
-    );
+    e.respondWith(cacheFirst(req, FONTS));
     return;
   }
 
   if (url.origin !== location.origin) return;
 
-  e.respondWith(
-    caches.match(req).then(hit => {
-      const net = fetch(req).then(res => {
-        if (res.ok) caches.open(VERSION).then(c => c.put(req, res.clone()));
-        return res;
-      }).catch(() => hit);
-      return hit || net;
-    }),
-  );
+  e.respondWith(isMedia(url) ? cacheFirst(req, ASSETS) : networkFirst(req, VERSION));
+});
+
+// Кнопка «Обновить приложение» в настройках просит воркер уступить место сразу.
+self.addEventListener('message', e => {
+  if (e.data === 'skip-waiting') self.skipWaiting();
 });
