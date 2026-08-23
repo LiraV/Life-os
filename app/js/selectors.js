@@ -34,25 +34,28 @@ export const levelInfo = () => {
 // ── цели: год → квартал → месяц ─────────────────────────────────
 export const HORIZONS = { year: 'Год', quarter: 'Квартал', month: 'Месяц' };
 
-/** Живые цели — всё, что не в архиве. Вычеркнутые сюда входят: они видны,
- *  просто не участвуют в подсчётах. */
+/** Живые цели — всё, что не в архиве. Вычеркнутые сюда входят: вычёркивание —
+ *  только пометка «в этом году не закрою», на расчёты оно не влияет. */
 export const liveGoals = () => S.goals.filter(g => !g.archived);
 export const goalsIn = (horizon, period) => liveGoals().filter(g => g.horizon === horizon && g.period === period);
 export const goalById = id => S.goals.find(g => g.id === id);
 export const goalChildren = id => liveGoals().filter(g => g.parentId === id);
 
-/** Цели, которые вообще считаются: вычеркнутые не тянут средние вниз. */
-export const scored = list => list.filter(g => !g.dropped);
+export const isCounter = g => Number(g?.target) > 0;
+export const counterOf = g => ({ current: Number(g.current) || 0, target: Number(g.target) || 0, unit: g.unit || '' });
 
-/** Прогресс: отметка «выполнено» перебивает всё, дальше этапы, вложенные цели, вручную. */
+/** Прогресс: «выполнено» перебивает всё, дальше счётчик, этапы, вложенные цели, вручную. */
 export function goalProgress(goal, seen = new Set()) {
   if (!goal || seen.has(goal.id)) return 0;
   if (goal.done) return 100;
-  if (goal.dropped) return 0;
+  if (isCounter(goal)) {
+    const { current, target } = counterOf(goal);
+    return Math.max(0, Math.min(100, Math.round((current / target) * 100)));
+  }
   seen.add(goal.id);
   const steps = goal.steps || [];
   if (steps.length) return Math.round((steps.filter(x => x.done).length / steps.length) * 100);
-  const kids = scored(goalChildren(goal.id));
+  const kids = goalChildren(goal.id);
   if (kids.length) return Math.round(kids.reduce((a, k) => a + goalProgress(k, seen), 0) / kids.length);
   return Math.max(0, Math.min(100, goal.progress || 0));
 }
@@ -76,11 +79,11 @@ export function quarterGoals(qk) {
 
 /** Цели месяца: свои плюс положенные сюда из квартала или года. */
 export const monthGoals = ym => [...goalsIn('month', ym), ...goalsPlannedIn(ym)];
-export const quarterProgress = qk => avg(scored(quarterGoals(qk)).map(g => goalProgress(g)));
+export const quarterProgress = qk => avg(quarterGoals(qk).map(g => goalProgress(g)));
 
 /** Цели года, а если их нет — сводка по кварталам. */
 export function yearProgress(y) {
-  const own = scored(goalsIn('year', String(y)));
+  const own = goalsIn('year', String(y));
   if (own.length) return avg(own.map(g => goalProgress(g)));
   return avg(['Q1', 'Q2', 'Q3', 'Q4'].map(q => quarterProgress(`${y}-${q}`)).filter(x => x != null));
 }
@@ -218,12 +221,12 @@ export function needs() {
     { key: 'sleep', name: 'Сон', value: sleep, hint: 'отметь сон в «Теле» или заведи привычку' },
     { key: 'move', name: 'Движение', value: questRate(['sport'], days, 3) || habitRate(/растяж|зал|бег|йог/i, days), hint: 'спорт-квесты за неделю' },
     { key: 'food', name: 'Еда', value: questRate(['food'], days, 3) || habitRate(/вод|еда|завтрак|белок/i, days), hint: 'питание за неделю' },
-    { key: 'create', name: 'Творчество', value: questRate(['blog', 'edu'], days, 4), hint: 'блог и обучение за неделю' },
+    { key: 'create', name: 'Творчество', value: questRate(['blog', 'edu', 'study'], days, 4), hint: 'блог, обучение и учёба за неделю' },
   ];
 }
 
 const ROLES = [
-  { name: 'Учёная', keys: ['edu'] },
+  { name: 'Учёная', keys: ['edu', 'study'] },
   { name: 'Атлет', keys: ['sport'] },
   { name: 'Артистка', keys: ['blog'] },
   { name: 'Хранительница', keys: ['money', 'food'] },

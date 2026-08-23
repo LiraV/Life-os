@@ -88,7 +88,7 @@ const SPHERE_OPTS = [{ value: '', label: 'без сферы' }, ...SPHERES.map(s
 export function questSheet(quest, date, onDone) {
   const isNew = !quest;
   const q = quest || { id: uid(), title: '', time: '', minutes: 45, sphere: '', boss: false, goalId: '', done: false };
-  const goals = liveGoals().filter(x => !x.dropped || x.id === q.goalId);
+  const goals = liveGoals();
   const chain = q.goalId ? goalChain(q.goalId) : null;
 
   openSheet({

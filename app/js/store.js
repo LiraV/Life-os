@@ -9,6 +9,7 @@ const VERSION = 4;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
+  { key: 'study', name: 'Учёба',    mech: 'курсы',      img: 'assets/illustration_03.png' },
   { key: 'work',  name: 'Работа',   mech: 'квесты',     img: 'assets/illustration_02.png' },
   { key: 'blog',  name: 'Блог',     mech: 'ферма идей', img: 'assets/illustration_06.png' },
   { key: 'sport', name: 'Спорт',    mech: 'статы',      img: 'assets/illustration_05.png' },

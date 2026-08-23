@@ -10,7 +10,7 @@ import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
   quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
-  goalSlots, goalsPlannedIn, monthGoals, scored,
+  goalSlots, goalsPlannedIn, monthGoals, isCounter, counterOf,
 } from '../selectors.js';
 
 const TABS = [['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']];
@@ -162,9 +162,9 @@ function goalCard(g, { compact = false, plannedIn = null } = {}) {
           ? raw(h`<button class="q-edit" data-act="unplan" data-id="${g.id}" data-p="${plannedIn}">убрать отсюда</button>`)
           : raw(h`<button class="q-edit" data-act="goaledit" data-id="${g.id}">изменить ›</button>`)}
       </div>
-      ${g.dropped
-        ? raw('<div class="lab">Вычеркнута — осталась в списке, но в прогресс не идёт.</div>')
-        : raw(h`<div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>`)}
+      <div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>
+      ${isCounter(g) ? raw(counterRow(g)) : ''}
+      ${g.dropped ? raw('<div class="lab">Вычеркнута — в этом году не закрыть. В расчётах остаётся.</div>') : ''}
 
       ${!plannedIn && g.horizon !== 'month' ? raw(h`
         <div class="row tight" style="flex-wrap:wrap">
@@ -178,8 +178,8 @@ function goalCard(g, { compact = false, plannedIn = null } = {}) {
         ${kids.length ? raw(h`
           <div class="lab" style="margin-top:2px">Ведут к ней:</div>
           ${kids.map(k => raw(h`<div class="row between" style="padding-left:4px">
-            <span class="lab grow ellip">${k.dropped ? '— ' : ''}${k.title} · ${periodLabel(k)}</span>
-            <span class="lab">${k.dropped ? 'вычеркнута' : goalProgress(k) + '%'}</span></div>`))}`) : ''}
+            <span class="lab grow ellip">${k.title} · ${periodLabel(k)}${k.dropped ? ' · вычеркнута' : ''}</span>
+            <span class="lab">${goalProgress(k)}%</span></div>`))}`) : ''}
         <div class="list" style="margin-top:4px">
           ${steps.map(st => raw(h`
             <div class="chk-row ${st.done ? 'done' : ''}">
@@ -190,10 +190,32 @@ function goalCard(g, { compact = false, plannedIn = null } = {}) {
         </div>
         <button class="add" data-act="gstepadd" data-id="${g.id}">+ Этап</button>
         ${plannedIn ? raw(h`<button class="btn-ghost" data-act="goaledit" data-id="${g.id}">изменить саму цель ›</button>`) : ''}
-        <div class="lab">${g.done ? 'Отмечена выполненной целиком — этапы уже не считаются.'
+        <div class="lab">${g.done ? 'Отмечена выполненной целиком — остальное уже не считается.'
+          : isCounter(g) ? 'Прогресс считается из счётчика.'
           : steps.length ? 'Прогресс считается из этапов.'
           : kids.length ? 'Прогресс считается из вложенных целей.'
           : 'Можно не дробить: галочка слева отмечает цель выполненной целиком.'}${chain.theme ? ` Ведёт к «${chain.theme}».` : ''}</div>`) : ''}
+    </div>`;
+}
+
+const num = n => Number(n).toLocaleString('ru-RU');
+
+/** Счётчик: «7 из 12 книг» и кнопки прибавления.
+ *  Для мелких величин удобны шаги по единице, для крупных — только сумма. */
+function counterRow(g) {
+  const { current, target, unit } = counterOf(g);
+  const small = target <= 200;
+  const reached = current >= target;
+  return h`
+    <div class="cnt-row">
+      <div class="grow ink"><b>${num(current)}</b> из ${num(target)}${unit ? ' ' + unit : ''}${reached ? ' ✦' : ''}</div>
+      <div class="row tight" style="flex:none">
+        ${small
+          ? raw(h`<button class="pill" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус один">−1</button>
+                  <button class="pill" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс один">+1</button>`)
+          : ''}
+        <button class="pill" data-act="cntadd" data-id="${g.id}">${small ? '+ ещё' : '+ добавить'}</button>
+      </div>
     </div>`;
 }
 
@@ -322,7 +344,7 @@ function periodOptions(horizon, current) {
 /** Кандидаты в родители: цель может вести только к более крупному горизонту. */
 function parentOptions(horizon, selfId) {
   const bigger = horizon === 'month' ? ['quarter', 'year'] : horizon === 'quarter' ? ['year'] : [];
-  const list = liveGoals().filter(g => bigger.includes(g.horizon) && g.id !== selfId && !g.dropped);
+  const list = liveGoals().filter(g => bigger.includes(g.horizon) && g.id !== selfId);
   return [{ value: '', label: 'ни к чему' }, ...list.map(g => ({ value: g.id, label: `${g.title} · ${periodLabel(g)}` }))];
 }
 
@@ -360,7 +382,9 @@ function goalSheet(goal, preset) {
       field.select('parentId', 'Ведёт к', parentOptions(horizon0, g.id), g.parentId || ''),
       field.opts('sphere', 'Сфера', [{ value: '', label: 'без сферы' }, ...SPHERES.map(x => ({ value: x.key, label: x.name }))], g.sphere || ''),
       field.date('deadline', 'Срок — если он есть', g.deadline || ''),
-      field.note('Этапы добавляются в самой цели — прогресс считается по ним или по вложенным целям.'),
+      field.number('target', 'Счётчик — сколько всего', g.target ?? '', { min: 0 }),
+      field.text('unit', 'В чём считаем', g.unit || '', 'книг, ₽, км — необязательно'),
+      field.note('Со счётчиком прогресс считается от набранного. Без него — по этапам, которые добавляются в самой цели.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
     secondary: isNew ? null : (goal.dropped ? 'Вернуть в работу' : 'Вычеркнуть — останется в списке'),
@@ -373,7 +397,7 @@ function goalSheet(goal, preset) {
         if (x.dropped) x.done = false;
       });
       close();
-      toast(S.goals.find(x => x.id === g.id)?.dropped ? 'Вычеркнула — из прогресса убрала' : 'Вернула в работу');
+      toast(S.goals.find(x => x.id === g.id)?.dropped ? 'Вычеркнула — пометка на этот год' : 'Вернула в работу');
     },
     onSave: (v, close) => {
       const title = (v.title || '').trim();
@@ -382,9 +406,12 @@ function goalSheet(goal, preset) {
       const period = v.period || period0;
       if (v.parentId === g.id) return toast('Цель не может вести сама к себе');
       update(s => {
+        const target = Number(v.target) || 0;
         const next = {
           ...g, title, horizon, period, parentId: v.parentId || '',
           sphere: v.sphere || '', deadline: v.deadline || '',
+          target, unit: (v.unit || '').trim(),
+          current: target ? (Number(g.current) || 0) : 0,
         };
         const i = s.goals.findIndex(x => x.id === g.id);
         if (i >= 0) s.goals[i] = next; else s.goals.push(next);
@@ -476,6 +503,22 @@ function planSheet(g) {
   });
 }
 
+/** Изменить счётчик, не пуская его ниже нуля, и подсказать при достижении цели. */
+function bumpCounter(id, delta) {
+  let reached = false, title = '';
+  update(s2 => {
+    const g = s2.goals.find(x => x.id === id);
+    if (!g) return;
+    const target = Number(g.target) || 0;
+    const before = Number(g.current) || 0;
+    const after = Math.max(0, before + delta);
+    g.current = after;
+    title = g.title;
+    reached = target > 0 && before < target && after >= target;
+  });
+  if (reached) toast(`«${title}» — набрано ✦ Можно закрыть галочкой`);
+}
+
 // ── действия ────────────────────────────────────────────────────
 const weekRec = s => (s.weeks[weekKey(anchor())] ||= {});
 
@@ -510,6 +553,28 @@ export const actions = {
   mnext: () => update(s => { s.ui.monthAnchor = addMonths(month(), 1); }),
   goaladd: v => goalSheet(null, { horizon: v.h, period: v.p }),
   plan: v => { const g = goalById(v.id); if (g) planSheet(g); },
+
+  cnt: v => bumpCounter(v.id, Number(v.d)),
+  cntadd: v => {
+    const g = goalById(v.id);
+    if (!g) return;
+    const { unit } = counterOf(g);
+    openSheet({
+      title: 'Пополнить счётчик',
+      sub: g.title,
+      body: [
+        field.number('n', `Сколько добавить${unit ? ', ' + unit : ''}`, '', {}),
+        field.note('Можно и отнять — введи число со знаком минус.'),
+      ].join(''),
+      primary: 'Добавить',
+      onSave: (val, close) => {
+        const n = Number(val.n);
+        if (!n) return toast('Введи число');
+        bumpCounter(v.id, n);
+        close();
+      },
+    });
+  },
 
   goaldone: v => {
     let now = false, title = '';

@@ -104,6 +104,10 @@ h1,h2,h3{margin:0; font-weight:400}
 .q-edit{font-size:11.5px; color:var(--ink2); flex:none; padding:4px}
 
 /* ── состояния цели ─────────────────────────────────────────── */
+.cnt-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.cnt-row .ink{min-width:120px}
+.cnt-row .pill{padding:5px 11px}
+
 .goal-done{opacity:.85}
 .goal-dropped{opacity:.6}
 .goal-dropped .ink b{text-decoration:line-through; color:var(--ink2)}
