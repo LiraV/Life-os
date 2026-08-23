@@ -33,6 +33,7 @@ function blank() {
     quests: {},          // { 'YYYY-MM-DD': [quest] }
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
+    intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
@@ -56,6 +57,7 @@ function migrate(s) {
   // в отмеченные дни как есть — придумывать длительность за пользователя нельзя.
   if (Array.isArray(merged.health.periods)) {
     merged.health.days ||= {};
+  merged.intentions ||= {};
     const moved = merged.health.periods.filter(d => typeof d === 'string');
     moved.forEach(d => { merged.health.days[d] = true; });
     delete merged.health.periods;
@@ -63,6 +65,7 @@ function migrate(s) {
     if (moved.length) merged.health.startsOnlyNotice = true;
   }
   merged.health.days ||= {};
+  merged.intentions ||= {};
 
   // v2 → v3: раньше цель была только месячной и хранила поле month.
   // Переводим на горизонты, чтобы рядом жили цели квартала и года.

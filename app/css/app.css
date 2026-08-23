@@ -14,13 +14,18 @@
 
 *{box-sizing:border-box}
 html,body{height:100%}
+/* Safari не должен раздувать текст при повороте, а двойной тап — увеличивать. */
+html{-webkit-text-size-adjust:100%; text-size-adjust:100%}
+body{touch-action:manipulation}
 body{
   margin:0; font-family:Jost,system-ui,-apple-system,sans-serif; color:var(--ink);
   background:var(--around); overscroll-behavior:none; -webkit-font-smoothing:antialiased;
   display:flex; justify-content:center; align-items:flex-start;
 }
 button{font:inherit; color:inherit; border:0; background:none; cursor:pointer}
-input,textarea,select{font:inherit; color:inherit}
+/* Ровно 16px: на iOS поле с более мелким шрифтом заставляет систему
+   приближать экран при фокусе, и приложение «прыгает». */
+input,textarea,select{font-family:inherit; font-size:16px; color:inherit}
 h1,h2,h3{margin:0; font-weight:400}
 
 /* ── каркас ─────────────────────────────────────────────────── */
@@ -102,6 +107,14 @@ h1,h2,h3{margin:0; font-weight:400}
 .q-meta{display:flex; gap:6px; align-items:center; margin-top:3px; flex-wrap:wrap}
 .q-time{font-size:11.5px; color:var(--ink4)}
 .q-edit{font-size:11.5px; color:var(--ink2); flex:none; padding:4px}
+
+/* ── намерения ──────────────────────────────────────────────── */
+.int-block{display:flex; flex-direction:column; gap:6px; padding-top:9px; margin-top:2px;
+  border-top:1px solid var(--track)}
+
+.int-row{display:flex; align-items:flex-start; gap:8px; font-size:13.5px; line-height:1.4; color:var(--ink)}
+.int-row .dash{color:var(--caramel); flex:none; line-height:1.4}
+.int-row .grow{cursor:pointer}
 
 /* ── состояния цели ─────────────────────────────────────────── */
 .cnt-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
@@ -205,7 +218,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .fld>span b{color:var(--deep); font-weight:500}
 .fld>span i{font-style:normal; color:var(--ink4)}
 .fld input[type=text],.fld input[type=number],.fld input[type=date],.fld input[type=time],.fld textarea,.fld select{
-  background:rgba(255,250,243,.8); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:13.5px; width:100%}
+  background:rgba(255,250,243,.8); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:16px; width:100%}
 .fld textarea{resize:vertical; min-height:64px}
 .fld select{appearance:none; -webkit-appearance:none; cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,var(--ink2) 50%),linear-gradient(135deg,var(--ink2) 50%,transparent 50%);

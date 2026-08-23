@@ -123,6 +123,7 @@ function monthView() {
       <div class="card dash"><div class="empty">Целей на ${monthTitle(ym).toLowerCase()} пока нет.<br>Три штуки — уже много.</div></div>`) : ''}
 
     <button class="add" data-act="goaladd" data-h="month" data-p="${ym}">+ Цель месяца</button>
+    ${raw(intentions(ym, 'Намерения месяца'))}
     <div class="card dash">
       <div class="lab">После большого этапа имеет смысл поставить неделю отдыха — на вкладке «Неделя».</div>
     </div>`;
@@ -219,6 +220,35 @@ function counterRow(g) {
     </div>`;
 }
 
+/** Намерения периода: направление, в котором хочется жить.
+ *  Ни прогресса, ни галочек — это принципиально не задачи. */
+function intentions(periodKey, title, compact) {
+  const list = S.intentions[periodKey] || [];
+  // Внутри квартала блок идёт без своей карточки, а длинное пояснение
+  // показывается только один раз — иначе оно четырежды забивает экран года.
+  const body = h`
+    <div class="row between">
+      <div class="caps">${title}</div>
+      <button class="q-edit" data-act="intadd" data-p="${periodKey}">+ добавить</button>
+    </div>
+    ${list.length ? raw(h`
+      <div class="list">
+        ${list.map(i => raw(h`
+          <div class="int-row">
+            <span class="dash">—</span>
+            <span class="grow" data-act="intedit" data-p="${periodKey}" data-id="${i.id}">${i.text}</span>
+            <button class="q-edit" data-act="intdel" data-p="${periodKey}" data-id="${i.id}">×</button>
+          </div>`))}
+      </div>`)
+    : raw(compact
+      ? '<div class="lab">пока пусто</div>'
+      : '<div class="lab">Это не задачи и не цели: их не отмечают и не считают. Просто то, как хочется прожить период — «ходить в зал», «общаться с родными», «отдыхать».</div>')}`;
+
+  return compact
+    ? h`<div class="int-block">${raw(body)}</div>`
+    : h`<div class="card">${raw(body)}</div>`;
+}
+
 /** Подпись слота: '2026-Q3' → 'Q3', '2026-08' → 'август'. */
 const slotLabel = sl => sl.includes('Q') ? sl.slice(5) : MONTHS[Number(sl.slice(5, 7)) - 1].toLowerCase();
 
@@ -258,6 +288,8 @@ function yearView() {
           <button class="add" data-act="goaladd" data-h="year" data-p="${y}">+ Цель года</button></div>`)}
     ${yGoals.length ? raw(h`<div class="lab" style="padding:0 4px">Цель года может стоять без срока, а когда придёт время — положи её в квартал или месяц. Это та же цель, а не копия.</div>`) : ''}
 
+    ${raw(intentions(String(y), 'Намерения года'))}
+
     <div class="caps" style="margin-top:4px">Кварталы</div>
     ${['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
       const qk = `${y}-${q}`;
@@ -280,6 +312,7 @@ function yearView() {
           ${months.length ? raw(h`<div class="lab">Цели месяцев: ${months.map(g => g.title).join(' · ')}</div>`) : ''}
           ${!own.length && !planned.length && !months.length ? raw('<div class="lab">целей пока нет</div>') : ''}
           <button class="add" data-act="goaladd" data-h="quarter" data-p="${qk}">+ Цель квартала</button>
+          ${raw(intentions(qk, 'Намерения квартала', true))}
         </div>`);
     })}`;
 }
@@ -553,6 +586,52 @@ export const actions = {
   mnext: () => update(s => { s.ui.monthAnchor = addMonths(month(), 1); }),
   goaladd: v => goalSheet(null, { horizon: v.h, period: v.p }),
   plan: v => { const g = goalById(v.id); if (g) planSheet(g); },
+
+  intadd: v => openSheet({
+    title: 'Намерения',
+    sub: 'по одному в строке — можно сразу списком',
+    body: [
+      field.area('text', 'Как хочется прожить период', '', 'Ходить в зал\nОбщаться с родными\nОтдыхать'),
+      field.note('Намерения не отмечаются и не считаются. Они просто есть — как направление.'),
+    ].join(''),
+    primary: 'Добавить',
+    onSave: (val, close) => {
+      const lines = (val.text || '').split('\n').map(x => x.replace(/^[-–—•\s]+/, '').trim()).filter(Boolean);
+      if (!lines.length) return toast('Пусто — нечего добавить');
+      update(s2 => {
+        const list = (s2.intentions[v.p] ||= []);
+        lines.forEach(text => list.push({ id: uid(), text }));
+      });
+      close();
+      toast(lines.length === 1 ? 'Добавила' : `Добавила ${lines.length}`);
+    },
+  }),
+
+  intedit: v => {
+    const item = (S.intentions[v.p] || []).find(x => x.id === v.id);
+    if (!item) return;
+    openSheet({
+      title: 'Намерение',
+      body: field.text('text', 'Как хочется', item.text),
+      onSave: (val, close) => {
+        const text = (val.text || '').trim();
+        if (!text) return toast('Пустое не сохраню');
+        update(s2 => { const x = (s2.intentions[v.p] || []).find(y2 => y2.id === v.id); if (x) x.text = text; });
+        close();
+      },
+      danger: 'Убрать',
+      onDanger: (_val, close) => {
+        update(s2 => { s2.intentions[v.p] = (s2.intentions[v.p] || []).filter(x => x.id !== v.id); });
+        close();
+        toast('Убрала');
+      },
+    });
+  },
+
+  intdel: v => {
+    update(s2 => { s2.intentions[v.p] = (s2.intentions[v.p] || []).filter(x => x.id !== v.id); });
+    toast('Убрала');
+  },
 
   cnt: v => bumpCounter(v.id, Number(v.d)),
   cntadd: v => {
