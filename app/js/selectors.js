@@ -52,12 +52,23 @@ export function goalProgress(goal, seen = new Set()) {
 
 const avg = list => list.length ? Math.round(list.reduce((a, b) => a + b, 0) / list.length) : null;
 
-/** Цели квартала, а если их нет — месячные цели внутри него. */
+export const goalSlots = g => Array.isArray(g.slots) ? g.slots : [];
+
+/** Цели, положенные в этот период сверху — живут выше, но запланированы сюда. */
+export const goalsPlannedIn = period => liveGoals().filter(g => g.period !== period && goalSlots(g).includes(period));
+
+/** Цели года, которым ещё не назначен ни квартал, ни месяц. */
+export const unplannedGoals = (horizon, period) => goalsIn(horizon, period).filter(g => !goalSlots(g).length);
+
+/** Цели квартала: свои плюс положенные сюда; если пусто — месячные внутри него. */
 export function quarterGoals(qk) {
-  const own = goalsIn('quarter', qk);
+  const own = [...goalsIn('quarter', qk), ...goalsPlannedIn(qk)];
   if (own.length) return own;
   return quarterMonths(qk).flatMap(ym => goalsIn('month', ym));
 }
+
+/** Цели месяца: свои плюс положенные сюда из квартала или года. */
+export const monthGoals = ym => [...goalsIn('month', ym), ...goalsPlannedIn(ym)];
 export const quarterProgress = qk => avg(quarterGoals(qk).map(g => goalProgress(g)));
 
 /** Цели года, а если их нет — сводка по кварталам. */

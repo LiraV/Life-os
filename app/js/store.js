@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 3;
+const VERSION = 4;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -31,7 +31,7 @@ function blank() {
     },
     quests: {},          // { 'YYYY-MM-DD': [quest] }
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
-    goals: [],           // цели: { horizon: 'year'|'quarter'|'month', period, parentId, steps }
+    goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
@@ -66,8 +66,10 @@ function migrate(s) {
   // v2 → v3: раньше цель была только месячной и хранила поле month.
   // Переводим на горизонты, чтобы рядом жили цели квартала и года.
   merged.goals = (merged.goals || []).map(g => {
-    if (g.horizon) return g;
-    return { ...g, horizon: 'month', period: g.month || monthKey(todayISO()), parentId: g.parentId || '', month: undefined };
+    const base = g.horizon ? g
+      : { ...g, horizon: 'month', period: g.month || monthKey(todayISO()), parentId: g.parentId || '', month: undefined };
+    // v3 → v4: слоты — периоды, в которые цель положена помимо своего горизонта.
+    return { ...base, slots: Array.isArray(base.slots) ? base.slots : [] };
   });
 
   return merged;

@@ -9,7 +9,8 @@ import {
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
-  quarterGoals, quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
+  quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
+  goalSlots, goalsPlannedIn, monthGoals,
 } from '../selectors.js';
 
 const TABS = [['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']];
@@ -99,7 +100,9 @@ function weekView() {
 // ── месяц ───────────────────────────────────────────────────────
 function monthView() {
   const ym = month();
-  const goals = goalsIn('month', ym);
+  const own = goalsIn('month', ym);
+  const planned = goalsPlannedIn(ym);
+  const goals = [...own, ...planned];
   const qk = quarterKey(ym);
   const theme = S.years[ym.slice(0, 4)]?.theme;
 
@@ -113,8 +116,11 @@ function monthView() {
       <button class="arrow" data-act="mnext">›</button>
     </div>
 
-    ${goals.length ? goals.map(g => raw(goalCard(g))) : raw(h`
-      <div class="card dash"><div class="empty">Целей на ${monthTitle(ym).toLowerCase()} пока нет.<br>Три штуки — уже много.</div></div>`)}
+    ${own.map(g => raw(goalCard(g)))}
+    ${planned.length ? raw(h`<div class="caps">Положены в этот месяц</div>`) : ''}
+    ${planned.map(g => raw(goalCard(g, { compact: true, plannedIn: ym })))}
+    ${!goals.length ? raw(h`
+      <div class="card dash"><div class="empty">Целей на ${monthTitle(ym).toLowerCase()} пока нет.<br>Три штуки — уже много.</div></div>`) : ''}
 
     <button class="add" data-act="goaladd" data-h="month" data-p="${ym}">+ Цель месяца</button>
     <div class="card dash">
@@ -122,8 +128,9 @@ function monthView() {
     </div>`;
 }
 
-/** Карточка цели — одна на все горизонты. */
-function goalCard(g, compact) {
+/** Карточка цели — одна на все горизонты.
+ *  `plannedIn` — период, в котором карточка сейчас показана как положенная сверху. */
+function goalCard(g, { compact = false, plannedIn = null } = {}) {
   const pct = goalProgress(g);
   const open = S.ui.openGoal === g.id;
   const steps = g.steps || [];
@@ -131,6 +138,7 @@ function goalCard(g, compact) {
   const kids = goalChildren(g.id);
   const parent = g.parentId ? goalById(g.parentId) : null;
   const chain = goalChain(g.id);
+  const slots = goalSlots(g);
 
   return h`
     <div class="card ${compact ? 'mute' : ''}">
@@ -144,9 +152,20 @@ function goalCard(g, compact) {
             ${g.deadline ? raw(h`<span class="lab">до ${dayShort(g.deadline)}</span>`) : ''}
           </div>
         </div>
-        <button class="q-edit" data-act="goaledit" data-id="${g.id}">изменить ›</button>
+        ${plannedIn
+          ? raw(h`<button class="q-edit" data-act="unplan" data-id="${g.id}" data-p="${plannedIn}">убрать отсюда</button>`)
+          : raw(h`<button class="q-edit" data-act="goaledit" data-id="${g.id}">изменить ›</button>`)}
       </div>
       <div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>
+
+      ${!plannedIn && g.horizon !== 'month' ? raw(h`
+        <div class="row tight" style="flex-wrap:wrap">
+          ${slots.length
+            ? slots.map(sl => raw(h`<button class="tag" data-act="unplan" data-id="${g.id}" data-p="${sl}" title="убрать">${slotLabel(sl)} ×</button>`))
+            : raw('<span class="lab">пока без срока — только год</span>')}
+          <button class="q-edit" data-act="plan" data-id="${g.id}">+ в квартал или месяц</button>
+        </div>`) : ''}
+
       ${open ? raw(h`
         ${kids.length ? raw(h`
           <div class="lab" style="margin-top:2px">Ведут к ней:</div>
@@ -162,11 +181,15 @@ function goalCard(g, compact) {
             </div>`))}
         </div>
         <button class="add" data-act="gstepadd" data-id="${g.id}">+ Этап</button>
+        ${plannedIn ? raw(h`<button class="btn-ghost" data-act="goaledit" data-id="${g.id}">изменить саму цель ›</button>`) : ''}
         <div class="lab">${steps.length ? 'Прогресс считается из этапов.'
           : kids.length ? 'Прогресс считается из вложенных целей.'
           : 'Добавь этапы или цель поменьше — из них и посчитается прогресс.'}${chain.theme ? ` Ведёт к «${chain.theme}».` : ''}</div>`) : ''}
     </div>`;
 }
+
+/** Подпись слота: '2026-Q3' → 'Q3', '2026-08' → 'август'. */
+const slotLabel = sl => sl.includes('Q') ? sl.slice(5) : MONTHS[Number(sl.slice(5, 7)) - 1].toLowerCase();
 
 const periodLabel = g => g.horizon === 'year' ? g.period
   : g.horizon === 'quarter' ? `${g.period.slice(5)} ${g.period.slice(0, 4)}`
@@ -202,11 +225,13 @@ function yearView() {
     ${yGoals.length ? yGoals.map(g => raw(goalCard(g)))
       : raw(h`<div class="card dash"><div class="empty">Целей года пока нет.<br>Одна-три крупные — этого достаточно.</div>
           <button class="add" data-act="goaladd" data-h="year" data-p="${y}">+ Цель года</button></div>`)}
+    ${yGoals.length ? raw(h`<div class="lab" style="padding:0 4px">Цель года может стоять без срока, а когда придёт время — положи её в квартал или месяц. Это та же цель, а не копия.</div>`) : ''}
 
     <div class="caps" style="margin-top:4px">Кварталы</div>
     ${['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
       const qk = `${y}-${q}`;
       const own = goalsIn('quarter', qk);
+      const planned = goalsPlannedIn(qk);
       const months = quarterMonths(qk).flatMap(ym => goalsIn('month', ym));
       const pct = quarterProgress(qk);
       const active = thisYear && qk === curQ;
@@ -219,9 +244,10 @@ function yearView() {
           </div>
           ${rec.quarters?.[q] ? raw(h`<div class="lab">${rec.quarters[q]}</div>`) : ''}
           ${pct != null ? raw(h`<div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>`) : ''}
-          ${own.map(g => raw(goalCard(g, true)))}
+          ${own.map(g => raw(goalCard(g, { compact: true })))}
+          ${planned.map(g => raw(goalCard(g, { compact: true, plannedIn: qk })))}
           ${months.length ? raw(h`<div class="lab">Цели месяцев: ${months.map(g => g.title).join(' · ')}</div>`) : ''}
-          ${!own.length && !months.length ? raw('<div class="lab">целей пока нет</div>') : ''}
+          ${!own.length && !planned.length && !months.length ? raw('<div class="lab">целей пока нет</div>') : ''}
           <button class="add" data-act="goaladd" data-h="quarter" data-p="${qk}">+ Цель квартала</button>
         </div>`);
     })}`;
@@ -313,7 +339,7 @@ function goalSheet(goal, preset) {
   const isNew = !goal;
   const horizon0 = goal?.horizon || preset?.horizon || 'month';
   const period0 = goal?.period || preset?.period || (horizon0 === 'year' ? String(year()) : horizon0 === 'quarter' ? quarterKey(month()) : month());
-  const g = goal || { id: uid(), title: '', steps: [], progress: 0, deadline: '', sphere: '', parentId: '' };
+  const g = goal || { id: uid(), title: '', steps: [], slots: [], progress: 0, deadline: '', sphere: '', parentId: '' };
 
   const wrap = openSheet({
     title: isNew ? `Новая цель · ${HORIZONS[horizon0].toLowerCase()}` : 'Цель',
@@ -378,6 +404,57 @@ function goalSheet(goal, preset) {
   });
 }
 
+/** Куда можно положить цель: только периоды мельче её горизонта и внутри её года. */
+function slotOptions(g, kind) {
+  const y = g.horizon === 'year' ? g.period : g.period.slice(0, 4);
+  if (kind === 'quarter') {
+    return ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ value: `${y}-${q}`, label: `${q} ${y}` }));
+  }
+  const months = g.horizon === 'quarter' ? quarterMonths(g.period)
+    : Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`);
+  return months.map(m => ({ value: m, label: monthTitle(m) }));
+}
+
+function planSheet(g) {
+  const canQuarter = g.horizon === 'year';
+  const kind0 = canQuarter ? 'quarter' : 'month';
+  const taken = goalSlots(g);
+  const first = slotOptions(g, kind0).find(o => !taken.includes(o.value)) || slotOptions(g, kind0)[0];
+
+  const wrap = openSheet({
+    title: 'Положить цель в период',
+    sub: `${g.title} · сейчас ${taken.length ? taken.map(slotLabel).join(', ') : 'без срока'}`,
+    body: [
+      canQuarter ? field.opts('kind', 'Куда', [{ value: 'quarter', label: 'В квартал' }, { value: 'month', label: 'В месяц' }], kind0) : '',
+      field.select('slot', 'Период', slotOptions(g, kind0), first.value),
+      field.note('Цель останется целью года — просто появится ещё и в выбранном периоде. Убрать оттуда можно в один тап.'),
+    ].join(''),
+    primary: 'Положить',
+    onSave: (v, close) => {
+      const slot = v.slot;
+      if (!slot) return toast('Выбери период');
+      update(s2 => {
+        const goal = s2.goals.find(x => x.id === g.id);
+        if (!goal) return;
+        goal.slots = Array.isArray(goal.slots) ? goal.slots : [];
+        if (!goal.slots.includes(slot)) goal.slots.push(slot);
+        goal.slots.sort();
+        if (slot.includes('Q')) { s2.ui.planTab = 'year'; s2.ui.year = Number(slot.slice(0, 4)); }
+        else { s2.ui.planTab = 'month'; s2.ui.monthAnchor = slot; }
+      });
+      close();
+      toast(`Положила в ${slotLabel(slot)}`);
+    },
+  });
+
+  wrap.addEventListener('opt', e => {
+    if (e.target.dataset.name !== 'kind') return;
+    const opts = slotOptions(g, e.detail);
+    const pick = opts.find(o => !taken.includes(o.value)) || opts[0];
+    wrap.querySelector('select[name="slot"]').innerHTML = selectHTML(opts, pick.value);
+  });
+}
+
 // ── действия ────────────────────────────────────────────────────
 const weekRec = s => (s.weeks[weekKey(anchor())] ||= {});
 
@@ -411,6 +488,14 @@ export const actions = {
   mprev: () => update(s => { s.ui.monthAnchor = addMonths(month(), -1); }),
   mnext: () => update(s => { s.ui.monthAnchor = addMonths(month(), 1); }),
   goaladd: v => goalSheet(null, { horizon: v.h, period: v.p }),
+  plan: v => { const g = goalById(v.id); if (g) planSheet(g); },
+  unplan: v => {
+    update(s2 => {
+      const g = s2.goals.find(x => x.id === v.id);
+      if (g) g.slots = goalSlots(g).filter(x => x !== v.p);
+    });
+    toast('Убрала из периода — сама цель на месте');
+  },
   goaledit: v => goalSheet(S.goals.find(g => g.id === v.id)),
   goaltoggle: v => update(s => { s.ui.openGoal = s.ui.openGoal === v.id ? null : v.id; }),
   gstepadd: v => stepSheet('Этап цели', t => update(s => {

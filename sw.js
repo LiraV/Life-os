@@ -1,6 +1,6 @@
 // Офлайн-оболочка. Пути относительные — приложение живёт в подкаталоге на Pages.
 // Версию поднимаем при любом изменении файлов из SHELL.
-const VERSION = 'lifeos-v3';
+const VERSION = 'lifeos-v4';
 const FONTS = 'lifeos-fonts-v1';
 
 const SHELL = [
