@@ -3,13 +3,13 @@
 import { S, update } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf } from '../dates.js';
 import { h, raw, bar, toast, openSheet, field } from '../ui.js';
-import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress } from '../selectors.js';
+import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress, scored } from '../selectors.js';
 
 export function render() {
   const li = levelInfo();
   const t = todayISO();
   const year = S.years[yearOf(t)];
-  const goals = monthGoals(monthKey(t));
+  const goals = scored(monthGoals(monthKey(t)));
   const chapterPct = goals.length ? Math.round(goals.reduce((a, g) => a + goalProgress(g), 0) / goals.length) : 0;
   const w = weekStats(t);
   const need = needs();

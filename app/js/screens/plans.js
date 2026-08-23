@@ -10,7 +10,7 @@ import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
   quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
-  goalSlots, goalsPlannedIn, monthGoals,
+  goalSlots, goalsPlannedIn, monthGoals, scored,
 } from '../selectors.js';
 
 const TABS = [['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']];
@@ -141,11 +141,17 @@ function goalCard(g, { compact = false, plannedIn = null } = {}) {
   const slots = goalSlots(g);
 
   return h`
-    <div class="card ${compact ? 'mute' : ''}">
+    <div class="card ${compact ? 'mute' : ''} ${g.dropped ? 'goal-dropped' : ''} ${g.done ? 'goal-done' : ''}">
       <div class="row between">
+        ${g.dropped
+          ? raw(h`<button class="check" data-act="goalrestore" data-id="${g.id}" aria-label="Вернуть">↺</button>`)
+          : raw(h`<button class="check ${g.done ? 'on' : ''}" data-act="goaldone" data-id="${g.id}"
+              aria-pressed="${g.done ? 'true' : 'false'}" aria-label="Цель выполнена">✓</button>`)}
         <div class="grow" data-act="goaltoggle" data-id="${g.id}" style="cursor:pointer">
           <div class="ink"><b>${g.title}</b></div>
           <div class="row tight" style="margin-top:4px;flex-wrap:wrap">
+            ${g.dropped ? raw('<span class="tag">вычеркнута</span>') : ''}
+            ${g.done ? raw('<span class="tag boss">готово ✦</span>') : ''}
             <span class="tag">${periodLabel(g)}</span>
             ${sp ? raw(h`<span class="tag">${sp.name}</span>`) : ''}
             ${parent ? raw(h`<span class="lab">→ ${parent.title}</span>`) : ''}
@@ -156,7 +162,9 @@ function goalCard(g, { compact = false, plannedIn = null } = {}) {
           ? raw(h`<button class="q-edit" data-act="unplan" data-id="${g.id}" data-p="${plannedIn}">убрать отсюда</button>`)
           : raw(h`<button class="q-edit" data-act="goaledit" data-id="${g.id}">изменить ›</button>`)}
       </div>
-      <div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>
+      ${g.dropped
+        ? raw('<div class="lab">Вычеркнута — осталась в списке, но в прогресс не идёт.</div>')
+        : raw(h`<div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>`)}
 
       ${!plannedIn && g.horizon !== 'month' ? raw(h`
         <div class="row tight" style="flex-wrap:wrap">
@@ -170,8 +178,8 @@ function goalCard(g, { compact = false, plannedIn = null } = {}) {
         ${kids.length ? raw(h`
           <div class="lab" style="margin-top:2px">Ведут к ней:</div>
           ${kids.map(k => raw(h`<div class="row between" style="padding-left:4px">
-            <span class="lab grow ellip">${k.title} · ${periodLabel(k)}</span>
-            <span class="lab">${goalProgress(k)}%</span></div>`))}`) : ''}
+            <span class="lab grow ellip">${k.dropped ? '— ' : ''}${k.title} · ${periodLabel(k)}</span>
+            <span class="lab">${k.dropped ? 'вычеркнута' : goalProgress(k) + '%'}</span></div>`))}`) : ''}
         <div class="list" style="margin-top:4px">
           ${steps.map(st => raw(h`
             <div class="chk-row ${st.done ? 'done' : ''}">
@@ -182,9 +190,10 @@ function goalCard(g, { compact = false, plannedIn = null } = {}) {
         </div>
         <button class="add" data-act="gstepadd" data-id="${g.id}">+ Этап</button>
         ${plannedIn ? raw(h`<button class="btn-ghost" data-act="goaledit" data-id="${g.id}">изменить саму цель ›</button>`) : ''}
-        <div class="lab">${steps.length ? 'Прогресс считается из этапов.'
+        <div class="lab">${g.done ? 'Отмечена выполненной целиком — этапы уже не считаются.'
+          : steps.length ? 'Прогресс считается из этапов.'
           : kids.length ? 'Прогресс считается из вложенных целей.'
-          : 'Добавь этапы или цель поменьше — из них и посчитается прогресс.'}${chain.theme ? ` Ведёт к «${chain.theme}».` : ''}</div>`) : ''}
+          : 'Можно не дробить: галочка слева отмечает цель выполненной целиком.'}${chain.theme ? ` Ведёт к «${chain.theme}».` : ''}</div>`) : ''}
     </div>`;
 }
 
@@ -313,7 +322,7 @@ function periodOptions(horizon, current) {
 /** Кандидаты в родители: цель может вести только к более крупному горизонту. */
 function parentOptions(horizon, selfId) {
   const bigger = horizon === 'month' ? ['quarter', 'year'] : horizon === 'quarter' ? ['year'] : [];
-  const list = liveGoals().filter(g => bigger.includes(g.horizon) && g.id !== selfId);
+  const list = liveGoals().filter(g => bigger.includes(g.horizon) && g.id !== selfId && !g.dropped);
   return [{ value: '', label: 'ни к чему' }, ...list.map(g => ({ value: g.id, label: `${g.title} · ${periodLabel(g)}` }))];
 }
 
@@ -354,6 +363,18 @@ function goalSheet(goal, preset) {
       field.note('Этапы добавляются в самой цели — прогресс считается по ним или по вложенным целям.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
+    secondary: isNew ? null : (goal.dropped ? 'Вернуть в работу' : 'Вычеркнуть — останется в списке'),
+    onSecondary: (_v, close) => {
+      update(s2 => {
+        const x = s2.goals.find(y2 => y2.id === g.id);
+        if (!x) return;
+        x.dropped = !x.dropped;
+        x.droppedAt = x.dropped ? todayISO() : null;
+        if (x.dropped) x.done = false;
+      });
+      close();
+      toast(S.goals.find(x => x.id === g.id)?.dropped ? 'Вычеркнула — из прогресса убрала' : 'Вернула в работу');
+    },
     onSave: (v, close) => {
       const title = (v.title || '').trim();
       if (!title) return toast('Нужно название');
@@ -489,6 +510,25 @@ export const actions = {
   mnext: () => update(s => { s.ui.monthAnchor = addMonths(month(), 1); }),
   goaladd: v => goalSheet(null, { horizon: v.h, period: v.p }),
   plan: v => { const g = goalById(v.id); if (g) planSheet(g); },
+
+  goaldone: v => {
+    let now = false, title = '';
+    update(s2 => {
+      const g = s2.goals.find(x => x.id === v.id);
+      if (!g) return;
+      g.done = !g.done;
+      g.doneAt = g.done ? todayISO() : null;
+      if (g.done) g.dropped = false;
+      now = g.done; title = g.title;
+      addXp(g.done ? XP.boss : -XP.boss);
+    });
+    toast(now ? `«${title}» — цель закрыта ✦` : 'Снова в работе');
+  },
+
+  goalrestore: v => {
+    update(s2 => { const g = s2.goals.find(x => x.id === v.id); if (g) { g.dropped = false; g.droppedAt = null; } });
+    toast('Вернула в работу');
+  },
   unplan: v => {
     update(s2 => {
       const g = s2.goals.find(x => x.id === v.id);

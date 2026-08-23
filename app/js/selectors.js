@@ -34,18 +34,25 @@ export const levelInfo = () => {
 // ── цели: год → квартал → месяц ─────────────────────────────────
 export const HORIZONS = { year: 'Год', quarter: 'Квартал', month: 'Месяц' };
 
+/** Живые цели — всё, что не в архиве. Вычеркнутые сюда входят: они видны,
+ *  просто не участвуют в подсчётах. */
 export const liveGoals = () => S.goals.filter(g => !g.archived);
 export const goalsIn = (horizon, period) => liveGoals().filter(g => g.horizon === horizon && g.period === period);
 export const goalById = id => S.goals.find(g => g.id === id);
 export const goalChildren = id => liveGoals().filter(g => g.parentId === id);
 
-/** Прогресс: по этапам, иначе по вложенным целям, иначе вручную. */
+/** Цели, которые вообще считаются: вычеркнутые не тянут средние вниз. */
+export const scored = list => list.filter(g => !g.dropped);
+
+/** Прогресс: отметка «выполнено» перебивает всё, дальше этапы, вложенные цели, вручную. */
 export function goalProgress(goal, seen = new Set()) {
   if (!goal || seen.has(goal.id)) return 0;
+  if (goal.done) return 100;
+  if (goal.dropped) return 0;
   seen.add(goal.id);
   const steps = goal.steps || [];
   if (steps.length) return Math.round((steps.filter(x => x.done).length / steps.length) * 100);
-  const kids = goalChildren(goal.id);
+  const kids = scored(goalChildren(goal.id));
   if (kids.length) return Math.round(kids.reduce((a, k) => a + goalProgress(k, seen), 0) / kids.length);
   return Math.max(0, Math.min(100, goal.progress || 0));
 }
@@ -69,11 +76,11 @@ export function quarterGoals(qk) {
 
 /** Цели месяца: свои плюс положенные сюда из квартала или года. */
 export const monthGoals = ym => [...goalsIn('month', ym), ...goalsPlannedIn(ym)];
-export const quarterProgress = qk => avg(quarterGoals(qk).map(g => goalProgress(g)));
+export const quarterProgress = qk => avg(scored(quarterGoals(qk)).map(g => goalProgress(g)));
 
 /** Цели года, а если их нет — сводка по кварталам. */
 export function yearProgress(y) {
-  const own = goalsIn('year', String(y));
+  const own = scored(goalsIn('year', String(y)));
   if (own.length) return avg(own.map(g => goalProgress(g)));
   return avg(['Q1', 'Q2', 'Q3', 'Q4'].map(q => quarterProgress(`${y}-${q}`)).filter(x => x != null));
 }
