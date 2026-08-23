@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 2;
+const VERSION = 3;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -31,7 +31,7 @@ function blank() {
     },
     quests: {},          // { 'YYYY-MM-DD': [quest] }
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
-    goals: [],           // цели месяца
+    goals: [],           // цели: { horizon: 'year'|'quarter'|'month', period, parentId, steps }
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
@@ -62,6 +62,14 @@ function migrate(s) {
     if (moved.length) merged.health.startsOnlyNotice = true;
   }
   merged.health.days ||= {};
+
+  // v2 → v3: раньше цель была только месячной и хранила поле month.
+  // Переводим на горизонты, чтобы рядом жили цели квартала и года.
+  merged.goals = (merged.goals || []).map(g => {
+    if (g.horizon) return g;
+    return { ...g, horizon: 'month', period: g.month || monthKey(todayISO()), parentId: g.parentId || '', month: undefined };
+  });
+
   return merged;
 }
 

@@ -2,7 +2,7 @@
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
 import { S, SPHERES, level, levelFloor } from './store.js';
-import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort } from './dates.js';
+import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
 export const sphereOf = key => SPHERES.find(s => s.key === key);
@@ -31,15 +31,60 @@ export const levelInfo = () => {
   return { lv, xp, from, to, pct: Math.round(((xp - from) / Math.max(1, to - from)) * 100) };
 };
 
-// ── цели и сферы ────────────────────────────────────────────────
-export function goalProgress(goal) {
+// ── цели: год → квартал → месяц ─────────────────────────────────
+export const HORIZONS = { year: 'Год', quarter: 'Квартал', month: 'Месяц' };
+
+export const liveGoals = () => S.goals.filter(g => !g.archived);
+export const goalsIn = (horizon, period) => liveGoals().filter(g => g.horizon === horizon && g.period === period);
+export const goalById = id => S.goals.find(g => g.id === id);
+export const goalChildren = id => liveGoals().filter(g => g.parentId === id);
+
+/** Прогресс: по этапам, иначе по вложенным целям, иначе вручную. */
+export function goalProgress(goal, seen = new Set()) {
+  if (!goal || seen.has(goal.id)) return 0;
+  seen.add(goal.id);
   const steps = goal.steps || [];
-  if (steps.length) return Math.round((steps.filter(s => s.done).length / steps.length) * 100);
+  if (steps.length) return Math.round((steps.filter(x => x.done).length / steps.length) * 100);
+  const kids = goalChildren(goal.id);
+  if (kids.length) return Math.round(kids.reduce((a, k) => a + goalProgress(k, seen), 0) / kids.length);
   return Math.max(0, Math.min(100, goal.progress || 0));
 }
 
-export const goalsOfMonth = ym => S.goals.filter(g => !g.archived && g.month === ym);
+const avg = list => list.length ? Math.round(list.reduce((a, b) => a + b, 0) / list.length) : null;
 
+/** Цели квартала, а если их нет — месячные цели внутри него. */
+export function quarterGoals(qk) {
+  const own = goalsIn('quarter', qk);
+  if (own.length) return own;
+  return quarterMonths(qk).flatMap(ym => goalsIn('month', ym));
+}
+export const quarterProgress = qk => avg(quarterGoals(qk).map(g => goalProgress(g)));
+
+/** Цели года, а если их нет — сводка по кварталам. */
+export function yearProgress(y) {
+  const own = goalsIn('year', String(y));
+  if (own.length) return avg(own.map(g => goalProgress(g)));
+  return avg(['Q1', 'Q2', 'Q3', 'Q4'].map(q => quarterProgress(`${y}-${q}`)).filter(x => x != null));
+}
+
+/** Куда ведёт цель: цепочка вверх до темы года. */
+export function goalChain(id) {
+  const out = [];
+  let cur = goalById(id), guard = 0;
+  while (cur && guard++ < 6) {
+    out.push({ id: cur.id, title: cur.title, horizon: cur.horizon, period: cur.period });
+    cur = cur.parentId ? goalById(cur.parentId) : null;
+  }
+  const last = out[out.length - 1];
+  const year = last ? last.period.slice(0, 4) : null;
+  const theme = year && S.years[year]?.theme;
+  return { links: out, theme: theme || null };
+}
+
+/** Годы, о которых вообще есть что показать. */
+export const goalYears = () => [...new Set(liveGoals().map(g => g.period.slice(0, 4)))];
+
+// ── сферы ───────────────────────────────────────────────────────
 export const sphereItems = key => (S.spheres[key] || {}).items || [];
 
 export function sphereProgress(key) {

@@ -41,6 +41,13 @@ export const monthKey = s => s.slice(0, 7);
 export const yearOf = s => Number(s.slice(0, 4));
 export const quarterOf = s => `Q${Math.floor(Number(s.slice(5, 7) - 1) / 3) + 1}`;
 
+/** '2026-08' → '2026-Q3'; ключ периода для целей квартала. */
+export const quarterKey = ym => `${ym.slice(0, 4)}-Q${Math.floor((Number(ym.slice(5, 7)) - 1) / 3) + 1}`;
+export const quarterMonths = qk => {
+  const y = qk.slice(0, 4), n = Number(qk.slice(6));
+  return [0, 1, 2].map(i => `${y}-${String((n - 1) * 3 + 1 + i).padStart(2, '0')}`);
+};
+
 export function addMonths(ym, n) {
   const [y, m] = ym.split('-').map(Number);
   const d = new Date(y, m - 1 + n, 1);

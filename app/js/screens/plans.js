@@ -4,17 +4,20 @@
 import { S, update, uid, XP, addXp, SPHERES } from '../store.js';
 import {
   todayISO, addDays, addMonths, weekKey, weekDates, isoWeek,
-  monthKey, monthTitle, dayShort, yearOf,
+  monthKey, monthTitle, dayShort, yearOf, quarterKey, quarterMonths, MONTHS,
 } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
-import { questsOn, weekStats, goalProgress, goalsOfMonth, sphereOf } from '../selectors.js';
+import {
+  questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
+  quarterGoals, quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
+} from '../selectors.js';
 
 const TABS = [['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']];
 const tab = () => S.ui.planTab || 'week';
 const anchor = () => S.ui.weekAnchor || todayISO();
 const month = () => S.ui.monthAnchor || monthKey(todayISO());
 const year = () => S.ui.year || yearOf(todayISO());
-const quarterOfMonth = ym => `Q${Math.floor((Number(ym.slice(5, 7)) - 1) / 3) + 1}`;
+const quarterOfMonth = ym => quarterKey(ym).slice(5);
 
 export function render() {
   return h`
@@ -96,8 +99,8 @@ function weekView() {
 // ── месяц ───────────────────────────────────────────────────────
 function monthView() {
   const ym = month();
-  const goals = goalsOfMonth(ym);
-  const q = quarterOfMonth(ym);
+  const goals = goalsIn('month', ym);
+  const qk = quarterKey(ym);
   const theme = S.years[ym.slice(0, 4)]?.theme;
 
   return h`
@@ -105,33 +108,39 @@ function monthView() {
       <button class="arrow" data-act="mprev">‹</button>
       <div style="text-align:center">
         <div class="ink"><b>${monthTitle(ym)}</b></div>
-        <div class="lab">${q}${theme ? ` · «${theme}»` : ''}</div>
+        <div class="lab">${qk.slice(5)}${theme ? ` · «${theme}»` : ''}</div>
       </div>
       <button class="arrow" data-act="mnext">›</button>
     </div>
 
-    ${goals.length ? goals.map(g => raw(goalCard(g, q, theme))) : raw(h`
+    ${goals.length ? goals.map(g => raw(goalCard(g))) : raw(h`
       <div class="card dash"><div class="empty">Целей на ${monthTitle(ym).toLowerCase()} пока нет.<br>Три штуки — уже много.</div></div>`)}
 
-    <button class="add" data-act="goaladd">+ Цель месяца</button>
+    <button class="add" data-act="goaladd" data-h="month" data-p="${ym}">+ Цель месяца</button>
     <div class="card dash">
       <div class="lab">После большого этапа имеет смысл поставить неделю отдыха — на вкладке «Неделя».</div>
     </div>`;
 }
 
-function goalCard(g, q, theme) {
+/** Карточка цели — одна на все горизонты. */
+function goalCard(g, compact) {
   const pct = goalProgress(g);
   const open = S.ui.openGoal === g.id;
   const steps = g.steps || [];
   const sp = sphereOf(g.sphere);
+  const kids = goalChildren(g.id);
+  const parent = g.parentId ? goalById(g.parentId) : null;
+  const chain = goalChain(g.id);
+
   return h`
-    <div class="card">
+    <div class="card ${compact ? 'mute' : ''}">
       <div class="row between">
         <div class="grow" data-act="goaltoggle" data-id="${g.id}" style="cursor:pointer">
           <div class="ink"><b>${g.title}</b></div>
-          <div class="row tight" style="margin-top:4px">
-            <span class="tag">→ ${q}</span>
+          <div class="row tight" style="margin-top:4px;flex-wrap:wrap">
+            <span class="tag">${periodLabel(g)}</span>
             ${sp ? raw(h`<span class="tag">${sp.name}</span>`) : ''}
+            ${parent ? raw(h`<span class="lab">→ ${parent.title}</span>`) : ''}
             ${g.deadline ? raw(h`<span class="lab">до ${dayShort(g.deadline)}</span>`) : ''}
           </div>
         </div>
@@ -139,31 +148,38 @@ function goalCard(g, q, theme) {
       </div>
       <div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>
       ${open ? raw(h`
+        ${kids.length ? raw(h`
+          <div class="lab" style="margin-top:2px">Ведут к ней:</div>
+          ${kids.map(k => raw(h`<div class="row between" style="padding-left:4px">
+            <span class="lab grow ellip">${k.title} · ${periodLabel(k)}</span>
+            <span class="lab">${goalProgress(k)}%</span></div>`))}`) : ''}
         <div class="list" style="margin-top:4px">
-          ${steps.map(s => raw(h`
-            <div class="chk-row ${s.done ? 'done' : ''}">
-              <button class="check ${s.done ? 'on' : ''}" data-act="gstep" data-gid="${g.id}" data-id="${s.id}">✓</button>
-              <span class="grow">${s.title}</span>
-              <button class="q-edit" data-act="gstepdel" data-gid="${g.id}" data-id="${s.id}">×</button>
+          ${steps.map(st => raw(h`
+            <div class="chk-row ${st.done ? 'done' : ''}">
+              <button class="check ${st.done ? 'on' : ''}" data-act="gstep" data-gid="${g.id}" data-id="${st.id}">✓</button>
+              <span class="grow">${st.title}</span>
+              <button class="q-edit" data-act="gstepdel" data-gid="${g.id}" data-id="${st.id}">×</button>
             </div>`))}
         </div>
         <button class="add" data-act="gstepadd" data-id="${g.id}">+ Этап</button>
-        ${steps.length ? raw(h`<div class="lab">Прогресс считается из этапов${theme ? `, а цель ведёт к «${theme}»` : ''}.</div>`) : ''}`) : ''}
+        <div class="lab">${steps.length ? 'Прогресс считается из этапов.'
+          : kids.length ? 'Прогресс считается из вложенных целей.'
+          : 'Добавь этапы или цель поменьше — из них и посчитается прогресс.'}${chain.theme ? ` Ведёт к «${chain.theme}».` : ''}</div>`) : ''}
     </div>`;
 }
+
+const periodLabel = g => g.horizon === 'year' ? g.period
+  : g.horizon === 'quarter' ? `${g.period.slice(5)} ${g.period.slice(0, 4)}`
+  : `${MONTHS[Number(g.period.slice(5, 7)) - 1]}`;
 
 // ── год ─────────────────────────────────────────────────────────
 function yearView() {
   const y = year();
   const rec = S.years[y] || { theme: '', quarters: {} };
-  const curQ = quarterOfMonth(monthKey(todayISO()));
+  const curQ = quarterKey(monthKey(todayISO()));
   const thisYear = y === yearOf(todayISO());
-
-  const quarters = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
-    const goals = S.goals.filter(g => !g.archived && g.month.startsWith(String(y)) && quarterOfMonth(g.month) === q);
-    const pct = goals.length ? Math.round(goals.reduce((a, g) => a + goalProgress(g), 0) / goals.length) : 0;
-    return { q, goals, pct, active: thisYear && q === curQ, note: rec.quarters?.[q] || '' };
-  });
+  const yGoals = goalsIn('year', String(y));
+  const yPct = yearProgress(y);
 
   return h`
     <div class="stepper">
@@ -177,22 +193,41 @@ function yearView() {
     <div class="card">
       <div class="row between"><div class="caps">Тема года</div><button class="q-edit" data-act="theme">изменить ›</button></div>
       <div class="title" style="font-size:20px">${rec.theme || 'Ещё не выбрана'}</div>
-      <div class="lab">Это то, к чему сходятся цели месяцев. Менять можно — но лучше редко.</div>
+      ${yPct != null ? raw(h`<div class="row"><span class="lab" style="width:84px">Год целиком</span>${raw(bar(yPct, yPct >= 100))}<span class="lab">${yPct}%</span></div>`) : ''}
+      <div class="lab">Это то, к чему сходятся цели. Менять можно — но лучше редко.</div>
     </div>
 
-    ${quarters.map(qq => raw(h`
-      <div class="card ${qq.active ? '' : 'mute'}">
-        <div class="row between">
-          <div class="ink"><b>${qq.q}</b> ${qq.active ? raw('<span class="tag">сейчас</span>') : ''}</div>
-          <button class="q-edit" data-act="qnote" data-v="${qq.q}">заметка ›</button>
-        </div>
-        ${qq.note ? raw(h`<div class="lab">${qq.note}</div>`) : ''}
-        ${qq.goals.length
-          ? raw(h`<div class="row">${raw(bar(qq.pct, qq.pct >= 100))}<span class="lab">${qq.pct}%</span></div>
-                  <div class="lab">${qq.goals.map(g => g.title).join(' · ')}</div>`)
-          : raw('<div class="lab">целей пока нет</div>')}
-      </div>`))}`;
+    <div class="row between"><div class="caps">Цели года</div>
+      ${yGoals.length ? raw(h`<button class="q-edit" data-act="goaladd" data-h="year" data-p="${y}">+ цель</button>`) : ''}</div>
+    ${yGoals.length ? yGoals.map(g => raw(goalCard(g)))
+      : raw(h`<div class="card dash"><div class="empty">Целей года пока нет.<br>Одна-три крупные — этого достаточно.</div>
+          <button class="add" data-act="goaladd" data-h="year" data-p="${y}">+ Цель года</button></div>`)}
+
+    <div class="caps" style="margin-top:4px">Кварталы</div>
+    ${['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
+      const qk = `${y}-${q}`;
+      const own = goalsIn('quarter', qk);
+      const months = quarterMonths(qk).flatMap(ym => goalsIn('month', ym));
+      const pct = quarterProgress(qk);
+      const active = thisYear && qk === curQ;
+      return raw(h`
+        <div class="card ${active ? '' : 'mute'}">
+          <div class="row between">
+            <div class="ink"><b>${q}</b> ${active ? raw('<span class="tag">сейчас</span>') : ''}
+              <span class="lab">${monthsLabel(qk)}</span></div>
+            <button class="q-edit" data-act="qnote" data-v="${q}">заметка ›</button>
+          </div>
+          ${rec.quarters?.[q] ? raw(h`<div class="lab">${rec.quarters[q]}</div>`) : ''}
+          ${pct != null ? raw(h`<div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>`) : ''}
+          ${own.map(g => raw(goalCard(g, true)))}
+          ${months.length ? raw(h`<div class="lab">Цели месяцев: ${months.map(g => g.title).join(' · ')}</div>`) : ''}
+          ${!own.length && !months.length ? raw('<div class="lab">целей пока нет</div>') : ''}
+          <button class="add" data-act="goaladd" data-h="quarter" data-p="${qk}">+ Цель квартала</button>
+        </div>`);
+    })}`;
 }
+
+const monthsLabel = qk => quarterMonths(qk).map(m => MONTHS[Number(m.slice(5, 7)) - 1].slice(0, 3).toLowerCase()).join('–');
 
 // ── шторки ──────────────────────────────────────────────────────
 function bossSheet() {
@@ -231,41 +266,115 @@ function stepSheet(title, onAdd) {
   });
 }
 
-function goalSheet(goal) {
+/** Периоды, доступные для горизонта: без этого цель некуда положить. */
+function periodOptions(horizon, current) {
+  const y = yearOf(todayISO());
+  if (horizon === 'year') {
+    const years = [...new Set([y - 1, y, y + 1, Number(current?.slice(0, 4)) || y])].sort();
+    return years.map(v => ({ value: String(v), label: String(v) }));
+  }
+  if (horizon === 'quarter') {
+    const years = [...new Set([y, y + 1, Number(current?.slice(0, 4)) || y])].sort();
+    return years.flatMap(yy => ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ value: `${yy}-${q}`, label: `${q} ${yy}` })));
+  }
+  // месяц: год назад и год вперёд — хватает и для «доделать за прошлый», и для планов
+  const base = monthKey(todayISO());
+  const list = Array.from({ length: 25 }, (_, i) => addMonths(base, i - 12));
+  if (current && !list.includes(current)) list.push(current);
+  return list.sort().map(v => ({ value: v, label: monthTitle(v) }));
+}
+
+/** Кандидаты в родители: цель может вести только к более крупному горизонту. */
+function parentOptions(horizon, selfId) {
+  const bigger = horizon === 'month' ? ['quarter', 'year'] : horizon === 'quarter' ? ['year'] : [];
+  const list = liveGoals().filter(g => bigger.includes(g.horizon) && g.id !== selfId);
+  return [{ value: '', label: 'ни к чему' }, ...list.map(g => ({ value: g.id, label: `${g.title} · ${periodLabel(g)}` }))];
+}
+
+// Названия целей — пользовательский ввод, поэтому строим через h`` с экранированием.
+const selectHTML = (options, value) => options
+  .map(o => h`<option value="${o.value}" ${raw(o.value === value ? 'selected' : '')}>${o.label}</option>`).join('');
+
+/** Перенос периода между горизонтами: месяц → его квартал → его год и обратно. */
+function convertPeriod(period, from, to) {
+  if (from === to) return period;
+  const y = period.slice(0, 4);
+  const nowY = String(yearOf(todayISO()));
+  const nowQ = quarterKey(monthKey(todayISO())).slice(5);
+  const nowM = monthKey(todayISO()).slice(5);
+  if (to === 'year') return y;
+  if (to === 'quarter') return from === 'month' ? quarterKey(period) : `${y}-${y === nowY ? nowQ : 'Q1'}`;
+  // to === 'month'
+  if (from === 'quarter') return quarterMonths(period)[0];
+  return `${y}-${y === nowY ? nowM : '01'}`;
+}
+
+function goalSheet(goal, preset) {
   const isNew = !goal;
-  const g = goal || { id: uid(), title: '', month: month(), steps: [], progress: 0, deadline: '', sphere: '' };
-  openSheet({
-    title: isNew ? 'Новая цель' : 'Цель месяца',
+  const horizon0 = goal?.horizon || preset?.horizon || 'month';
+  const period0 = goal?.period || preset?.period || (horizon0 === 'year' ? String(year()) : horizon0 === 'quarter' ? quarterKey(month()) : month());
+  const g = goal || { id: uid(), title: '', steps: [], progress: 0, deadline: '', sphere: '', parentId: '' };
+
+  const wrap = openSheet({
+    title: isNew ? `Новая цель · ${HORIZONS[horizon0].toLowerCase()}` : 'Цель',
+    sub: 'Цель месяца может вести к цели квартала, та — к цели года',
     body: [
       field.text('title', 'Цель', g.title, 'например, «Сдать главу 2»'),
-      field.opts('sphere', 'Сфера', [{ value: '', label: 'без сферы' }, ...SPHERES.map(s => ({ value: s.key, label: s.name }))], g.sphere || ''),
+      field.opts('horizon', 'Горизонт', Object.entries(HORIZONS).map(([value, label]) => ({ value, label })), horizon0),
+      field.select('period', 'Период', periodOptions(horizon0, period0), period0),
+      field.select('parentId', 'Ведёт к', parentOptions(horizon0, g.id), g.parentId || ''),
+      field.opts('sphere', 'Сфера', [{ value: '', label: 'без сферы' }, ...SPHERES.map(x => ({ value: x.key, label: x.name }))], g.sphere || ''),
       field.date('deadline', 'Срок — если он есть', g.deadline || ''),
-      field.opts('month', 'Месяц', [
-        { value: addMonths(month(), -1), label: monthTitle(addMonths(month(), -1)).split(' ')[0] },
-        { value: month(), label: monthTitle(month()).split(' ')[0] },
-        { value: addMonths(month(), 1), label: monthTitle(addMonths(month(), 1)).split(' ')[0] },
-      ], g.month),
-      field.note('Этапы добавляются в самой цели — прогресс считается по ним.'),
+      field.note('Этапы добавляются в самой цели — прогресс считается по ним или по вложенным целям.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
     onSave: (v, close) => {
       const title = (v.title || '').trim();
       if (!title) return toast('Нужно название');
+      const horizon = v.horizon || horizon0;
+      const period = v.period || period0;
+      if (v.parentId === g.id) return toast('Цель не может вести сама к себе');
       update(s => {
-        const next = { ...g, title, sphere: v.sphere || '', deadline: v.deadline || '', month: v.month || g.month };
+        const next = {
+          ...g, title, horizon, period, parentId: v.parentId || '',
+          sphere: v.sphere || '', deadline: v.deadline || '',
+        };
         const i = s.goals.findIndex(x => x.id === g.id);
         if (i >= 0) s.goals[i] = next; else s.goals.push(next);
-        s.ui.monthAnchor = next.month;
+        // Уводим экран туда, где цель теперь живёт, — иначе она «пропадает».
+        if (horizon === 'month') { s.ui.planTab = 'month'; s.ui.monthAnchor = period; }
+        else if (horizon === 'quarter') { s.ui.planTab = 'year'; s.ui.year = Number(period.slice(0, 4)); }
+        else { s.ui.planTab = 'year'; s.ui.year = Number(period); }
       });
       close();
       toast(isNew ? 'Цель добавлена' : 'Сохранено');
     },
     danger: isNew ? null : 'В архив',
     onDanger: (_v, close) => {
-      update(s => { const x = s.goals.find(y => y.id === g.id); if (x) x.archived = true; });
+      update(s => {
+        const x = s.goals.find(y2 => y2.id === g.id);
+        if (x) x.archived = true;
+        // Осиротевшие подцели остаются, но перестают ссылаться в пустоту.
+        s.goals.forEach(y2 => { if (y2.parentId === g.id) y2.parentId = ''; });
+      });
       close();
       toast('В архиве — не потеряется');
     },
+  });
+
+  // Смена горизонта перестраивает зависимые списки: период и «ведёт к».
+  let hzNow = horizon0;
+  wrap.addEventListener('opt', e => {
+    if (e.target.dataset.name !== 'horizon') return;
+    const hz = e.detail;
+    const per = wrap.querySelector('select[name="period"]');
+    const par = wrap.querySelector('select[name="parentId"]');
+    const want = convertPeriod(per.value, hzNow, hz);
+    const opts = periodOptions(hz, want);
+    per.innerHTML = selectHTML(opts, opts.some(o => o.value === want) ? want : opts[0].value);
+    par.innerHTML = selectHTML(parentOptions(hz, g.id), par.value);
+    wrap.querySelector('.sheet-title').textContent = isNew ? `Новая цель · ${HORIZONS[hz].toLowerCase()}` : 'Цель';
+    hzNow = hz;
   });
 }
 
@@ -301,7 +410,7 @@ export const actions = {
 
   mprev: () => update(s => { s.ui.monthAnchor = addMonths(month(), -1); }),
   mnext: () => update(s => { s.ui.monthAnchor = addMonths(month(), 1); }),
-  goaladd: () => goalSheet(null),
+  goaladd: v => goalSheet(null, { horizon: v.h, period: v.p }),
   goaledit: v => goalSheet(S.goals.find(g => g.id === v.id)),
   goaltoggle: v => update(s => { s.ui.openGoal = s.ui.openGoal === v.id ? null : v.id; }),
   gstepadd: v => stepSheet('Этап цели', t => update(s => {

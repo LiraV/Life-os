@@ -3,7 +3,7 @@
 import { S, update, uid, XP, addXp, SPHERES, addDiary } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
-import { questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf } from '../selectors.js';
+import { questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf, liveGoals, goalChain } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
 
@@ -88,9 +88,8 @@ const SPHERE_OPTS = [{ value: '', label: 'без сферы' }, ...SPHERES.map(s
 export function questSheet(quest, date, onDone) {
   const isNew = !quest;
   const q = quest || { id: uid(), title: '', time: '', minutes: 45, sphere: '', boss: false, goalId: '', done: false };
-  const goals = S.goals.filter(g => !g.archived);
-  const chain = goals.find(g => g.id === q.goalId);
-  const year = S.years[date.slice(0, 4)];
+  const goals = liveGoals();
+  const chain = q.goalId ? goalChain(q.goalId) : null;
 
   openSheet({
     title: isNew ? 'Новый квест' : 'Квест',
@@ -100,9 +99,11 @@ export function questSheet(quest, date, onDone) {
       field.opts('minutes', 'Длина', [{ value: '45', label: '45 мин' }, { value: '90', label: '90 мин' }, { value: '120', label: '120 мин' }], String(q.minutes || 45)),
       field.opts('sphere', 'Сфера', SPHERE_OPTS, q.sphere || ''),
       goals.length
-        ? field.opts('goalId', 'Зачем — ведёт к цели', [{ value: '', label: 'просто так' }, ...goals.map(g => ({ value: g.id, label: g.title }))], q.goalId || '')
-        : field.note('Цели месяца пока не заведены — связь «зачем» появится, когда добавишь цель в Планах.'),
-      chain ? field.note(`→ ${chain.title} → ${chain.quarter || '—'}${year?.theme ? ` → «${year.theme}»` : ''}`) : '',
+        ? field.select('goalId', 'Зачем — ведёт к цели', [{ value: '', label: 'просто так' }, ...goals.map(g => ({ value: g.id, label: g.title }))], q.goalId || '')
+        : field.note('Целей пока нет — связь «зачем» появится, когда добавишь цель в Планах.'),
+      chain && chain.links.length
+        ? field.note('→ ' + chain.links.map(l => l.title).join(' → ') + (chain.theme ? ` → «${chain.theme}»` : ''))
+        : '',
       field.date('date', 'День', date),
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="boss" ${q.boss ? 'checked' : ''}> Это босс недели ★</label>`,
     ].join(''),

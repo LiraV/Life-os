@@ -129,6 +129,12 @@ export const field = {
   time: (name, label, value = '') => h`
     <label class="fld"><span>${label}</span><input type="time" name="${name}" value="${value}"></label>`,
 
+  select: (name, label, options, value) => h`
+    <label class="fld"><span>${label}</span>
+      <select name="${name}">
+        ${options.map(o => raw(h`<option value="${o.value}" ${raw(o.value === value ? 'selected' : '')}>${o.label}</option>`))}
+      </select></label>`,
+
   /** Пилюли с одним выбором: значение кладётся в скрытый input. */
   opts: (name, label, options, value) => h`
     <div class="fld"><span>${label}</span>
