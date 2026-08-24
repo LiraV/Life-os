@@ -2,6 +2,7 @@
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
 import { S, SPHERES, level, levelFloor } from './store.js';
+import { effects, hasTrait } from './traits.js';
 import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
@@ -14,7 +15,13 @@ const CURVES = {
   'жаворонок':  [82, 95, 72, 54, 38, 18],
   'плавает':    [48, 70, 64, 72, 62, 36],
 };
-export const energyCurve = () => CURVES[S.user.chronotype] || CURVES['плавает'];
+/** Заработанная «Ранняя пташка» перебивает хронотип: факты важнее анкеты. */
+export const energyCurve = () => {
+  const e = effects();
+  if (e.peak === 'morning') return CURVES['жаворонок'];
+  if (e.peak === 'evening') return CURVES['сова'];
+  return CURVES[S.user.chronotype] || CURVES['плавает'];
+};
 export const peakBlock = () => { const c = energyCurve(); return c.indexOf(Math.max(...c)); };
 export const peakLabel = () => ENERGY_BLOCKS[peakBlock()];
 
@@ -289,6 +296,29 @@ export function energyStats(days = 90) {
   };
 }
 
+// ── как профиль влияет на день ──────────────────────────────────
+/** Норма квестов в день: ползунок «Активность» превращается в ожидание. */
+export function dayLoad() {
+  const a = Number(S.user.activity);
+  const norm = a > 75 ? 5 : a > 60 ? 4 : a > 40 ? 3 : 2;
+  return { norm, high: a > 60 };
+}
+
+/** Какой отдых предлагать — из ползунка «Интроверсия». */
+export const restKind = () => (effects().rest === 'people' ? 'people' : 'quiet');
+export const restLine = () => (restKind() === 'people'
+  ? 'Отдых сегодня — это увидеться с кем-то, а не лечь пораньше.'
+  : 'Отдых сегодня — это тишина и никого, даже если зовут.');
+
+/** Голос Летописца: черта задаёт тон, а не содержание. */
+export function tone() {
+  const t = effects().tone;
+  if (t === 'brief') return { hi: 'Коротко:', warm: false };
+  if (t === 'meaning') return { hi: 'Зачем это сегодня:', warm: false };
+  if (t === 'spark') return { hi: 'Попробуем иначе:', warm: false };
+  return { hi: '', warm: true };
+}
+
 // ── потребности и роли ──────────────────────────────────────────
 const lastDays = n => Array.from({ length: n }, (_, i) => addDays(todayISO(), -i));
 
@@ -401,6 +431,22 @@ export function chronicler(date) {
     const left = steps.filter(s => !s.done).length;
     if (steps.length && !left) out.push(`Босс «${wk.boss.title}» повержен ✦ Предлагаю неделю отдыха.`);
     else if (steps.length) out.push(`Босс недели: «${wk.boss.title}», осталось этапов — ${left}.`);
+  }
+
+  const load = dayLoad();
+  const open = qs.filter(q => !q.done).length;
+  if (open > load.norm + 2) {
+    out.push(load.high
+      ? `На день ${open} дел — даже для твоего темпа много. Что-то одно можно отпустить.`
+      : `На день ${open} дел, а твой ровный темп — около ${load.norm}. Перенесу лишнее без вопросов.`);
+  }
+
+  if (e != null && e <= 30) out.push(restLine());
+
+  if (effects().suggest === 'new') {
+    const seen = S.ui.newIdeaMonth;
+    const m = date.slice(0, 7);
+    if (seen !== m && date === t) out.push('Месяц новый — попробуем что-то незнакомое? Одно занятие или одну идею в блог.');
   }
 
   if (!qs.length) out.push(date === t ? 'На сегодня пусто. Добавим одно дело — этого достаточно.' : `На ${dayShort(date)} пока пусто.`);

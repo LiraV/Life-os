@@ -1,17 +1,21 @@
 // «Я»: всё на этом экране посчитано из реальных отметок, ничего не зашито.
 
 import { S, update } from '../store.js';
-import { todayISO, monthKey, MONTHS, yearOf } from '../dates.js';
+import { TRAITS, GROUPS, byId, hasTrait, effects } from '../traits.js';
+import { titleFor } from '../traits.js';
+import { todayISO, monthKey, MONTHS, yearOf, addDays } from '../dates.js';
 import { h, raw, bar, toast, openSheet, field } from '../ui.js';
-import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress, energyStats } from '../selectors.js';
+import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress, energyStats, dayLoad, restLine } from '../selectors.js';
 
 export function render() {
   const li = levelInfo();
+  const show = effects().show;
   const t = todayISO();
   const year = S.years[yearOf(t)];
   const goals = monthGoals(monthKey(t));
   const chapterPct = goals.length ? Math.round(goals.reduce((a, g) => a + goalProgress(g), 0) / goals.length) : 0;
   const w = weekStats(t);
+  const prev = weekStats(addDays(t, -7));
   const need = needs();
   const rls = roles();
   const lonely = rls.find(r => r.low);
@@ -21,19 +25,21 @@ export function render() {
       <div class="avatar" style="width:58px;height:58px;font-size:24px">${(S.user.name || '?').trim().charAt(0).toUpperCase()}</div>
       <div class="grow">
         <div class="title" style="font-size:21px">${S.user.name || 'Персонаж'}</div>
-        <div class="caps">${S.user.chronotype} · ур. ${li.lv}</div>
+        <div class="caps">${titleFor(li.lv)} · ур. ${li.lv}</div>
       </div>
       <button class="q-edit" data-act="edit">изменить ›</button>
     </div>
 
     <div class="card">
-      <div class="row between"><div class="caps">Уровень ${li.lv}</div><span class="lab">${li.xp} XP</span></div>
+      <div class="row between"><div class="caps">${titleFor(li.lv)}</div>
+        <span class="lab">${show === 'visual' ? '✦'.repeat(Math.min(5, li.lv)) : `${li.xp} XP`}</span></div>
       ${raw(bar(li.pct))}
-      <div class="lab">До ${li.lv + 1} уровня — ${Math.max(0, li.to - li.xp)} XP. Опыт только копится и не сгорает.</div>
+      <div class="lab">${show === 'visual'
+        ? `Уровень ${li.lv}. Опыт копится сам — считать не обязательно.`
+        : `До ${li.lv + 1} уровня — ${Math.max(0, li.to - li.xp)} XP. Опыт только копится и не сгорает.`}</div>
     </div>
 
-    ${S.user.traits.length ? raw(h`<div class="pills">${S.user.traits.map(t2 => raw(h`<span class="pill">${t2}</span>`))}</div>`)
-      : raw('<div class="card dash"><div class="lab">Черты появятся после тестов во «Внутри».</div></div>')}
+    ${raw(traitShelf())}
 
     <div class="card">
       <div class="caps">Потребности · 7 дней</div>
@@ -43,7 +49,8 @@ export function render() {
         ? h`<div class="row"><span class="lab" style="width:74px">${n.name}</span>
              <span class="lab grow">${n.hint}</span></div>`
         : h`<div class="row"><span class="lab" style="width:74px">${n.name}</span>
-             ${raw(bar(n.value, n.value < 45))}<span class="lab">${n.value}%</span></div>`))}
+             ${raw(bar(n.value, n.value < 45))}
+             <span class="lab">${show === 'visual' ? pips(n.value) : n.value + '%'}</span></div>`))}
     </div>
 
     <div class="card">
@@ -52,7 +59,7 @@ export function render() {
       ${goals.length ? raw(h`<div class="row">${raw(bar(chapterPct))}<span class="lab">${chapterPct}%</span></div>
         <div class="lab">${goals.map(g => g.title).join(' · ')}</div>`)
         : raw('<div class="lab">Целей на месяц пока нет — их можно завести в Планах.</div>')}
-      <div class="lab">Неделя: закрыто ${w.done} из ${w.total}</div>
+      <div class="lab">Неделя: закрыто ${w.done} из ${w.total}${show === 'numbers' ? ` · было ${prev.done} из ${prev.total}` : ''}</div>
     </div>
 
     ${raw(energyCard())}
@@ -77,6 +84,40 @@ export function render() {
     ${lonely ? raw(h`<div class="ai">${lonely.name} две недели без дела. Открыть чат — соберём одно маленькое действие?
       <div class="pills" style="margin-top:8px"><button class="pill" data-act="chat" style="background:rgba(255,255,255,.9)">Открыть чат</button></div></div>`) : ''}
     <div style="height:4px"></div>`;
+}
+
+/** Пять делений вместо числа: для тех, кому счётчик мешает. */
+const pips = v => '●'.repeat(Math.round((v || 0) / 20)) + '○'.repeat(5 - Math.round((v || 0) / 20));
+
+/** Полка черт: полученные и ещё закрытые, с подсказкой, как их получить. */
+function traitShelf() {
+  const open = S.ui.traitsOpen;
+  const owned = TRAITS.filter(t => hasTrait(t.id));
+  const locked = TRAITS.filter(t => t.source === 'observed' && !hasTrait(t.id));
+
+  return h`
+    <div class="card">
+      <div class="row between">
+        <div class="caps">Черты · ${owned.length} из ${TRAITS.length}</div>
+        <button class="q-edit" data-act="traits">${open ? 'свернуть' : 'все ›'}</button>
+      </div>
+      <div class="pills">
+        ${owned.map(t => raw(h`<span class="pill on" title="${t.does || t.desc}">${t.icon} ${t.name}</span>`))}
+      </div>
+      ${open ? raw(h`
+        ${Object.entries(GROUPS).map(([key, g]) => {
+          const list = TRAITS.filter(t => t.group === key);
+          return raw(h`
+            <div class="lab" style="margin-top:6px">${g.name}</div>
+            ${list.map(t => raw(h`
+              <div class="row between" style="opacity:${hasTrait(t.id) ? 1 : 0.5}">
+                <span class="ink grow">${t.icon} ${t.name}</span>
+                <span class="lab" style="max-width:56%;text-align:right">${hasTrait(t.id) ? (t.does || t.desc) : (t.how || t.desc)}</span>
+              </div>`))}`);
+        })}
+        <div class="lab">Черты из тестов и профиля меняются вместе с ними. Заработанные не отбираются.</div>`)
+      : raw(h`<div class="lab">${locked.length ? `Ещё ${locked.length} можно заработать.` : 'Все заработанные черты собраны.'}</div>`)}
+    </div>`;
 }
 
 /** Связки энергии — то, ради чего её вообще стоит отмечать. */
@@ -114,6 +155,7 @@ function energyCard() {
 }
 
 export const actions = {
+  traits: () => update(s => { s.ui.traitsOpen = !s.ui.traitsOpen; }),
   chat: () => { location.hash = '#/inside/chat'; },
   edit: () => openSheet({
     title: 'Персонаж',

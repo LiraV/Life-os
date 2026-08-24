@@ -1,9 +1,10 @@
 // Роутер и оболочка: рисует активный экран, нижний бар и drawer,
 // раздаёт клики экрану через data-act.
 
-import { S, onChange, update, level } from './store.js';
+import { S, onChange, update, updateQuiet, level } from './store.js';
 import { todayISO } from './dates.js';
 import { closeSheet, toast } from './ui.js';
+import { reconcile } from './traits.js';
 
 import * as onboarding from './screens/onboarding.js';
 import * as day from './screens/day.js';
@@ -96,8 +97,24 @@ function renderDrawer() {
   });
 }
 
+/**
+ * Свести черты с фактами перед отрисовкой. Пишем тихо: перерисовка и так
+ * идёт следом, а обычный update() здесь закольцевал бы рендер.
+ */
+function syncTraits() {
+  if (!S.onboarded) return;
+  let fresh = [];
+  updateQuiet(s => { fresh = reconcile(s); });
+  if (!fresh.length) return;
+  const first = fresh[0];
+  setTimeout(() => toast(fresh.length > 1
+    ? `Новые черты: ${fresh.map(t => t.name).join(', ')}`
+    : `Новая черта: ${first.icon} ${first.name}`), 400);
+}
+
 let lastKey = '';
 export function render() {
+  syncTraits();
   renderStatus();
   if (!S.onboarded) {
     nav.hidden = true;

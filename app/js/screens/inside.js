@@ -7,6 +7,7 @@ import { h, raw, field, toast, openSheet } from '../ui.js';
 import { weekStats, needs, roles, questsOn, peakLabel } from '../selectors.js';
 import { questSheet } from './day.js';
 import { hasKey, askChronicler } from '../ai.js';
+import { byId } from '../traits.js';
 
 const TABS = [['chat', 'Чат'], ['tests', 'Тесты'], ['diary', 'Дневник']];
 const tab = params => params[0] || S.ui.insideTab || 'chat';
@@ -113,10 +114,10 @@ const TESTS = {
       { q: 'Идеальная награда?', a: [['Что-то ощутимое и красивое', 'aesthete'], ['Дверь в новую тему', 'explorer'], ['Цифра, которая выросла', 'racer'], ['Спасибо от близкого', 'keeper']] },
     ],
     results: {
-      aesthete: { trait: 'Эстет достижений ✦', text: 'Тебя двигает форма, а не счётчик. Значит, награды — визуальные, а не цифры.' },
-      explorer: { trait: 'Исследовательница', text: 'Тебя двигает новизна. Значит, в каждый месяц полезно класть одну незнакомую вещь.' },
-      racer: { trait: 'Соревновательница', text: 'Тебя двигает видимый рост. Значит, прогресс-бары и «было/стало» — твоё.' },
-      keeper: { trait: 'Хранительница смысла', text: 'Тебя двигает «зачем». Значит, цепочка задача → цель → тема года должна быть всегда на виду.' },
+      aesthete: { id: 'aesthete', text: 'Тебя двигает форма, а не счётчик.' },
+      explorer: { id: 'explorer', text: 'Тебя двигает новизна.' },
+      racer: { id: 'racer', text: 'Тебя двигает видимый рост.' },
+      keeper: { id: 'keeper', text: 'Тебя двигает «зачем».' },
     },
   },
   chrono: {
@@ -128,9 +129,9 @@ const TESTS = {
       { q: 'Вечером в 23:00 ты...', a: [['Уже сплю', 'жаворонок'], ['Досыпаю день', 'плавает'], ['Только разошлась', 'сова'], ['Самое рабочее время', 'сова']] },
     ],
     results: {
-      'сова': { trait: 'Сова', text: 'Пик вечером. Тяжёлое ставлю на 19–22, утро оставляю мягким.' },
-      'жаворонок': { trait: 'Жаворонок', text: 'Пик утром. Тяжёлое ставлю на 10–13, вечер — на восстановление.' },
-      'плавает': { trait: 'Плавающий ритм', text: 'Ритм плавает. Буду ориентироваться на твою отметку энергии каждый день.' },
+      'сова': { id: 'owl', text: 'Пик вечером. Тяжёлое ставлю на 19–22, утро оставляю мягким.' },
+      'жаворонок': { id: 'lark', text: 'Пик утром. Тяжёлое ставлю на 10–13, вечер — на восстановление.' },
+      'плавает': { id: 'floating', text: 'Ритм плавает. Буду ориентироваться на твою отметку энергии каждый день.' },
     },
   },
 };
@@ -156,15 +157,17 @@ function testRun(run) {
   const t = TESTS[run.key];
   if (run.finished) {
     const res = t.results[run.result];
+    const trait = byId(res.id);
     return h`
       <div class="card">
         <div class="caps">${t.name} · результат</div>
-        <div class="title" style="font-size:20px">${res.trait}</div>
+        <div class="title" style="font-size:20px">${trait.icon} ${trait.name}</div>
         <div class="ink">${res.text}</div>
       </div>
       <div class="card">
         <div class="caps">Что перестроится</div>
-        <div class="ink">${run.key === 'chrono' ? 'Кривая энергии и время фокус-блоков.' : 'Тон подсказок и вид наград на экране «Я».'}</div>
+        <div class="ink">${trait.does || trait.desc}</div>
+        <div class="lab">Это не подпись на профиле: черта правда меняет то, что показано и как говорит Летописец.</div>
       </div>
       <button class="btn" data-act="accept">Принять</button>
       <button class="btn-ghost" data-act="cancel">оставить как было</button>`;
@@ -277,14 +280,15 @@ export const actions = {
     const run = S.ui.test;
     const t = TESTS[run.key], res = t.results[run.result];
     update(s => {
-      s.tests[run.key] = { trait: res.trait, result: run.result, date: todayISO() };
-      if (!s.user.traits.includes(res.trait)) s.user.traits.push(res.trait);
+      const trait = byId(res.id);
+      s.tests[run.key] = { trait: trait.name, id: res.id, result: run.result, date: todayISO() };
+      if (!s.user.traits.includes(res.id)) s.user.traits.push(res.id);
       if (run.key === 'chrono') s.user.chronotype = run.result;
-      addDiary(s, `тест «${t.name}»: ${res.trait}`, 'тесты', 'test');
+      addDiary(s, `тест «${t.name}»: ${trait.name}`, 'тесты', 'test');
       addXp(XP.test);
       s.ui.test = null;
     });
-    toast(`Черта добавлена: ${res.trait}`);
+    toast(`Черта добавлена: ${byId(res.id).name}`);
   },
   cancel: () => update(s => { s.ui.test = null; }),
 

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 10;
+const VERSION = 11;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -72,6 +72,19 @@ function migrate(s) {
   if (Array.isArray(merged.health.periods)) {
     merged.health.days ||= {};
   merged.intentions ||= {};
+
+  // v10 → v11: черты стали идентификаторами с эффектами, а не подписями.
+  const OLD_TRAITS = {
+    'Сова': 'owl', 'Жаворонок': 'lark', 'Плавающий ритм': 'floating',
+    'Спринтер': 'sprinter', 'Марафонец': 'marathoner',
+    'Нужна тишина': 'quiet', 'Заряжаюсь от людей': 'social',
+    'Эстет достижений ✦': 'aesthete', 'Эстет достижений': 'aesthete',
+    'Исследовательница': 'explorer', 'Соревновательница': 'racer',
+    'Хранительница смысла': 'keeper',
+  };
+  merged.user.traits = [...new Set((merged.user.traits || [])
+    .map(t => (typeof t === 'string' && OLD_TRAITS[t]) ? OLD_TRAITS[t] : t)
+    .filter(t => typeof t === 'string' && /^[a-z]+$/.test(t)))];
 
   // Полка обучения: у курса уроки, у практики журнал занятий по датам.
   merged.lessons = (Array.isArray(merged.lessons) ? merged.lessons : []).map(l => ({
@@ -145,6 +158,19 @@ function migrate(s) {
   }
   merged.health.days ||= {};
   merged.intentions ||= {};
+
+  // v10 → v11: черты стали идентификаторами с эффектами, а не подписями.
+  const OLD_TRAITS = {
+    'Сова': 'owl', 'Жаворонок': 'lark', 'Плавающий ритм': 'floating',
+    'Спринтер': 'sprinter', 'Марафонец': 'marathoner',
+    'Нужна тишина': 'quiet', 'Заряжаюсь от людей': 'social',
+    'Эстет достижений ✦': 'aesthete', 'Эстет достижений': 'aesthete',
+    'Исследовательница': 'explorer', 'Соревновательница': 'racer',
+    'Хранительница смысла': 'keeper',
+  };
+  merged.user.traits = [...new Set((merged.user.traits || [])
+    .map(t => (typeof t === 'string' && OLD_TRAITS[t]) ? OLD_TRAITS[t] : t)
+    .filter(t => typeof t === 'string' && /^[a-z]+$/.test(t)))];
 
   // Полка обучения: у курса уроки, у практики журнал занятий по датам.
   merged.lessons = (Array.isArray(merged.lessons) ? merged.lessons : []).map(l => ({

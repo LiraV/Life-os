@@ -3,6 +3,7 @@
 import { S, update, updateQuiet, uid, XP, addXp, SPHERES, addDiary, tickHabit } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
+import { effects } from '../traits.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent,
@@ -125,6 +126,8 @@ function habitsBlock(date) {
 
 function questRow(q) {
   const sp = sphereOf(q.sphere);
+  // «Хранительнице смысла» цепочка нужна на виду, а не в шторке.
+  const chain = effects().show === 'why' && q.goalId ? goalChain(q.goalId) : null;
   return h`
     <div class="quest ${q.done ? 'done' : ''}">
       <button class="check ${q.done ? 'on' : ''}" data-act="toggle" data-id="${q.id}" aria-label="Выполнено">✓</button>
@@ -135,6 +138,7 @@ function questRow(q) {
           ${sp ? raw(h`<span class="tag">${sp.name}</span>`) : ''}
           ${q.boss ? raw('<span class="tag boss">босс ★</span>') : ''}
         </div>
+        ${chain && chain.links.length ? raw(h`<div class="lab">→ ${chain.links.map(l => l.title).join(' → ')}${chain.theme ? ` → «${chain.theme}»` : ''}</div>`) : ''}
       </div>
       <button class="q-edit" data-act="edit" data-id="${q.id}">настроить ›</button>
     </div>`;
