@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 6;
+const VERSION = 7;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -34,7 +34,7 @@ function blank() {
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
-    tracker: { rows: [], values: {}, habitValues: {} },  // свои строки трекера, их значения и ручные правки привычек по месяцам
+    tracker: { rows: [], values: {}, habitValues: {} },  // свои строки трекера и ручные правки: { привычка: { месяц: полных дней } }
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
@@ -115,6 +115,23 @@ function migrate(s) {
     values: tr.values && typeof tr.values === 'object' ? tr.values : {},
     habitValues: tr.habitValues && typeof tr.habitValues === 'object' ? tr.habitValues : {},
   };
+
+  // v6 → v7: трекер считает только полные дни, поэтому ручная правка стала
+  // одним числом вместо пары «сколько раз / полных дней». Записанное в разах
+  // переводим по норме — 45 приёмов при норме 3 это 15 полных дней.
+  Object.values(merged.tracker.habitValues).forEach((byMonth, i) => {
+    const hid = Object.keys(merged.tracker.habitValues)[i];
+    const target = Math.max(1, Number((merged.habits.find(x => x.id === hid) || {}).target) || 1);
+    Object.entries(byMonth).forEach(([ym, val]) => {
+      if (typeof val === 'number') return;
+      const days = val && typeof val === 'object'
+        ? (typeof val.days === 'number' ? val.days
+          : typeof val.total === 'number' ? Math.round(val.total / target) : null)
+        : null;
+      if (days == null) delete byMonth[ym];
+      else byMonth[ym] = Math.max(0, Math.min(31, days));
+    });
+  });
 
   return merged;
 }

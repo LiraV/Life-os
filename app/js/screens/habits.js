@@ -3,7 +3,7 @@
 import { S, update, uid, tickHabit, habitStep } from '../store.js';
 import { todayISO, addDays, weekDates, monthKey, addMonths, monthTitle, daysInMonth, DOW, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
-import { habitMonthCount, habitMonthTotal, habitTarget, habitCount, habitDone, liveHabits } from '../selectors.js';
+import { habitMonthCount, habitTarget, habitCount, habitDone, liveHabits } from '../selectors.js';
 
 const mode = () => S.ui.habMode || 'week';
 const anchor = () => S.ui.habitAnchor || todayISO();
@@ -73,10 +73,9 @@ function monthView(list) {
     <div class="card">
       ${list.map(hb => {
         const n = habitMonthCount(hb, ym);
-        const all = habitMonthTotal(hb, ym);
         return raw(h`<div class="row"><span class="lab grow ellip">${hb.name}</span>
           ${raw(bar(Math.round(n / total * 100), n > total / 2))}
-          <span class="lab">${n} из ${total}${habitTarget(hb) > 1 ? ` · ${all} раз` : ''}</span></div>`);
+          <span class="lab">${n} из ${total}</span></div>`);
       })}
     </div>`;
 }

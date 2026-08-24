@@ -2,29 +2,28 @@
 // привычек и из динамичных целей месяца — руками сюда ничего не вводится.
 
 import { S, update, uid } from '../store.js';
-import { todayISO, monthKey, MONTHS, yearOf } from '../dates.js';
+import { todayISO, monthKey, MONTHS, yearOf, daysInMonth } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile } from '../xlsx.js';
-import { liveHabits, habitMonthTotal, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter } from '../selectors.js';
+import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
 const cell = n => n >= 10000 ? Math.round(n / 1000) + 'к' : String(n);
 const full = n => Number(n).toLocaleString('ru-RU');
 
 const year = () => S.ui.trackYear || yearOf(todayISO());
-const mode = () => S.ui.trackMode || 'total';   // total — сколько раз, days — полных дней
 
 export const monthsOf = y => Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`);
 
-/** Значение привычки за месяц: ручная правка, если она есть, иначе расчёт по дням. */
-export function habitCell(hb, ym, md) {
-  const fixed = S.tracker.habitValues?.[hb.id]?.[ym]?.[md];
+/** Полных дней за месяц: ручная правка, если она есть, иначе расчёт по отметкам. */
+export function habitCell(hb, ym) {
+  const fixed = S.tracker.habitValues?.[hb.id]?.[ym];
   if (typeof fixed === 'number') return { value: fixed, fixed: true };
-  return { value: md === 'days' ? habitMonthCount(hb, ym) : habitMonthTotal(hb, ym), fixed: false };
+  return { value: habitMonthCount(hb, ym), fixed: false };
 }
 
 /** Строки таблицы — одни и те же для экрана и для выгрузки. */
-export function buildRows(y, md) {
+export function buildRows(y) {
   const months = monthsOf(y);
 
   const dynamic = {};
@@ -43,8 +42,8 @@ export function buildRows(y, md) {
     ...liveHabits().map(hb => ({
       id: hb.id, name: hb.name, habit: true,
       target: habitTarget(hb),
-      unit: md === 'days' ? 'дн.' : hb.unit,
-      cells: months.map(ym => habitCell(hb, ym, md)),
+      unit: 'дн.',
+      cells: months.map(ym => habitCell(hb, ym)),
     })),
     ...Object.keys(dynamic).map(name => ({
       name, dyn: true,
@@ -57,7 +56,7 @@ export function render() {
   const y = year();
   const months = monthsOf(y);
   const curM = monthKey(todayISO());
-  const rows = buildRows(y, mode());
+  const rows = buildRows(y);
 
   const max = Math.max(1, ...rows.flatMap(r => r.cells.map(c => c.value).filter(c => c != null)));
 
@@ -66,14 +65,9 @@ export function render() {
       <button class="arrow" data-act="prev" aria-label="Предыдущий год">‹</button>
       <div style="text-align:center">
         <div class="title" style="font-size:21px">Трекер ${y}</div>
-        <div class="lab">по месяцам, из твоих отметок</div>
+        <div class="lab">полных дней по месяцам</div>
       </div>
       <button class="arrow" data-act="next" aria-label="Следующий год">›</button>
-    </div>
-
-    <div class="pills">
-      <button class="pill ${mode() === 'total' ? 'on' : ''}" data-act="mode" data-v="total">Сколько раз</button>
-      <button class="pill ${mode() === 'days' ? 'on' : ''}" data-act="mode" data-v="days">Полных дней</button>
     </div>
 
     ${rows.length ? raw(h`
@@ -106,7 +100,7 @@ export function render() {
             </tbody>
           </table>
         </div>
-        <div class="lab" style="padding:6px 4px 0">Таблица прокручивается вбок. Тапни ячейку, чтобы вписать значение за месяц — у привычек это заменит расчёт по дням, такие ячейки помечены точкой. Динамичные цели правятся в Планах.</div>
+        <div class="lab" style="padding:6px 4px 0">Считаются только дни, когда норма закрыта целиком. Таблица прокручивается вбок; тапни ячейку, чтобы вписать месяц руками — такие ячейки помечены точкой. Динамичные цели правятся в Планах.</div>
       </div>
       <button class="add" data-act="rowadd">+ Своя строка</button>
       <button class="add" data-act="export">Выгрузить в Excel</button>`)
@@ -166,7 +160,6 @@ function rowSheet(row) {
 export const actions = {
   prev: () => update(s => { s.ui.trackYear = year() - 1; }),
   next: () => update(s => { s.ui.trackYear = year() + 1; }),
-  mode: v => update(s => { s.ui.trackMode = v.v; }),
   gohabits: () => { location.hash = '#/habits'; },
 
   rowadd: () => rowSheet(null),
@@ -175,27 +168,22 @@ export const actions = {
   hcell: v => {
     const hb = S.habits.find(x => x.id === v.id);
     if (!hb) return;
-    const md = mode();
     const i = Number(v.m.slice(5, 7)) - 1;
-    const auto = md === 'days' ? habitMonthCount(hb, v.m) : habitMonthTotal(hb, v.m);
-    const fixed = S.tracker.habitValues?.[hb.id]?.[v.m]?.[md];
-    const label = md === 'days' ? 'Полных дней' : `Сколько${hb.unit ? ', ' + hb.unit : ' раз'}`;
+    const auto = habitMonthCount(hb, v.m);
+    const fixed = S.tracker.habitValues?.[hb.id]?.[v.m];
+    const days = daysInMonth(v.m);
 
     openSheet({
       title: `${hb.name} · ${MONTHS[i].toLowerCase()}`,
-      sub: `по отметкам получается ${auto}${md === 'days' ? ' дн.' : hb.unit ? ' ' + hb.unit : ''}`,
+      sub: `по отметкам получается ${auto} из ${days}`,
       body: [
-        field.number('n', label, fixed ?? auto, { min: 0 }),
-        field.note('Значение запишется поверх расчёта — удобно, чтобы перенести прошлые месяцы. Ежедневные отметки при этом не меняются, их всегда можно вернуть.'),
+        field.number('n', 'Полных дней', fixed ?? auto, { min: 0, max: days }),
+        field.note('Считаются дни, когда норма закрыта целиком. Значение запишется поверх расчёта — удобно, чтобы перенести прошлые месяцы. Ежедневные отметки при этом не меняются, их всегда можно вернуть.'),
       ].join(''),
       primary: 'Записать',
       onSave: (val, close) => {
-        const n = Math.max(0, Number(val.n) || 0);
-        update(s => {
-          const byHabit = (s.tracker.habitValues[hb.id] ||= {});
-          const byMonth = (byHabit[v.m] ||= {});
-          byMonth[md] = n;
-        });
+        const n = Math.max(0, Math.min(days, Number(val.n) || 0));
+        update(s => { (s.tracker.habitValues[hb.id] ||= {})[v.m] = n; });
         close();
         toast('Записала');
       },
@@ -203,10 +191,8 @@ export const actions = {
       onSecondary: (_val, close) => {
         update(s => {
           const byHabit = s.tracker.habitValues[hb.id];
-          const byMonth = byHabit?.[v.m];
-          if (!byMonth) return;
-          delete byMonth[md];
-          if (!Object.keys(byMonth).length) delete byHabit[v.m];
+          if (!byHabit) return;
+          delete byHabit[v.m];
           if (!Object.keys(byHabit).length) delete s.tracker.habitValues[hb.id];
         });
         close();
@@ -221,17 +207,17 @@ export const actions = {
     const months = monthsOf(y);
     const head = ['Активность', 'Единица', ...months.map((_, i) => MONTHS[i]), 'За год'];
 
-    const sheet = md => ({
-      name: md === 'days' ? 'Полных дней' : 'Сколько раз',
+    const summary = {
+      name: 'Полных дней',
       rows: [
         head,
-        ...buildRows(y, md).map(r => {
+        ...buildRows(y).map(r => {
           const cells = r.cells.map(c => c.value);
           const sum = cells.reduce((a, c) => a + (c || 0), 0);
           return [r.name, r.unit || '', ...cells, sum];
         }),
       ],
-    });
+    };
 
     const daily = [['Дата', 'Привычка', 'Значение', 'Норма', 'Норма закрыта']];
     liveHabits().forEach(hb => {
@@ -242,7 +228,7 @@ export const actions = {
     });
 
     try {
-      const bytes = buildXlsx([sheet('total'), sheet('days'), { name: 'По дням', rows: daily }]);
+      const bytes = buildXlsx([summary, { name: 'По дням', rows: daily }]);
       const how = await saveFile(bytes, `life-os-tracker-${y}.xlsx`,
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       if (how === 'share') toast('Отправила в «Поделиться»');
