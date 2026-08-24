@@ -147,6 +147,126 @@ export function buildXlsx(sheets) {
   return zip(files);
 }
 
+// ── чтение книги ────────────────────────────────────────────────
+//
+// Распаковку делает сам браузер через DecompressionStream: писать inflate
+// руками ради этого не стоит, а поддержка есть везде, где живёт приложение.
+
+const dv = b => new DataView(b.buffer, b.byteOffset, b.byteLength);
+const u16 = (b, o) => dv(b).getUint16(o, true);
+const u32 = (b, o) => dv(b).getUint32(o, true);
+
+function findEOCD(b) {
+  for (let i = b.length - 22; i >= Math.max(0, b.length - 66000); i--) {
+    if (u32(b, i) === 0x06054b50) return i;
+  }
+  throw new Error('Это не файл Excel — не нашлась структура архива');
+}
+
+/** Записи архива: имя → способ сжатия и границы данных. */
+function zipEntries(b) {
+  const eocd = findEOCD(b);
+  const count = u16(b, eocd + 10);
+  let p = u32(b, eocd + 16);
+  const out = new Map();
+  for (let i = 0; i < count; i++) {
+    if (u32(b, p) !== 0x02014b50) break;
+    const method = u16(b, p + 10);
+    const size = u32(b, p + 20);
+    const nameLen = u16(b, p + 28), extraLen = u16(b, p + 30), commentLen = u16(b, p + 32);
+    const local = u32(b, p + 42);
+    const name = new TextDecoder().decode(b.subarray(p + 46, p + 46 + nameLen));
+    const dataAt = local + 30 + u16(b, local + 26) + u16(b, local + 28);
+    out.set(name, { method, start: dataAt, size });
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
+}
+
+async function readEntry(b, e) {
+  const raw = b.subarray(e.start, e.start + e.size);
+  if (e.method === 0) return new TextDecoder().decode(raw);
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('Браузер не умеет распаковывать этот файл — обнови его или пришли CSV');
+  }
+  const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Response(stream).text();
+}
+
+const colOf = ref => {
+  let n = 0;
+  for (const ch of (ref.match(/[A-Z]+/) || ['A'])[0]) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n;
+};
+
+/**
+ * Прочитать книгу: [{ name, rows }], где rows — массив массивов.
+ * Числа приходят числами, формулы — своим последним значением.
+ */
+export async function readXlsx(file) {
+  const b = new Uint8Array(await file.arrayBuffer());
+  const entries = zipEntries(b);
+  const parse = xml => new DOMParser().parseFromString(xml, 'application/xml');
+  const need = name => {
+    const e = entries.get(name);
+    if (!e) throw new Error(`В файле нет ${name}`);
+    return readEntry(b, e);
+  };
+
+  const shared = [];
+  if (entries.has('xl/sharedStrings.xml')) {
+    const doc = parse(await need('xl/sharedStrings.xml'));
+    doc.querySelectorAll('si').forEach(si => {
+      shared.push([...si.querySelectorAll('t')].map(t => t.textContent).join(''));
+    });
+  }
+
+  const relDoc = parse(await need('xl/_rels/workbook.xml.rels'));
+  const rels = {};
+  relDoc.querySelectorAll('Relationship').forEach(r => { rels[r.getAttribute('Id')] = r.getAttribute('Target'); });
+
+  const wb = parse(await need('xl/workbook.xml'));
+  const sheets = [];
+  for (const sh of wb.querySelectorAll('sheet')) {
+    const id = sh.getAttribute('r:id') || sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    let target = rels[id] || '';
+    if (!target) continue;
+    const path = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+    if (!entries.has(path)) continue;
+
+    const doc = parse(await readEntry(b, entries.get(path)));
+    const rows = [];
+    doc.querySelectorAll('row').forEach(row => {
+      const cells = {};
+      row.querySelectorAll('c').forEach(c => {
+        const t = c.getAttribute('t');
+        const vEl = c.querySelector('v');
+        let val = null;
+        if (t === 's' && vEl) val = shared[Number(vEl.textContent)] ?? '';
+        else if (t === 'inlineStr') val = [...c.querySelectorAll('t')].map(x => x.textContent).join('');
+        else if (t === 'e') val = null;                       // #REF! и прочие ошибки пропускаем
+        else if (vEl) { const n = Number(vEl.textContent); val = Number.isFinite(n) ? n : vEl.textContent; }
+        if (val !== null && val !== '') cells[colOf(c.getAttribute('r') || 'A')] = val;
+      });
+      const width = Math.max(0, ...Object.keys(cells).map(Number));
+      rows.push(Array.from({ length: width }, (_, i) => cells[i + 1] ?? null));
+    });
+    sheets.push({ name: sh.getAttribute('name') || 'Лист', rows });
+  }
+  return sheets;
+}
+
+/** Выбор файла с диска — общий для всех мест, где что-то загружается. */
+export function pickFile(accept) {
+  return new Promise(resolve => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.onchange = () => resolve(input.files?.[0] || null);
+    input.click();
+  });
+}
+
 /**
  * Отдать файл пользователю. На телефоне ссылка-скачивание часто не работает,
  * поэтому сначала пробуем системный «Поделиться», а уже потом обычную ссылку.

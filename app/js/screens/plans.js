@@ -1,7 +1,7 @@
 // «Планы»: неделя, месяц, год — реальные периоды с навигацией в обе стороны.
 // Цепочка «задача → цель месяца → квартал → тема года» строится из данных.
 
-import { S, update, uid, XP, addXp, SPHERES } from '../store.js';
+import { S, update, uid, XP, addXp, SPHERES, touchTracker } from '../store.js';
 import {
   todayISO, addDays, addMonths, weekKey, weekDates, isoWeek,
   monthKey, monthTitle, dayShort, yearOf, quarterKey, quarterMonths, MONTHS,
@@ -573,6 +573,7 @@ function bumpCounter(id, delta) {
     const before = Number(g.current) || 0;
     const after = Math.max(0, before + delta);
     g.current = after;
+    touchTracker(s2);
     title = g.title;
     reached = target > 0 && before < target && after >= target;
   });

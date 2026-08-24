@@ -1,15 +1,28 @@
 // Большой трекер: активности по месяцам за год. Всё считается из отметок
 // привычек и из динамичных целей месяца — руками сюда ничего не вводится.
 
-import { S, update, uid } from '../store.js';
-import { todayISO, monthKey, MONTHS, yearOf, daysInMonth } from '../dates.js';
+import { S, update, uid, touchTracker } from '../store.js';
+import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
-import { buildXlsx, saveFile } from '../xlsx.js';
+import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
 import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
 const cell = n => n >= 10000 ? Math.round(n / 1000) + 'к' : String(n);
 const full = n => Number(n).toLocaleString('ru-RU');
+
+/** «сегодня в 13:26» или «24 августа, 13:26» — как в бумажном трекере. */
+function updatedLabel(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const t = todayISO();
+  if (date === t) return `сегодня в ${time}`;
+  const yest = new Date(); yest.setDate(yest.getDate() - 1);
+  if (d.toDateString() === yest.toDateString()) return `вчера в ${time}`;
+  return `${dayShort(date)}, ${time}`;
+}
 
 const year = () => S.ui.trackYear || yearOf(todayISO());
 
@@ -66,6 +79,7 @@ export function render() {
       <div style="text-align:center">
         <div class="title" style="font-size:21px">Трекер ${y}</div>
         <div class="lab">полных дней по месяцам</div>
+        ${S.tracker.updatedAt ? raw(h`<div class="lab">обновлён ${updatedLabel(S.tracker.updatedAt)}</div>`) : ''}
       </div>
       <button class="arrow" data-act="next" aria-label="Следующий год">›</button>
     </div>
@@ -103,7 +117,8 @@ export function render() {
         <div class="lab" style="padding:6px 4px 0">Считаются только дни, когда норма закрыта целиком. Таблица прокручивается вбок; тапни ячейку, чтобы вписать месяц руками — такие ячейки помечены точкой. Динамичные цели правятся в Планах.</div>
       </div>
       <button class="add" data-act="rowadd">+ Своя строка</button>
-      <button class="add" data-act="export">Выгрузить в Excel</button>`)
+      <button class="add" data-act="export">Выгрузить в Excel</button>
+      <button class="add" data-act="import">Загрузить из Excel</button>`)
     : raw(h`<div class="card dash"><div class="empty">Пока нечего показывать.<br>Трекер собирается из привычек и динамичных целей — или добавь свою строку.</div>
         <button class="add" data-act="rowadd">+ Своя строка</button>
         <button class="btn-ghost" data-act="gohabits">завести привычку</button></div>`)}
@@ -141,6 +156,7 @@ function rowSheet(row) {
           const x = s.tracker.rows.find(y => y.id === row.id);
           if (x) { x.name = name; x.unit = (v.unit || '').trim(); }
         }
+        touchTracker(s);
       });
       close();
       toast(isNew ? 'Строка добавлена' : 'Сохранено');
@@ -183,7 +199,7 @@ export const actions = {
       primary: 'Записать',
       onSave: (val, close) => {
         const n = Math.max(0, Math.min(days, Number(val.n) || 0));
-        update(s => { (s.tracker.habitValues[hb.id] ||= {})[v.m] = n; });
+        update(s => { (s.tracker.habitValues[hb.id] ||= {})[v.m] = n; touchTracker(s); });
         close();
         toast('Записала');
       },
@@ -194,11 +210,87 @@ export const actions = {
           if (!byHabit) return;
           delete byHabit[v.m];
           if (!Object.keys(byHabit).length) delete s.tracker.habitValues[hb.id];
+          touchTracker(s);
         });
         close();
         toast('Вернула расчёт по отметкам');
       },
     });
+  },
+
+  /** Загрузка того же свода: строки ищем по названию, месяцы — по шапке. */
+  import: async () => {
+    const file = await pickFile('.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    if (!file) return;
+    toast('Читаю файл…');
+    let sheets;
+    try {
+      sheets = await readXlsx(file);
+    } catch (e) {
+      return toast(String(e.message || e).slice(0, 90));
+    }
+
+    const y = year();
+    const months = monthsOf(y);
+    // «Растяжка» и «растяжка», «ё» и «е» — одна и та же строка.
+    const norm = v => String(v ?? '').trim().toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ');
+    let own = 0, hab = 0, skipped = 0;
+
+    update(s => {
+      for (const sheet of sheets) {
+        // Шапка: ищем строку, где стоят названия месяцев.
+        let head = -1, cols = {};
+        for (let i = 0; i < Math.min(sheet.rows.length, 20); i++) {
+          const map = {};
+          sheet.rows[i].forEach((c, j) => {
+            const t = String(c ?? '').trim().toLowerCase();
+            const mi = MONTHS.findIndex(m => t && m.toLowerCase().startsWith(t.slice(0, 3)));
+            if (mi >= 0 && map[mi] === undefined) map[mi] = j;
+          });
+          if (Object.keys(map).length >= 6) { head = i; cols = map; break; }
+        }
+        if (head < 0) continue;
+
+        for (const row of sheet.rows.slice(head + 1)) {
+          const name = String(row[0] ?? '').trim();
+          if (!name || /итог|всего/i.test(name)) continue;
+
+          const habit = s.habits.find(x => !x.archived && norm(x.name) === norm(name));
+          const custom = s.tracker.rows.find(x => norm(x.name) === norm(name));
+          let target = custom;
+          if (!habit && !custom) {
+            target = { id: uid(), name, unit: String(row[1] ?? '').trim() };
+            s.tracker.rows.push(target);
+          }
+
+          Object.entries(cols).forEach(([mi, col]) => {
+            const raw2 = row[col];
+            if (raw2 == null || raw2 === '') return;                       // пустая клетка — не трогаем месяц
+            const n = typeof raw2 === 'number' ? raw2 : Number(String(raw2).replace(',', '.'));
+            if (!Number.isFinite(n)) { skipped++; return; }
+            const ym2 = months[Number(mi)];
+            if (habit) {
+              const v2 = Math.max(0, Math.min(daysInMonth(ym2), Math.round(n)));
+              // Если число совпало с расчётом по отметкам, правка не нужна:
+              // иначе месяц перестал бы обновляться от новых галочек.
+              if (v2 === habitMonthCount(habit, ym2)) return;
+              (s.tracker.habitValues[habit.id] ||= {})[ym2] = v2;
+              hab++;
+            } else {
+              const v2 = Math.max(0, Math.round(n));
+              if (!v2) return;
+              (s.tracker.values[target.id] ||= {})[ym2] = v2;
+              own++;
+            }
+          });
+        }
+      }
+      touchTracker(s);
+    });
+
+    toast(own || hab
+      ? `Загружено: своих ${own}, по привычкам ${hab}${skipped ? `, пропущено ${skipped}` : ''}`
+      : 'Не нашлось таблицы с месяцами в шапке');
   },
 
   /** Выгрузка: две сводные таблицы и все дневные отметки за год. */
@@ -214,7 +306,9 @@ export const actions = {
         ...buildRows(y).map(r => {
           const cells = r.cells.map(c => c.value);
           const sum = cells.reduce((a, c) => a + (c || 0), 0);
-          return [r.name, r.unit || '', ...cells, sum];
+          // Пустой месяц выгружаем пустым: иначе при обратной загрузке ноль
+          // превратился бы в ручную правку и заморозил расчёт по отметкам.
+          return [r.name, r.unit || '', ...cells.map(c => (c ? c : '')), sum];
         }),
       ],
     };
@@ -253,12 +347,13 @@ export const actions = {
         update(s => {
           const vals = (s.tracker.values[v.id] ||= {});
           if (n == null) delete vals[v.m]; else vals[v.m] = n;
+          touchTracker(s);
         });
         close();
       },
       secondary: 'очистить',
       onSecondary: (_val, close) => {
-        update(s => { if (s.tracker.values[v.id]) delete s.tracker.values[v.id][v.m]; });
+        update(s => { if (s.tracker.values[v.id]) delete s.tracker.values[v.id][v.m]; touchTracker(s); });
         close();
       },
     });

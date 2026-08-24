@@ -277,6 +277,11 @@ export const habitNorm = hb => Math.max(1, Number(hb?.target) || 1);
  * Живёт в хранилище, чтобы главный экран и экран «Ритм» считали одинаково.
  * Опыт начисляется за закрытую норму, а не за каждый тап.
  */
+/** Пометить, что данные трекера трогали: подпись «последнее обновление» берётся отсюда. */
+export function touchTracker(s) {
+  s.tracker.updatedAt = new Date().toISOString();
+}
+
 export function tickHabit(s, id, date) {
   const hb = s.habits.find(x => x.id === id);
   if (!hb) return null;
@@ -286,6 +291,7 @@ export function tickHabit(s, id, date) {
   if (next) hb.log[date] = next; else delete hb.log[date];
   if (next >= target && was < target) addXp(XP.habit);
   if (was >= target && next < target) addXp(-XP.habit);
+  touchTracker(s);
   return { name: hb.name, was, next, target, reached: next >= target && was < target };
 }
 

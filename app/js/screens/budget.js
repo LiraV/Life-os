@@ -7,6 +7,7 @@
 import { S, update, uid } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
+import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
 
 const B = () => S.budget;
 const ym = () => S.ui.budMonth || monthKey(todayISO());
@@ -193,6 +194,8 @@ function vaultsView() {
         </div>`);
     })}
     <button class="add" data-act="vaultnew">+ Копилка</button>
+    <button class="add" data-act="export">Выгрузить в Excel</button>
+    <button class="add" data-act="import">Загрузить из Excel</button>
     <div class="card mute"><div class="lab">Пополнение уходит с остатка и не считается тратой — как отдельная колонка «накоп» в таблице.
       Стартовая сумма на остаток не влияет: это то, что уже лежало в копилке до начала учёта.</div></div>`;
 }
@@ -236,6 +239,28 @@ function opSheet(op, kind) {
     onDanger: (_v, close) => { update(s => { s.budget.ops = s.budget.ops.filter(x => x.id !== o.id); }); close(); },
   });
 }
+
+const KIND_RU = { expense: 'расход', income: 'доход', save: 'копилка' };
+const RU_KIND = { расход: 'expense', доход: 'income', копилка: 'save', накопление: 'save', сейв: 'save' };
+
+/** Ищем строку заголовков: файл мог прийти с шапкой, пустыми строками или названием сверху. */
+function findHeader(rows, needed) {
+  for (let i = 0; i < Math.min(rows.length, 30); i++) {
+    const low = rows[i].map(c => String(c ?? '').trim().toLowerCase());
+    const at = {};
+    needed.forEach(n => { const j = low.findIndex(c => c.startsWith(n)); if (j >= 0) at[n] = j; });
+    if (Object.keys(at).length === needed.length) return { row: i, at };
+  }
+  return null;
+}
+
+const findSheet = (sheets, re) => sheets.find(s => re.test(s.name));
+/** Сравнение названий: «Жилье» из чужого файла и «Жильё» в приложении — одно и то же. */
+const norm = v => String(v ?? '').trim().toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ');
+const numOf = v => {
+  const n = Number(String(v ?? '').replace(/\s/g, '').replace(',', '.').replace(/[^\d.-]/g, ''));
+  return Number.isFinite(n) ? n : null;
+};
 
 export const actions = {
   back: () => { location.hash = '#/spheres'; },
@@ -373,4 +398,161 @@ export const actions = {
     },
   }),
   ruledel: v => update(s => { s.budget.rules.splice(Number(v.i), 1); }),
+
+  /** Выгрузка задаёт и формат загрузки: тот же файл можно поправить и вернуть. */
+  export: async () => {
+    const b = B();
+    const ops = [...b.ops].sort((a, c) => (a.date || '').localeCompare(c.date || ''));
+    const vaultName = id => (b.vaults.find(v => v.id === id) || {}).name || '';
+
+    const sheets = [
+      {
+        name: 'Операции',
+        rows: [['Дата', 'Тип', 'Статья', 'Сумма', 'Комментарий'],
+          ...ops.map(o => [o.date, KIND_RU[o.kind], o.kind === 'save' ? vaultName(o.vaultId) : catName(o.kind, o.catId), o.sum, o.note || ''])],
+      },
+      {
+        name: 'План',
+        rows: [['Месяц', 'Тип', 'Статья', 'План'],
+          ...Object.keys(b.plans).sort().flatMap(m => ['expense', 'income'].flatMap(k =>
+            Object.entries(b.plans[m]?.[k] || {}).map(([id, sum]) => [m, KIND_RU[k], catName(k, id), sum])))],
+      },
+      { name: 'Копилки', rows: [['Название', 'Стартовая сумма'], ...b.vaults.map(v => [v.name, Number(v.start) || 0])] },
+    ];
+
+    try {
+      const how = await saveFile(buildXlsx(sheets), `life-os-budget-${ym()}.xlsx`,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      if (how === 'share') toast('Отправила в «Поделиться»');
+      else if (how === 'download') toast('Файл скачан');
+    } catch (e) {
+      toast('Не получилось выгрузить: ' + String(e.message || e).slice(0, 50));
+    }
+  },
+
+  import: async () => {
+    const file = await pickFile('.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    if (!file) return;
+    toast('Читаю файл…');
+    let sheets;
+    try {
+      sheets = await readXlsx(file);
+    } catch (e) {
+      return toast(String(e.message || e).slice(0, 90));
+    }
+
+    const report = [];
+    try {
+      update(s => {
+        const bud = s.budget;
+        const catId = (kind, name) => {
+          const n = String(name || '').trim();
+          if (!n) return null;
+          let c = bud.cats[kind].find(x => norm(x.name) === norm(n));
+          if (!c) { c = { id: uid(), name: n }; bud.cats[kind].push(c); }
+          return c.id;
+        };
+        const vaultId = name => {
+          const n = String(name || '').trim() || 'Копилка';
+          let v = bud.vaults.find(x => norm(x.name) === norm(n));
+          if (!v) { v = { id: uid(), name: n, start: 0 }; bud.vaults.push(v); }
+          return v.id;
+        };
+
+        // ── операции ──
+        const opsSheet = findSheet(sheets, /операц/i);
+        if (opsSheet) {
+          const head = findHeader(opsSheet.rows, ['дата', 'тип', 'сумма']);
+          if (head) {
+            const seen = new Set(bud.ops.map(o => `${o.date}|${o.kind}|${o.sum}|${(o.note || '').trim()}`));
+            let added = 0, skipped = 0;
+            const colCat = head.at['статья'] ?? opsSheet.rows[head.row].findIndex(c => /стать|катег|копилк/i.test(String(c ?? '')));
+            const colNote = opsSheet.rows[head.row].findIndex(c => /коммент|описан|заметк/i.test(String(c ?? '')));
+            opsSheet.rows.slice(head.row + 1).forEach(r => {
+              const sum = numOf(r[head.at['сумма']]);
+              const kind = RU_KIND[String(r[head.at['тип']] ?? '').trim().toLowerCase()];
+              let date = r[head.at['дата']];
+              if (typeof date === 'number') return;              // серийная дата Excel — пропускаем, чтобы не соврать
+              date = String(date ?? '').trim().slice(0, 10);
+              if (!sum || !kind || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+              const note = String(r[colNote] ?? '').trim();
+              const key = `${date}|${kind}|${sum}|${note}`;
+              if (seen.has(key)) { skipped++; return; }
+              seen.add(key);
+              const name = r[colCat];
+              bud.ops.push({
+                id: uid(), date, kind, sum, note,
+                catId: kind === 'save' ? null : catId(kind, name),
+                vaultId: kind === 'save' ? vaultId(name) : null,
+              });
+              added++;
+            });
+            report.push(`операций ${added}${skipped ? `, повторов пропущено ${skipped}` : ''}`);
+          }
+        }
+
+        // ── план ──
+        const planSheet = findSheet(sheets, /^план$|планы/i);
+        if (planSheet) {
+          const head = findHeader(planSheet.rows, ['месяц', 'тип', 'статья', 'план']);
+          if (head) {
+            let n = 0;
+            planSheet.rows.slice(head.row + 1).forEach(r => {
+              const m = String(r[head.at['месяц']] ?? '').trim().slice(0, 7);
+              const kind = RU_KIND[String(r[head.at['тип']] ?? '').trim().toLowerCase()];
+              const sum = numOf(r[head.at['план']]);
+              if (!/^\d{4}-\d{2}$/.test(m) || !kind || !sum) return;
+              const id = catId(kind, r[head.at['статья']]);
+              if (!id) return;
+              ((bud.plans[m] ||= {})[kind] ||= {})[id] = sum;
+              n++;
+            });
+            if (n) report.push(`планов ${n}`);
+          }
+        }
+
+        // ── копилки ──
+        const vaultSheet = findSheet(sheets, /копилк|сейв|накоп/i);
+        if (vaultSheet) {
+          const head = findHeader(vaultSheet.rows, ['назван', 'стартов']);
+          if (head) {
+            let n = 0;
+            vaultSheet.rows.slice(head.row + 1).forEach(r => {
+              const name = String(r[head.at['назван']] ?? '').trim();
+              const start = numOf(r[head.at['стартов']]);
+              if (!name || start == null) return;
+              const v = bud.vaults.find(x => norm(x.name) === norm(name));
+              if (v) v.start = start; else bud.vaults.push({ id: uid(), name, start });
+              n++;
+            });
+            if (n) report.push(`копилок ${n}`);
+          }
+        }
+
+        // ── план месяца из покупного планировщика: строка пар «статья, сумма» ──
+        const ru = ['январ', 'феврал', 'март', 'апрел', 'мая|май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
+        const planner = sheets.find(x => /^план\s+\S+\s+\d{4}/i.test(x.name));
+        if (planner && !report.some(r => r.startsWith('планов'))) {
+          const mi = ru.findIndex(re => new RegExp(re, 'i').test(planner.name));
+          const year = (planner.name.match(/\d{4}/) || [])[0];
+          const row = planner.rows.find(r => r.some(c => typeof c === 'number' && c > 0) && r.some(c => typeof c === 'string'));
+          if (mi >= 0 && year && row) {
+            const m = `${year}-${String(mi + 1).padStart(2, '0')}`;
+            let n = 0;
+            for (let i = 0; i < row.length - 1; i++) {
+              const name = row[i], sum = row[i + 1];
+              if (typeof name !== 'string' || typeof sum !== 'number' || !sum) continue;
+              if (/всего|итог/i.test(name)) continue;
+              ((bud.plans[m] ||= {}).expense ||= {})[catId('expense', name)] = sum;
+              n++; i++;
+            }
+            if (n) report.push(`план на ${m} — ${n} статей`);
+          }
+        }
+      });
+    } catch (e) {
+      return toast('Не разобрала файл: ' + String(e.message || e).slice(0, 60));
+    }
+    toast(report.length ? 'Загружено: ' + report.join(', ') : 'Подходящих таблиц не нашлось');
+  },
 };
