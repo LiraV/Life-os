@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 7;
+const VERSION = 8;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -40,6 +40,10 @@ function blank() {
     spheres: {},         // { key: { items: [], note } }
     habits: [],          // [{ id, name, target, step, unit, log: { date: количество } }]
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
+    food: {                                              // дневник питания: КБЖУ и вода по дням
+      targets: { kcal: 2000, prot: 90, fat: 70, carb: 220, water: 2000 },
+      days: {},                                          // { 'YYYY-MM-DD': { water, entries: [] } }
+    },
     diary: [],
     chat: [],
     tests: {},
@@ -59,6 +63,12 @@ function migrate(s) {
   if (Array.isArray(merged.health.periods)) {
     merged.health.days ||= {};
   merged.intentions ||= {};
+
+  const food = merged.food && typeof merged.food === 'object' ? merged.food : {};
+  merged.food = {
+    targets: { ...base.food.targets, ...(food.targets || {}) },
+    days: food.days && typeof food.days === 'object' ? food.days : {},
+  };
 
   // v4 → v5: привычка была «отмечено / нет», стала «сколько раз за день»
   // при дневной норме. Старая отметка равна одному разу при норме один.
@@ -83,6 +93,12 @@ function migrate(s) {
   }
   merged.health.days ||= {};
   merged.intentions ||= {};
+
+  const food = merged.food && typeof merged.food === 'object' ? merged.food : {};
+  merged.food = {
+    targets: { ...base.food.targets, ...(food.targets || {}) },
+    days: food.days && typeof food.days === 'object' ? food.days : {},
+  };
 
   // v4 → v5: привычка была «отмечено / нет», стала «сколько раз за день»
   // при дневной норме. Старая отметка равна одному разу при норме один.

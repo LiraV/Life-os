@@ -3,7 +3,8 @@
 import { S, update, exportJSON, importJSON, resetAll, level } from '../store.js';
 import { todayISO } from '../dates.js';
 import { BUILD } from '../version.js';
-import { h, field, toast, openSheet, confirmSheet } from '../ui.js';
+import { hasKey, maskKey, setKey, setModel, getModel, checkKey, DEFAULT_MODEL } from '../ai.js';
+import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 
 export function render() {
   const size = (() => {
@@ -30,11 +31,27 @@ export function render() {
     </div>
 
     <div class="card">
-      <div class="caps">Летописец и данные</div>
-      <div class="ink">Всё живёт только на этом устройстве: браузерное хранилище, без сервера и аккаунта.
-        Ничего не уходит наружу — ни отметки, ни дневник.</div>
-      <div class="lab">Летописец — правила поверх твоих данных, а не языковая модель. Цели он не меняет никогда:
-        только предлагает, а решаешь ты.</div>
+      <div class="caps">Данные и приватность</div>
+      <div class="ink">Всё живёт только на этом устройстве: браузерное хранилище, без сервера и аккаунта.</div>
+      <div class="lab">Само по себе приложение ничего наружу не отправляет. Исключение — то, что ты включишь ниже:
+        оценка фото и вопросы Летописцу уходят в OpenAI, потому что сервера у приложения нет.</div>
+    </div>
+
+    <div class="card">
+      <div class="caps">ИИ · OpenAI</div>
+      ${hasKey() ? raw(h`
+        <div class="row between"><span class="ink">Ключ</span><span class="lab">${maskKey()}</span></div>
+        <div class="row between"><span class="ink">Модель</span><span class="lab">${getModel()}</span></div>
+        <button class="add" data-act="aicheck">Проверить ключ</button>
+        <button class="add" data-act="aikey">Изменить</button>`)
+      : raw(h`
+        <div class="ink">Ключ не задан. Без него работают все экраны, кроме оценки фото и свободных вопросов Летописцу.</div>
+        <button class="add" data-act="aikey">Добавить ключ OpenAI</button>`)}
+      <div class="lab">Ключ хранится только на этом устройстве и намеренно не попадает в резервную копию.
+        Запросы идут с телефона прямо в OpenAI и оплачиваются по твоему счёту — на platform.openai.com
+        стоит выставить месячный лимит.</div>
+      <div class="lab">Что уходит: при оценке фото — сам снимок (он нигде не сохраняется); при вопросе
+        Летописцу — короткая выжимка: сегодняшние квесты, энергия, потребности. Дневник и цикл не отправляются.</div>
     </div>
 
     <div class="card">
@@ -70,6 +87,38 @@ export function render() {
 }
 
 export const actions = {
+  aikey: () => openSheet({
+    title: 'Ключ OpenAI',
+    sub: 'создаётся на platform.openai.com → API keys',
+    body: [
+      field.text('key', 'Ключ', '', 'sk-...'),
+      field.text('model', 'Модель', getModel(), DEFAULT_MODEL),
+      field.note('Ключ вводится один раз и остаётся на этом устройстве. Если оставить поле пустым и сохранить, ключ будет удалён.'),
+    ].join(''),
+    primary: 'Сохранить',
+    onSave: (v, close) => {
+      const key = (v.key || '').trim();
+      if (key && !key.startsWith('sk-')) return toast('Ключ OpenAI начинается с sk-');
+      setKey(key);
+      setModel(v.model);
+      close();
+      update(() => {});
+      toast(key ? 'Ключ сохранён' : 'Ключ удалён');
+    },
+    danger: hasKey() ? 'Удалить ключ' : null,
+    onDanger: (_v, close) => { setKey(''); close(); update(() => {}); toast('Ключ удалён'); },
+  }),
+
+  aicheck: async () => {
+    toast('Проверяю…');
+    try {
+      const r = await checkKey();
+      toast(r.hasModel ? `Ключ работает, модель на месте` : `Ключ работает, но модели «${getModel()}» в списке нет`);
+    } catch (e) {
+      toast(String(e.message || e).slice(0, 90));
+    }
+  },
+
   /** Сбросить кеш оболочки и перезапуститься — данные не трогаем, они в localStorage. */
   refresh: async () => {
     toast('Обновляю…');

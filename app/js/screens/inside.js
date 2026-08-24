@@ -6,6 +6,7 @@ import { todayISO, addDays, dayShort } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { weekStats, needs, roles, questsOn, peakLabel } from '../selectors.js';
 import { questSheet } from './day.js';
+import { hasKey, askChronicler } from '../ai.js';
 
 const TABS = [['chat', 'Чат'], ['tests', 'Тесты'], ['diary', 'Дневник']];
 const tab = params => params[0] || S.ui.insideTab || 'chat';
@@ -40,10 +41,20 @@ function chatView() {
       <div class="pills" style="margin-top:4px">
         ${QUICK.map(q => raw(h`<button class="pill" data-act="say" data-v="${q.id}">${q.label}</button>`))}
       </div>`)}
-    <div class="card mute">
-      <div class="lab">Летописец работает офлайн: это правила поверх твоих отметок, а не языковая модель.
-      Он ничего не отправляет наружу и никогда не меняет цели сам.</div>
-    </div>`;
+    ${hasKey() ? raw(h`
+      <div class="card">
+        <div class="fld">
+          <span>Спросить своими словами</span>
+          <input type="text" data-field="ask" data-act-enter="ask" placeholder="например, «с чего начать сегодня?»">
+        </div>
+        <button class="add" data-act="ask">Спросить Летописца</button>
+        <div class="lab">Уйдёт в OpenAI: вопрос и короткая выжимка — квесты дня, энергия, потребности. Дневник и цикл не отправляются.</div>
+      </div>`)
+    : raw(h`
+      <div class="card mute">
+        <div class="lab">Сейчас Летописец работает офлайн: это правила поверх твоих отметок. Чтобы задавать
+        вопросы своими словами, добавь ключ OpenAI в Настройках.</div>
+      </div>`)}`;
 }
 
 function greeting() {
@@ -186,6 +197,39 @@ function diaryView() {
 // ── действия ────────────────────────────────────────────────────
 export const actions = {
   tab: v => { update(s => { s.ui.insideTab = v.v; }); location.hash = '#/inside/' + v.v; },
+
+  /** Свободный вопрос: контекст собираем короткий и говорим об этом прямо в интерфейсе. */
+  ask: async (v, el) => {
+    const q = (v.value || el?.value || document.querySelector('#scr [data-field="ask"]')?.value || '').trim();
+    if (!q) return toast('Напиши вопрос');
+    push('me', q);
+    const input = document.querySelector('#scr [data-field="ask"]');
+    if (input) input.value = '';
+    push('ai', '…');
+    try {
+      const t = todayISO();
+      const qs = questsOn(t);
+      const w = weekStats(t);
+      const context = [
+        `Сегодня ${t}. Хронотип: ${S.user.chronotype}, пик энергии ${peakLabel()}.`,
+        `Энергия: ${S.energy[t] ?? 'не отмечена'}.`,
+        `Квесты сегодня: ${qs.length ? qs.map(x => `${x.title}${x.done ? ' (сделано)' : ''}`).join(', ') : 'нет'}.`,
+        `За неделю закрыто ${w.done} из ${w.total}.`,
+        `Потребности: ${needs().filter(n => n.value != null).map(n => `${n.name} ${n.value}%`).join(', ') || 'нет данных'}.`,
+        `Роли без дела: ${roles().filter(r => r.low).map(r => r.name).join(', ') || 'нет'}.`,
+      ].join('\n');
+      const answer = await askChronicler(q, context);
+      update(s => {
+        const last = s.chat[s.chat.length - 1];
+        if (last && last.text === '…') last.text = answer || 'Не нашлось, что ответить.';
+      });
+    } catch (e) {
+      update(s => {
+        const last = s.chat[s.chat.length - 1];
+        if (last && last.text === '…') last.text = 'Не получилось спросить: ' + String(e.message || e).slice(0, 90);
+      });
+    }
+  },
 
   say: v => {
     const q = QUICK.find(x => x.id === v.v);

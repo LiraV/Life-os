@@ -197,6 +197,13 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .hab-plus.on{background:var(--accent); color:var(--on-accent); font-size:15px}
 .hab-plus[disabled]{opacity:.35; pointer-events:none}
 
+/* ── питание ────────────────────────────────────────────────── */
+.macros{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+.macro{display:flex; flex-direction:column; gap:3px}
+.macro .ink{font-size:13px}
+.cal-d.has{background:color-mix(in srgb, var(--caramel) calc(var(--f) * 85%), var(--track)); color:var(--ink)}
+.cal-d.sel{outline:2px solid var(--accent); outline-offset:1px; font-weight:600}
+
 /* ── большой трекер ─────────────────────────────────────────── */
 .tr-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none}
 .tr-wrap::-webkit-scrollbar{display:none}

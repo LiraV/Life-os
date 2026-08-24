@@ -3,7 +3,7 @@
 // Код приложения отдаётся из сети в первую очередь, кеш — только запасной
 // вариант офлайна. Обратный порядок означал бы, что после выкладки на телефоне
 // ещё долго крутится старая сборка.
-const VERSION = 'lifeos-v12';
+const VERSION = 'lifeos-v13';
 const ASSETS = 'lifeos-assets-v1';
 const FONTS = 'lifeos-fonts-v1';
 
@@ -19,6 +19,7 @@ const SHELL = [
   './app/js/ui.js',
   './app/js/version.js',
   './app/js/xlsx.js',
+  './app/js/ai.js',
   './app/js/screens/onboarding.js',
   './app/js/screens/day.js',
   './app/js/screens/plans.js',
@@ -29,6 +30,7 @@ const SHELL = [
   './app/js/screens/me.js',
   './app/js/screens/settings.js',
   './app/js/screens/tracker.js',
+  './app/js/screens/food.js',
 ];
 
 const MEDIA = [
