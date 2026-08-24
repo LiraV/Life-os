@@ -34,7 +34,7 @@ function blank() {
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
-    tracker: { rows: [], values: {} },  // свои строки годового трекера и их месячные значения
+    tracker: { rows: [], values: {}, habitValues: {} },  // свои строки трекера, их значения и ручные правки привычек по месяцам
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
@@ -110,7 +110,11 @@ function migrate(s) {
   });
 
   const tr = merged.tracker && typeof merged.tracker === 'object' ? merged.tracker : {};
-  merged.tracker = { rows: Array.isArray(tr.rows) ? tr.rows : [], values: tr.values && typeof tr.values === 'object' ? tr.values : {} };
+  merged.tracker = {
+    rows: Array.isArray(tr.rows) ? tr.rows : [],
+    values: tr.values && typeof tr.values === 'object' ? tr.values : {},
+    habitValues: tr.habitValues && typeof tr.habitValues === 'object' ? tr.habitValues : {},
+  };
 
   return merged;
 }

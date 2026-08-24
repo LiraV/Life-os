@@ -214,6 +214,9 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .tr tbody td.now{outline:1.5px solid var(--line); outline-offset:-2px; border-radius:8px}
 .tr .tr-name.own{cursor:pointer; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px}
 .tr tbody td.edit{cursor:pointer}
+.tr tbody td.fixed{position:relative}
+.tr tbody td.fixed::after{content:''; position:absolute; top:3px; right:3px; width:4px; height:4px;
+  border-radius:99px; background:var(--deep); opacity:.55}
 .tr tbody td.edit:not(.has):hover{background:var(--track); border-radius:8px}
 
 .tr .tr-sum{position:sticky; right:0; background:var(--card); font-weight:500; color:var(--deep);

@@ -4,6 +4,7 @@
 import { S, update, uid } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
+import { buildXlsx, saveFile } from '../xlsx.js';
 import { liveHabits, habitMonthTotal, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
@@ -13,43 +14,52 @@ const full = n => Number(n).toLocaleString('ru-RU');
 const year = () => S.ui.trackYear || yearOf(todayISO());
 const mode = () => S.ui.trackMode || 'total';   // total — сколько раз, days — полных дней
 
-export function render() {
-  const y = year();
-  const months = Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`);
-  const curM = monthKey(todayISO());
-  const habits = liveHabits();
+export const monthsOf = y => Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`);
 
-  // Динамичные цели идут отдельными строками: они живут внутри своего месяца.
+/** Значение привычки за месяц: ручная правка, если она есть, иначе расчёт по дням. */
+export function habitCell(hb, ym, md) {
+  const fixed = S.tracker.habitValues?.[hb.id]?.[ym]?.[md];
+  if (typeof fixed === 'number') return { value: fixed, fixed: true };
+  return { value: md === 'days' ? habitMonthCount(hb, ym) : habitMonthTotal(hb, ym), fixed: false };
+}
+
+/** Строки таблицы — одни и те же для экрана и для выгрузки. */
+export function buildRows(y, md) {
+  const months = monthsOf(y);
+
   const dynamic = {};
   months.forEach(ym => {
     goalsIn('month', ym).filter(g => g.dynamic && isCounter(g)).forEach(g => {
       (dynamic[g.title] ||= {})[ym] = counterOf(g).current;
     });
   });
-  const dynNames = Object.keys(dynamic);
 
-  // Свои строки — то, что не является привычкой: «шпагат, ч», «анализы».
-  // Значения вводятся руками по месяцам, поэтому режим их не касается.
-  const own = S.tracker.rows.map(r => ({
-    id: r.id, name: r.name, unit: r.unit, own: true,
-    cells: months.map(ym => S.tracker.values[r.id]?.[ym] ?? null),
-  }));
-
-  const rows = [
-    ...own,
-    ...habits.map(hb => ({
-      name: hb.name,
-      target: habitTarget(hb),
-      unit: mode() === 'days' ? 'дн.' : hb.unit,
-      cells: months.map(ym => (mode() === 'days' ? habitMonthCount(hb, ym) : habitMonthTotal(hb, ym))),
+  return [
+    // Свои строки — то, что не является привычкой: «шпагат, ч», «анализы».
+    ...S.tracker.rows.map(r => ({
+      id: r.id, name: r.name, unit: r.unit, own: true,
+      cells: months.map(ym => ({ value: S.tracker.values[r.id]?.[ym] ?? null })),
     })),
-    ...dynNames.map(name => ({
+    ...liveHabits().map(hb => ({
+      id: hb.id, name: hb.name, habit: true,
+      target: habitTarget(hb),
+      unit: md === 'days' ? 'дн.' : hb.unit,
+      cells: months.map(ym => habitCell(hb, ym, md)),
+    })),
+    ...Object.keys(dynamic).map(name => ({
       name, dyn: true,
-      cells: months.map(ym => dynamic[name][ym] ?? null),
+      cells: months.map(ym => ({ value: dynamic[name][ym] ?? null })),
     })),
   ];
+}
 
-  const max = Math.max(1, ...rows.flatMap(r => r.cells.filter(c => c != null)));
+export function render() {
+  const y = year();
+  const months = monthsOf(y);
+  const curM = monthKey(todayISO());
+  const rows = buildRows(y, mode());
+
+  const max = Math.max(1, ...rows.flatMap(r => r.cells.map(c => c.value).filter(c => c != null)));
 
   return h`
     <div class="stepper">
@@ -79,25 +89,27 @@ export function render() {
             </thead>
             <tbody>
               ${rows.map(r => {
-                const sum = r.cells.reduce((a, c) => a + (c || 0), 0);
+                const sum = r.cells.reduce((a, c) => a + (c.value || 0), 0);
                 return raw(h`
                   <tr>
                     <th class="tr-name ${r.own ? 'own' : ''}" ${raw(r.own ? `data-act="rowedit" data-id="${r.id}"` : '')}>${r.name}${
                       r.own ? raw(h`<i class="tr-dyn">${r.unit || 'своя'}</i>`)
                       : r.dyn ? raw('<i class="tr-dyn">дин.</i>')
                       : r.target > 1 ? raw(h`<i class="tr-dyn">×${r.target}</i>`) : ''}</th>
-                    ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c ? 'has' : ''} ${r.own ? 'edit' : ''}"
-                      ${raw(r.own ? `data-act="cell" data-id="${r.id}" data-m="${months[i]}"` : '')}
-                      style="${c ? `--f:${Math.min(1, c / max)}` : ''}">${c == null ? (r.own ? '' : '·') : c ? cell(c) : ''}</td>`))}
+                    ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c.value ? 'has' : ''} ${r.own || r.habit ? 'edit' : ''} ${c.fixed ? 'fixed' : ''}"
+                      ${raw(r.own ? `data-act="cell" data-id="${r.id}" data-m="${months[i]}"`
+                        : r.habit ? `data-act="hcell" data-id="${r.id}" data-m="${months[i]}"` : '')}
+                      style="${c.value ? `--f:${Math.min(1, c.value / max)}` : ''}">${c.value == null ? (r.own ? '' : '·') : c.value ? cell(c.value) : ''}</td>`))}
                     <td class="tr-sum">${sum ? cell(sum) : ''}</td>
                   </tr>`);
               })}
             </tbody>
           </table>
         </div>
-        <div class="lab" style="padding:6px 4px 0">Таблица прокручивается вбок. Привычки и динамичные цели считаются сами; свои строки заполняются вручную — тапни ячейку.</div>
+        <div class="lab" style="padding:6px 4px 0">Таблица прокручивается вбок. Тапни ячейку, чтобы вписать значение за месяц — у привычек это заменит расчёт по дням, такие ячейки помечены точкой. Динамичные цели правятся в Планах.</div>
       </div>
-      <button class="add" data-act="rowadd">+ Своя строка</button>`)
+      <button class="add" data-act="rowadd">+ Своя строка</button>
+      <button class="add" data-act="export">Выгрузить в Excel</button>`)
     : raw(h`<div class="card dash"><div class="empty">Пока нечего показывать.<br>Трекер собирается из привычек и динамичных целей — или добавь свою строку.</div>
         <button class="add" data-act="rowadd">+ Своя строка</button>
         <button class="btn-ghost" data-act="gohabits">завести привычку</button></div>`)}
@@ -106,8 +118,8 @@ export function render() {
       <div class="card mute">
         <div class="caps">Итог года</div>
         ${rows.map(r => {
-          const sum = r.cells.reduce((a, c) => a + (c || 0), 0);
-          const best = r.cells.reduce((bi, c, i) => ((c || 0) > (r.cells[bi] || 0) ? i : bi), 0);
+          const sum = r.cells.reduce((a, c) => a + (c.value || 0), 0);
+          const best = r.cells.reduce((bi, c, i) => ((c.value || 0) > (r.cells[bi].value || 0) ? i : bi), 0);
           return raw(h`<div class="row between"><span class="lab grow ellip">${r.name}</span>
             <span class="lab">${full(sum)}${r.unit ? ' ' + r.unit : ''}${sum ? ` · лучший ${MONTHS[best].toLowerCase()}` : ''}</span></div>`);
         })}
@@ -158,6 +170,88 @@ export const actions = {
   gohabits: () => { location.hash = '#/habits'; },
 
   rowadd: () => rowSheet(null),
+
+  /** Ручное значение привычки за месяц: заменяет расчёт по дням, но не трогает сами отметки. */
+  hcell: v => {
+    const hb = S.habits.find(x => x.id === v.id);
+    if (!hb) return;
+    const md = mode();
+    const i = Number(v.m.slice(5, 7)) - 1;
+    const auto = md === 'days' ? habitMonthCount(hb, v.m) : habitMonthTotal(hb, v.m);
+    const fixed = S.tracker.habitValues?.[hb.id]?.[v.m]?.[md];
+    const label = md === 'days' ? 'Полных дней' : `Сколько${hb.unit ? ', ' + hb.unit : ' раз'}`;
+
+    openSheet({
+      title: `${hb.name} · ${MONTHS[i].toLowerCase()}`,
+      sub: `по отметкам получается ${auto}${md === 'days' ? ' дн.' : hb.unit ? ' ' + hb.unit : ''}`,
+      body: [
+        field.number('n', label, fixed ?? auto, { min: 0 }),
+        field.note('Значение запишется поверх расчёта — удобно, чтобы перенести прошлые месяцы. Ежедневные отметки при этом не меняются, их всегда можно вернуть.'),
+      ].join(''),
+      primary: 'Записать',
+      onSave: (val, close) => {
+        const n = Math.max(0, Number(val.n) || 0);
+        update(s => {
+          const byHabit = (s.tracker.habitValues[hb.id] ||= {});
+          const byMonth = (byHabit[v.m] ||= {});
+          byMonth[md] = n;
+        });
+        close();
+        toast('Записала');
+      },
+      secondary: fixed != null ? 'вернуть расчётное' : null,
+      onSecondary: (_val, close) => {
+        update(s => {
+          const byHabit = s.tracker.habitValues[hb.id];
+          const byMonth = byHabit?.[v.m];
+          if (!byMonth) return;
+          delete byMonth[md];
+          if (!Object.keys(byMonth).length) delete byHabit[v.m];
+          if (!Object.keys(byHabit).length) delete s.tracker.habitValues[hb.id];
+        });
+        close();
+        toast('Вернула расчёт по отметкам');
+      },
+    });
+  },
+
+  /** Выгрузка: две сводные таблицы и все дневные отметки за год. */
+  export: async () => {
+    const y = year();
+    const months = monthsOf(y);
+    const head = ['Активность', 'Единица', ...months.map((_, i) => MONTHS[i]), 'За год'];
+
+    const sheet = md => ({
+      name: md === 'days' ? 'Полных дней' : 'Сколько раз',
+      rows: [
+        head,
+        ...buildRows(y, md).map(r => {
+          const cells = r.cells.map(c => c.value);
+          const sum = cells.reduce((a, c) => a + (c || 0), 0);
+          return [r.name, r.unit || '', ...cells, sum];
+        }),
+      ],
+    });
+
+    const daily = [['Дата', 'Привычка', 'Значение', 'Норма', 'Норма закрыта']];
+    liveHabits().forEach(hb => {
+      Object.keys(hb.log || {}).filter(d => d.startsWith(String(y))).sort().forEach(d => {
+        const n = Number(hb.log[d]) || 0;
+        daily.push([d, hb.name, n, habitTarget(hb), n >= habitTarget(hb) ? 'да' : 'нет']);
+      });
+    });
+
+    try {
+      const bytes = buildXlsx([sheet('total'), sheet('days'), { name: 'По дням', rows: daily }]);
+      const how = await saveFile(bytes, `life-os-tracker-${y}.xlsx`,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      if (how === 'share') toast('Отправила в «Поделиться»');
+      else if (how === 'download') toast('Файл скачан');
+    } catch (e) {
+      console.error('[lifeos] выгрузка не удалась', e);
+      toast('Не получилось выгрузить: ' + String(e.message || e).slice(0, 40));
+    }
+  },
   rowedit: v => { const r = S.tracker.rows.find(x => x.id === v.id); if (r) rowSheet(r); },
 
   cell: v => {
