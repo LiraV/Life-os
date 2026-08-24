@@ -28,6 +28,13 @@ const year = () => S.ui.trackYear || yearOf(todayISO());
 
 export const monthsOf = y => Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`);
 
+/** Занятий за месяц: ручная правка поверх журнала занятий. */
+export function lessonCell(l, ym) {
+  const fixed = S.tracker.lessonValues?.[l.id]?.[ym];
+  if (typeof fixed === 'number') return { value: fixed, fixed: true };
+  return { value: lessonMonth(l, ym), fixed: false };
+}
+
 /** Полных дней за месяц: ручная правка, если она есть, иначе расчёт по отметкам. */
 export function habitCell(hb, ym) {
   const fixed = S.tracker.habitValues?.[hb.id]?.[ym];
@@ -61,7 +68,7 @@ export function buildRows(y) {
     // Занятия с полки обучения считаются сами — вручную их заводить не нужно.
     ...liveLessons().filter(l => l.kind === 'practice').map(l => ({
       id: l.id, name: l.name, lesson: true, unit: 'занятий',
-      cells: months.map(ym => ({ value: lessonMonth(l, ym) })),
+      cells: months.map(ym => lessonCell(l, ym)),
     })),
     ...Object.keys(dynamic).map(name => ({
       name, dyn: true,
@@ -92,6 +99,8 @@ export function render() {
       <button class="arrow" data-act="next" aria-label="Следующий год">›</button>
     </div>
 
+    ${raw(duplicateHint())}
+
     ${rows.length ? raw(h`
       <div class="card" style="padding:10px 8px">
         <div class="tr-wrap">
@@ -118,9 +127,10 @@ export function render() {
                       : r.avg ? raw('<i class="tr-dyn">сред.</i>')
                       : r.dyn ? raw('<i class="tr-dyn">дин.</i>')
                       : r.target > 1 ? raw(h`<i class="tr-dyn">×${r.target}</i>`) : ''}</th>
-                    ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c.value ? 'has' : ''} ${r.own || r.habit ? 'edit' : ''} ${c.fixed ? 'fixed' : ''}"
+                    ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c.value ? 'has' : ''} ${r.own || r.habit || r.lesson ? 'edit' : ''} ${c.fixed ? 'fixed' : ''}"
                       ${raw(r.own ? `data-act="cell" data-id="${r.id}" data-m="${months[i]}"`
-                        : r.habit ? `data-act="hcell" data-id="${r.id}" data-m="${months[i]}"` : '')}
+                        : r.habit ? `data-act="hcell" data-id="${r.id}" data-m="${months[i]}"`
+                        : r.lesson ? `data-act="lcell" data-id="${r.id}" data-m="${months[i]}"` : '')}
                       style="${c.value ? `--f:${Math.min(1, c.value / mx)}` : ''}">${c.value == null ? (r.own ? '' : '·') : c.value ? cell(c.value) : ''}</td>`))}
                     <td class="tr-sum">${sum ? cell(sum) : ''}</td>
                   </tr>`);
@@ -136,6 +146,7 @@ export function render() {
     : raw(h`<div class="card dash"><div class="empty">Пока нечего показывать.<br>Трекер собирается из привычек и динамичных целей — или добавь свою строку.</div>
         <button class="add" data-act="rowadd">+ Своя строка</button>
         <button class="btn-ghost" data-act="gohabits">завести привычку</button></div>`)}
+
 
     ${rows.length ? raw(h`
       <div class="card mute">
@@ -162,11 +173,20 @@ function rowSheet(row) {
       field.text('name', 'Название', row?.name || '', 'например, «Шпагат»'),
       field.text('unit', 'В чём считаем', row?.unit || '', 'ч, раз, кг — необязательно'),
       field.note('Значения по месяцам вводятся прямо в таблице: тапни ячейку.'),
+      isNew || !mergeTargets().length ? '' : field.select('merge', 'Это то же, что…',
+        [{ value: '', label: 'отдельная строка' },
+          ...mergeTargets().map(t => ({ value: `${t.kind}:${t.id}`, label: `${t.name} · ${t.kind === 'lesson' ? 'занятие' : 'привычка'}` }))], ''),
+      isNew ? '' : field.note('Если выбрать, строка сольётся с ним: месячные значения станут ручными правками, а дубль пропадёт.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      if (!isNew && v.merge) {
+        const [kind, id] = v.merge.split(':');
+        close();
+        return actions.mergerow({ id: row.id, k: kind, t: id });
+      }
       update(s => {
         if (isNew) s.tracker.rows.push({ id: uid(), name, unit: (v.unit || '').trim() });
         else {
@@ -188,6 +208,29 @@ function rowSheet(row) {
       toast('Удалила вместе со значениями');
     },
   });
+}
+
+const norm = v => String(v ?? '').trim().toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ');
+
+/** Кандидаты на объединение: занятия и привычки, куда можно влить свою строку. */
+export const mergeTargets = () => [
+  ...liveLessons().filter(l => l.kind === 'practice').map(l => ({ kind: 'lesson', id: l.id, name: l.name })),
+  ...liveHabits().map(hb => ({ kind: 'habit', id: hb.id, name: hb.name })),
+];
+
+/** Своя строка с тем же названием, что занятие или привычка, — почти наверняка дубль. */
+function duplicateHint() {
+  const targets = mergeTargets();
+  const dup = S.tracker.rows.find(r => targets.some(t => norm(t.name) === norm(r.name)));
+  if (!dup) return '';
+  const t = targets.find(x => norm(x.name) === norm(dup.name));
+  return h`
+    <div class="card dash">
+      <div class="ink">«${dup.name}» дублируется</div>
+      <div class="lab">Такая же ${t.kind === 'lesson' ? 'практика есть на полке обучения' : 'привычка уже есть'}.
+        Объединю: месячные значения станут ручными правками этой строки, а лишняя пропадёт.</div>
+      <button class="add" data-act="mergerow" data-id="${dup.id}" data-k="${t.kind}" data-t="${t.id}">Объединить</button>
+    </div>`;
 }
 
 export const actions = {
@@ -233,6 +276,60 @@ export const actions = {
         toast('Вернула расчёт по отметкам');
       },
     });
+  },
+
+  /** Ручное значение занятия за месяц — тем же способом, что у привычки. */
+  lcell: v => {
+    const l = S.lessons.find(x => x.id === v.id);
+    if (!l) return;
+    const i = Number(v.m.slice(5, 7)) - 1;
+    const auto = lessonMonth(l, v.m);
+    const fixed = S.tracker.lessonValues?.[l.id]?.[v.m];
+    openSheet({
+      title: `${l.name} · ${MONTHS[i].toLowerCase()}`,
+      sub: `по журналу занятий — ${auto}`,
+      body: [
+        field.number('n', 'Занятий за месяц', fixed ?? auto, { min: 0 }),
+        field.note('Пригодится, чтобы перенести прошлые месяцы. Журнал занятий при этом не меняется.'),
+      ].join(''),
+      primary: 'Записать',
+      onSave: (val, close) => {
+        update(s => { (s.tracker.lessonValues[l.id] ||= {})[v.m] = Math.max(0, Number(val.n) || 0); touchTracker(s); });
+        close();
+        toast('Записала');
+      },
+      secondary: fixed != null ? 'вернуть расчётное' : null,
+      onSecondary: (_val, close) => {
+        update(s => {
+          const by = s.tracker.lessonValues[l.id];
+          if (!by) return;
+          delete by[v.m];
+          if (!Object.keys(by).length) delete s.tracker.lessonValues[l.id];
+          touchTracker(s);
+        });
+        close();
+        toast('Вернула расчёт по журналу');
+      },
+    });
+  },
+
+  /** Объединить свою строку с занятием или привычкой: значения переезжают, дубль исчезает. */
+  mergerow: v => {
+    const row = S.tracker.rows.find(x => x.id === v.id);
+    const target = mergeTargets().find(t => t.kind === v.k && t.id === v.t);
+    if (!row || !target) return;
+    let moved = 0;
+    update(s => {
+      const vals = s.tracker.values[row.id] || {};
+      const store = v.k === 'lesson' ? (s.tracker.lessonValues[v.t] ||= {}) : (s.tracker.habitValues[v.t] ||= {});
+      Object.entries(vals).forEach(([ym, n]) => {
+        if (typeof n === 'number' && n > 0 && store[ym] == null) { store[ym] = n; moved++; }
+      });
+      delete s.tracker.values[row.id];
+      s.tracker.rows = s.tracker.rows.filter(x => x.id !== row.id);
+      touchTracker(s);
+    });
+    toast(`Объединила с «${target.name}»${moved ? `, перенесла ${moved} мес.` : ''}`);
   },
 
   /** Загрузка того же свода: строки ищем по названию, месяцы — по шапке. */

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 11;
+const VERSION = 12;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -34,7 +34,7 @@ function blank() {
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
-    tracker: { rows: [], values: {}, habitValues: {} },  // свои строки трекера и ручные правки: { привычка: { месяц: полных дней } }
+    tracker: { rows: [], values: {}, habitValues: {}, lessonValues: {} },  // свои строки и ручные правки по привычкам и занятиям
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
@@ -251,6 +251,7 @@ function migrate(s) {
     rows: Array.isArray(tr.rows) ? tr.rows : [],
     values: tr.values && typeof tr.values === 'object' ? tr.values : {},
     habitValues: tr.habitValues && typeof tr.habitValues === 'object' ? tr.habitValues : {},
+    lessonValues: tr.lessonValues && typeof tr.lessonValues === 'object' ? tr.lessonValues : {},
   };
 
   // v6 → v7: трекер считает только полные дни, поэтому ручная правка стала

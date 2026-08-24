@@ -1,12 +1,12 @@
 // «День»: реальные даты, энергия дня, квесты с полным редактированием.
 
-import { S, update, updateQuiet, uid, XP, addXp, SPHERES, addDiary, tickHabit } from '../store.js';
+import { S, update, updateQuiet, uid, XP, addXp, SPHERES, addDiary, tickHabit, touchTracker } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
-  liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent,
+  liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
 } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -128,6 +128,7 @@ function questRow(q) {
   const sp = sphereOf(q.sphere);
   // «Хранительнице смысла» цепочка нужна на виду, а не в шторке.
   const chain = effects().show === 'why' && q.goalId ? goalChain(q.goalId) : null;
+  const lesson = q.lessonId ? liveLessons().find(l => l.id === q.lessonId) : null;
   return h`
     <div class="quest ${q.done ? 'done' : ''}">
       <button class="check ${q.done ? 'on' : ''}" data-act="toggle" data-id="${q.id}" aria-label="Выполнено">✓</button>
@@ -137,6 +138,7 @@ function questRow(q) {
           ${q.time ? raw(h`<span class="q-time">${q.time}${q.minutes ? ` · ${q.minutes} мин` : ''}</span>`) : ''}
           ${sp ? raw(h`<span class="tag">${sp.name}</span>`) : ''}
           ${q.boss ? raw('<span class="tag boss">босс ★</span>') : ''}
+          ${lesson ? raw(h`<span class="tag">${lesson.name}</span>`) : ''}
         </div>
         ${chain && chain.links.length ? raw(h`<div class="lab">→ ${chain.links.map(l => l.title).join(' → ')}${chain.theme ? ` → «${chain.theme}»` : ''}</div>`) : ''}
       </div>
@@ -149,7 +151,8 @@ const SPHERE_OPTS = [{ value: '', label: 'без сферы' }, ...SPHERES.map(s
 
 export function questSheet(quest, date, onDone) {
   const isNew = !quest;
-  const q = quest || { id: uid(), title: '', time: '', minutes: 45, sphere: '', boss: false, goalId: '', done: false };
+  const q = quest || { id: uid(), title: '', time: '', minutes: 45, sphere: '', boss: false, goalId: '', lessonId: '', done: false };
+  const lessons = liveLessons();
   const goals = liveGoals();
   const chain = q.goalId ? goalChain(q.goalId) : null;
 
@@ -160,6 +163,10 @@ export function questSheet(quest, date, onDone) {
       field.time('time', 'Когда', q.time),
       field.opts('minutes', 'Длина', [{ value: '45', label: '45 мин' }, { value: '90', label: '90 мин' }, { value: '120', label: '120 мин' }], String(q.minutes || 45)),
       field.opts('sphere', 'Сфера', SPHERE_OPTS, q.sphere || ''),
+      lessons.length
+        ? field.select('lessonId', 'Занятие с полки', [{ value: '', label: 'не связано' }, ...lessons.map(l => ({ value: l.id, label: l.name }))], q.lessonId || '')
+        : '',
+      lessons.length ? field.note('Связанный квест при выполнении сам отметит занятие: оно попадёт в полку, трекер и статистику сферы. Дважды отмечать не нужно.') : '',
       goals.length
         ? field.select('goalId', 'Зачем — ведёт к цели', [{ value: '', label: 'просто так' }, ...goals.map(g => ({ value: g.id, label: g.title }))], q.goalId || '')
         : field.note('Целей пока нет — связь «зачем» появится, когда добавишь цель в Планах.'),
@@ -177,7 +184,13 @@ export function questSheet(quest, date, onDone) {
       update(s => {
         // Удаляем из старого дня — квест мог переехать на другую дату.
         Object.keys(s.quests).forEach(d => { s.quests[d] = s.quests[d].filter(x => x.id !== q.id); });
-        const next = { ...q, title, time: v.time || '', minutes: Number(v.minutes) || 45, sphere: v.sphere || '', goalId: v.goalId || '', boss: !!v.boss };
+        const lessonId = v.lessonId || '';
+        const next = {
+          ...q, title, time: v.time || '', minutes: Number(v.minutes) || 45,
+          // Связка с занятием сама проставляет сферу: обучение — её дом.
+          sphere: v.sphere || (lessonId ? 'edu' : ''),
+          goalId: v.goalId || '', lessonId, boss: !!v.boss,
+        };
         (s.quests[target] ||= []).push(next);
         s.quests[target].sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
         if (target !== date) s.ui.date = target;
@@ -247,6 +260,18 @@ export const actions = {
       flipped = q;
     });
     if (!flipped) return;
+    if (flipped.lessonId) {
+      update(s => {
+        const l = s.lessons.find(x => x.id === flipped.lessonId);
+        if (!l) return;
+        if (flipped.done) l.log[date] = 1;
+        // Снимаем отметку, только если этот день не держит другой связанный квест.
+        else if (!(s.quests[date] || []).some(x => x.done && x.lessonId === flipped.lessonId)) delete l.log[date];
+        touchTracker(s);
+      });
+      const l = liveLessons().find(x => x.id === flipped.lessonId);
+      if (l && flipped.done) toast(`${l.name} · занятие засчитано`);
+    }
     if (flipped.done && flipped.boss) toast('Босс повержен ✦');
     else if (flipped.done) toast(`+${XP.quest} XP`);
     if (flipped.done && flipped.sphere === 'sport') setTimeout(() => reflectionSheet(flipped), 350);
