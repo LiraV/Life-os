@@ -4,7 +4,7 @@
 import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
-import { hasKey, analyzeFoodPhoto } from '../ai.js';
+import { hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
 
 const cal = () => S.ui.foodMonth || monthKey(S.ui.foodDate || todayISO());
 const sel = () => S.ui.foodDate || todayISO();
@@ -68,7 +68,8 @@ export function render() {
 
     <button class="add" data-act="add">+ Приём пищи</button>
     <button class="add" data-act="photo">📷 Определить по фото</button>
-    ${!hasKey() ? raw(h`<div class="lab" style="padding:0 4px">Оценка по фото работает через OpenAI: добавь свой ключ в Настройках.</div>`) : ''}
+    <button class="add" data-act="describe">✎ Описать словами</button>
+    ${!hasKey() ? raw(h`<div class="lab" style="padding:0 4px">Оценка по фото и по описанию работает через OpenAI: добавь свой ключ в Настройках.</div>`) : ''}
     <div style="height:4px"></div>`;
 }
 
@@ -163,6 +164,26 @@ function entrySheet(entry, preset) {
   });
 }
 
+/** Одинаково открываем форму и после фото, и после описания. */
+function fromAI(r) {
+  const conf = { low: 'уверенности мало', medium: 'примерно', high: 'уверенно' }[r.confidence];
+  entrySheet(null, {
+    title: r.title, kcal: r.kcal, prot: r.prot, fat: r.fat, carb: r.carb, source: 'ai',
+    note: `${conf}${r.portion ? ' · ' + r.portion : ''}${r.note ? ' · ' + r.note : ''}`,
+  });
+}
+
+/** Без ключа обе оценки работать не могут — объясняем и ведём в настройки. */
+function askForKey() {
+  openSheet({
+    title: 'Нужен ключ OpenAI',
+    sub: 'приложение работает без сервера, поэтому обращается к OpenAI напрямую',
+    body: field.note('Заведи ключ на platform.openai.com и вставь его в Настройках. Он останется на этом устройстве и не попадёт ни в резервную копию, ни в репозиторий.'),
+    primary: 'Открыть настройки',
+    onSave: (_v, close) => { close(); location.hash = '#/settings'; },
+  });
+}
+
 export const actions = {
   back: () => { location.hash = '#/spheres'; },
   cprev: () => update(s => { s.ui.foodMonth = addMonths(cal(), -1); }),
@@ -217,15 +238,7 @@ export const actions = {
 
   /** Снимок уходит в OpenAI и не сохраняется — в хранилище остаются только числа. */
   photo: () => {
-    if (!hasKey()) {
-      return openSheet({
-        title: 'Нужен ключ OpenAI',
-        sub: 'приложение работает без сервера, поэтому обращается к OpenAI напрямую',
-        body: field.note('Заведи ключ на platform.openai.com и вставь его в Настройках. Он останется на этом устройстве и не попадёт ни в резервную копию, ни в репозиторий.'),
-        primary: 'Открыть настройки',
-        onSave: (_v, close) => { close(); location.hash = '#/settings'; },
-      });
-    }
+    if (!hasKey()) return askForKey();
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -234,16 +247,36 @@ export const actions = {
       if (!file) return;
       toast('Смотрю на фото…');
       try {
-        const r = await analyzeFoodPhoto(file);
-        const conf = { low: 'уверенности мало', medium: 'примерно', high: 'уверенно' }[r.confidence];
-        entrySheet(null, {
-          title: r.title, kcal: r.kcal, prot: r.prot, fat: r.fat, carb: r.carb, source: 'ai',
-          note: `${conf}${r.portion ? ' · ' + r.portion : ''}${r.note ? ' · ' + r.note : ''}`,
-        });
+        fromAI(await analyzeFoodPhoto(file));
       } catch (e) {
         toast(String(e.message || e).slice(0, 90));
       }
     };
     input.click();
+  },
+
+  /** То же самое, но словами: когда фотографировать неудобно или уже съедено. */
+  describe: () => {
+    if (!hasKey()) return askForKey();
+    openSheet({
+      title: 'Описать словами',
+      sub: 'чем подробнее порция, тем точнее оценка',
+      body: [
+        field.area('text', 'Что ели', '', 'тарелка борща, два куска бородинского и чай с ложкой сахара'),
+        field.note('Уйдёт в OpenAI только это описание. Числа вернутся в форму — их можно поправить перед сохранением.'),
+      ].join(''),
+      primary: 'Оценить',
+      onSave: async (v, close) => {
+        const text = (v.text || '').trim();
+        if (!text) return toast('Опиши, что ели');
+        close();
+        toast('Считаю…');
+        try {
+          fromAI(await analyzeFoodText(text));
+        } catch (e) {
+          toast(String(e.message || e).slice(0, 90));
+        }
+      },
+    });
   },
 };

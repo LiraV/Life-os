@@ -83,38 +83,20 @@ export function shrinkImage(file, max = 1024) {
   });
 }
 
-const FOOD_PROMPT = `Ты оцениваешь пищевую ценность блюда по фотографии.
+const FOOD_PROMPT = `Ты оцениваешь пищевую ценность блюда по фотографии или по словесному описанию.
 Отвечай ТОЛЬКО объектом JSON вида:
-{"title":"короткое название на русском","kcal":число,"prot":число,"fat":число,"carb":число,"portion":"описание порции","confidence":"low|medium|high","note":"одна фраза, что именно ты увидела"}
-Числа — на всю порцию в кадре, граммы для белков, жиров и углеводов. Если блюдо непонятно, всё равно дай осторожную оценку и поставь confidence "low".`;
+{"title":"короткое название на русском","kcal":число,"prot":число,"fat":число,"carb":число,"portion":"описание порции","confidence":"low|medium|high","note":"одна фраза, из чего сложилась оценка"}
+Числа — на всю съеденную порцию, граммы для белков, жиров и углеводов.
+Если размер порции не указан, бери обычную бытовую порцию и скажи об этом в portion.
+Если блюдо описано расплывчато, всё равно дай осторожную оценку и поставь confidence "low".`;
 
 const num = v => {
   const n = Number(String(v ?? '').replace(',', '.').replace(/[^\d.-]/g, ''));
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
 };
 
-/** Оценка КБЖУ по фотографии. Снимок никуда не сохраняется — уходит и забывается. */
-export async function analyzeFoodPhoto(file, hint = '') {
-  const dataUrl = await shrinkImage(file);
-  const body = await callOpenAI('/chat/completions', {
-    method: 'POST',
-    body: JSON.stringify({
-      model: getModel(),
-      response_format: { type: 'json_object' },
-      max_tokens: 400,
-      messages: [
-        { role: 'system', content: FOOD_PROMPT },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: hint ? `Подсказка от пользователя: ${hint}` : 'Оцени это блюдо.' },
-            { type: 'image_url', image_url: { url: dataUrl, detail: 'low' } },
-          ],
-        },
-      ],
-    }),
-  });
-
+/** Разбор ответа модели: форму держим одинаковой и для фото, и для описания. */
+function parseFood(body) {
   const text = body?.choices?.[0]?.message?.content || '';
   let parsed;
   try {
@@ -129,6 +111,32 @@ export async function analyzeFoodPhoto(file, hint = '') {
     confidence: ['low', 'medium', 'high'].includes(parsed.confidence) ? parsed.confidence : 'low',
     note: String(parsed.note || '').slice(0, 160),
   };
+}
+
+const foodRequest = content => ({
+  method: 'POST',
+  body: JSON.stringify({
+    model: getModel(),
+    response_format: { type: 'json_object' },
+    max_tokens: 400,
+    messages: [{ role: 'system', content: FOOD_PROMPT }, { role: 'user', content }],
+  }),
+});
+
+/** Оценка КБЖУ по фотографии. Снимок никуда не сохраняется — уходит и забывается. */
+export async function analyzeFoodPhoto(file, hint = '') {
+  const dataUrl = await shrinkImage(file);
+  return parseFood(await callOpenAI('/chat/completions', foodRequest([
+    { type: 'text', text: hint ? `Подсказка от пользователя: ${hint}` : 'Оцени это блюдо.' },
+    { type: 'image_url', image_url: { url: dataUrl, detail: 'low' } },
+  ])));
+}
+
+/** Оценка КБЖУ по словесному описанию: «тарелка борща и два куска хлеба». */
+export async function analyzeFoodText(description) {
+  const text = String(description || '').trim();
+  if (!text) throw new Error('Опиши, что ели');
+  return parseFood(await callOpenAI('/chat/completions', foodRequest(`Оцени: ${text}`)));
 }
 
 /** Свободный вопрос Летописцу. Контекст — короткая выжимка, а не всё подряд. */
