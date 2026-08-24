@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 5;
+const VERSION = 6;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -34,10 +34,11 @@ function blank() {
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
+    tracker: { rows: [], values: {} },  // свои строки годового трекера и их месячные значения
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
-    habits: [],          // [{ id, name, target, unit, log: { date: количество } }]
+    habits: [],          // [{ id, name, target, step, unit, log: { date: количество } }]
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
     diary: [],
     chat: [],
@@ -61,9 +62,12 @@ function migrate(s) {
 
   // v4 → v5: привычка была «отмечено / нет», стала «сколько раз за день»
   // при дневной норме. Старая отметка равна одному разу при норме один.
+  // v5 → v6: у привычки появился шаг — сколько добавляет один тап.
+  // Для «вода 2000 мл» это 250, для «таблетки 3 раза» — один.
   merged.habits = (merged.habits || []).map(hb => ({
     ...hb,
     target: Number(hb.target) > 0 ? Number(hb.target) : 1,
+    step: Number(hb.step) > 0 ? Number(hb.step) : 1,
     unit: hb.unit || '',
     log: Object.fromEntries(
       Object.entries(hb.log || {})
@@ -82,9 +86,12 @@ function migrate(s) {
 
   // v4 → v5: привычка была «отмечено / нет», стала «сколько раз за день»
   // при дневной норме. Старая отметка равна одному разу при норме один.
+  // v5 → v6: у привычки появился шаг — сколько добавляет один тап.
+  // Для «вода 2000 мл» это 250, для «таблетки 3 раза» — один.
   merged.habits = (merged.habits || []).map(hb => ({
     ...hb,
     target: Number(hb.target) > 0 ? Number(hb.target) : 1,
+    step: Number(hb.step) > 0 ? Number(hb.step) : 1,
     unit: hb.unit || '',
     log: Object.fromEntries(
       Object.entries(hb.log || {})
@@ -101,6 +108,9 @@ function migrate(s) {
     // v3 → v4: слоты — периоды, в которые цель положена помимо своего горизонта.
     return { ...base, slots: Array.isArray(base.slots) ? base.slots : [] };
   });
+
+  const tr = merged.tracker && typeof merged.tracker === 'object' ? merged.tracker : {};
+  merged.tracker = { rows: Array.isArray(tr.rows) ? tr.rows : [], values: tr.values && typeof tr.values === 'object' ? tr.values : {} };
 
   return merged;
 }
@@ -150,6 +160,26 @@ export function update(mutator) {
 }
 
 export function addXp(n) { S.user.xp = Math.max(0, S.user.xp + n); }
+
+export const habitStep = hb => Math.max(1, Number(hb?.step) || 1);
+export const habitNorm = hb => Math.max(1, Number(hb?.target) || 1);
+
+/**
+ * Один тап по привычке: добавляет шаг, а на закрытой норме обнуляет день.
+ * Живёт в хранилище, чтобы главный экран и экран «Ритм» считали одинаково.
+ * Опыт начисляется за закрытую норму, а не за каждый тап.
+ */
+export function tickHabit(s, id, date) {
+  const hb = s.habits.find(x => x.id === id);
+  if (!hb) return null;
+  const target = habitNorm(hb);
+  const was = Math.max(0, Number(hb.log[date]) || 0);
+  const next = was >= target ? 0 : Math.min(target, was + habitStep(hb));
+  if (next) hb.log[date] = next; else delete hb.log[date];
+  if (next >= target && was < target) addXp(XP.habit);
+  if (was >= target && next < target) addXp(-XP.habit);
+  return { name: hb.name, was, next, target, reached: next >= target && was < target };
+}
 
 export const level = xp => Math.floor(Math.sqrt(Math.max(0, xp) / 60)) + 1;
 export const levelFloor = lv => Math.round(60 * (lv - 1) ** 2);

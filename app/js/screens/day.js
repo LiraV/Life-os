@@ -1,6 +1,6 @@
 // «День»: реальные даты, энергия дня, квесты с полным редактированием.
 
-import { S, update, uid, XP, addXp, SPHERES, addDiary } from '../store.js';
+import { S, update, uid, XP, addXp, SPHERES, addDiary, tickHabit } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import {
@@ -224,22 +224,13 @@ export const actions = {
 
   habits: () => { location.hash = '#/habits'; },
 
-  /** Плюс добавляет один раз, галочка на закрытой норме обнуляет день. */
+  /** Плюс добавляет шаг, галочка на закрытой норме обнуляет день. */
   hab: v => {
     const date = curDate();
     if (date > todayISO()) return;
-    let reached = false, name = '';
-    update(s => {
-      const hb = s.habits.find(x => x.id === v.id);
-      if (!hb) return;
-      const target = Math.max(1, Number(hb.target) || 1);
-      const was = Math.max(0, Number(hb.log[date]) || 0);
-      const next = was >= target ? 0 : was + 1;
-      if (next) hb.log[date] = next; else delete hb.log[date];
-      if (next >= target && was < target) { addXp(XP.habit); reached = true; name = hb.name; }
-      if (was >= target && next < target) addXp(-XP.habit);
-    });
-    if (reached) toast(`${name} — норма закрыта ✦`);
+    let res = null;
+    update(s => { res = tickHabit(s, v.id, date); });
+    if (res?.reached) toast(`${res.name} — норма закрыта ✦`);
   },
 
   edit: v => {

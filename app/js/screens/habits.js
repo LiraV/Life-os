@@ -1,6 +1,6 @@
 // «Ритм»: привычки без стриков. Неделя — тап по дню, месяц — реальные итоги.
 
-import { S, update, uid, XP, addXp } from '../store.js';
+import { S, update, uid, tickHabit, habitStep } from '../store.js';
 import { todayISO, addDays, weekDates, monthKey, addMonths, monthTitle, daysInMonth, DOW, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { habitMonthCount, habitMonthTotal, habitTarget, habitCount, habitDone, liveHabits } from '../selectors.js';
@@ -98,20 +98,23 @@ function habitSheet(hb) {
     title: isNew ? 'Новая привычка' : 'Привычка',
     body: [
       field.text('name', 'Название', hb?.name || '', 'например, «Итальянский 15 минут»'),
-      field.number('target', 'Сколько раз в день', hb ? habitTarget(hb) : 1, { min: 1, max: 50 }),
-      field.text('unit', 'В чём считаем', hb?.unit || '', 'раз, приёмов, минут — необязательно'),
-      field.note('Норма больше одного превращает привычку в счётчик: «таблетки 0/3». В ячейке дня показывается, сколько уже набрано.'),
+      field.number('target', 'Норма за день', hb ? habitTarget(hb) : 1, { min: 1 }),
+      field.text('unit', 'В чём считаем', hb?.unit || '', 'раз, мл, минут — необязательно'),
+      field.number('step', 'Сколько добавляет один тап', hb ? habitStep(hb) : 1, { min: 1 }),
+      field.note('Норма больше одного превращает привычку в счётчик: «таблетки 0/3». Для крупных величин задай шаг — «вода 2000 мл» с шагом 250 закрывается восемью тапами.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
-      const target = Math.max(1, Math.min(50, Number(v.target) || 1));
+      const target = Math.max(1, Number(v.target) || 1);
+      const step = Math.max(1, Math.min(target, Number(v.step) || 1));
+      const unit = (v.unit || '').trim();
       update(s => {
-        if (isNew) s.habits.push({ id: uid(), name, target, unit: (v.unit || '').trim(), log: {}, createdAt: todayISO() });
+        if (isNew) s.habits.push({ id: uid(), name, target, step, unit, log: {}, createdAt: todayISO() });
         else {
           const x = s.habits.find(y => y.id === hb.id);
-          if (x) { x.name = name; x.target = target; x.unit = (v.unit || '').trim(); }
+          if (x) { x.name = name; x.target = target; x.step = step; x.unit = unit; }
         }
       });
       close();
@@ -133,16 +136,5 @@ export const actions = {
   mnext: () => update(s => { s.ui.habMonth = addMonths(monthA(), 1); }),
   add: () => habitSheet(null),
   edit: v => habitSheet(S.habits.find(x => x.id === v.id)),
-  /** Тап добавляет один раз; после нормы следующий тап обнуляет день. */
-  tick: v => update(s => {
-    const hb = s.habits.find(x => x.id === v.id);
-    if (!hb) return;
-    const target = habitTarget(hb);
-    const was = Math.max(0, Number(hb.log[v.d]) || 0);
-    const next = was >= target ? 0 : was + 1;
-    if (next) hb.log[v.d] = next; else delete hb.log[v.d];
-    // Опыт даём за закрытую норму, а не за каждый тап.
-    if (next >= target && was < target) addXp(XP.habit);
-    if (was >= target && next < target) addXp(-XP.habit);
-  }),
+  tick: v => update(s => { tickHabit(s, v.id, v.d); }),
 };
