@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 8;
+const VERSION = 9;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -40,6 +40,14 @@ function blank() {
     spheres: {},         // { key: { items: [], note } }
     habits: [],          // [{ id, name, target, step, unit, log: { date: количество } }]
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
+    budget: {                                            // бюджет: статьи, план по месяцам, операции, копилки
+      cats: { expense: [], income: [] },
+      plans: {},                                         // { 'YYYY-MM': { expense: { id: сумма }, income: {...} } }
+      ops: [],                                           // { id, date, kind: 'expense'|'income'|'save', catId, vaultId, sum, note }
+      vaults: [],                                        // { id, name, start }
+      rules: [],
+      start: 0,                                          // баланс, с которого начинается учёт
+    },
     food: {                                              // дневник питания: КБЖУ и вода по дням
       targets: { kcal: 2000, prot: 90, fat: 70, carb: 220, water: 2000 },
       days: {},                                          // { 'YYYY-MM-DD': { water, entries: [] } }
@@ -63,6 +71,37 @@ function migrate(s) {
   if (Array.isArray(merged.health.periods)) {
     merged.health.days ||= {};
   merged.intentions ||= {};
+
+  const b = merged.budget && typeof merged.budget === 'object' ? merged.budget : {};
+  merged.budget = {
+    cats: {
+      expense: Array.isArray(b.cats?.expense) ? b.cats.expense : [],
+      income: Array.isArray(b.cats?.income) ? b.cats.income : [],
+    },
+    plans: b.plans && typeof b.plans === 'object' ? b.plans : {},
+    ops: Array.isArray(b.ops) ? b.ops : [],
+    vaults: Array.isArray(b.vaults) ? b.vaults : [],
+    rules: Array.isArray(b.rules) ? b.rules : [],
+    start: Number(b.start) || 0,
+  };
+
+  // Первый запуск бюджета: заводим статьи и правила, чтобы не начинать с пустоты.
+  if (!merged.budget.cats.expense.length && !merged.budget.ops.length) {
+    const mk = name => ({ id: uid(), name });
+    merged.budget.cats.expense = ['Здоровье', 'Буся', 'Подписки', 'Обучение', 'Спорт', 'Жильё', 'Еда', 'Транспорт', 'Одежда', 'Другое'].map(mk);
+    merged.budget.cats.income = ['От отца', 'Подработка', 'Фриланс', 'Моё дело', 'Работа', 'Льготы'].map(mk);
+    merged.budget.vaults = ['Накопительный', 'Сейв 1', 'Сейв 2'].map(n => ({ ...mk(n), start: 0 }));
+    merged.budget.rules = [
+      'Никакой Лавки', 'По максимуму общественный транспорт', 'Живу красиво только на выходных',
+      'За неделю планировать, сколько тратить в какой день', 'Каждый день класть себе фиксированную сумму',
+      'Не брать в долг', 'Никакого такси',
+    ];
+    // Прежняя «казна» из сферы «Бюджет» переезжает в копилку, чтобы не потерять сумму.
+    const old = merged.spheres?.money?.vault;
+    if (old && Number(old.saved) > 0) {
+      merged.budget.vaults.unshift({ id: uid(), name: old.title || 'Копилка', start: Number(old.saved) || 0 });
+    }
+  }
 
   const food = merged.food && typeof merged.food === 'object' ? merged.food : {};
   merged.food = {
@@ -93,6 +132,37 @@ function migrate(s) {
   }
   merged.health.days ||= {};
   merged.intentions ||= {};
+
+  const b = merged.budget && typeof merged.budget === 'object' ? merged.budget : {};
+  merged.budget = {
+    cats: {
+      expense: Array.isArray(b.cats?.expense) ? b.cats.expense : [],
+      income: Array.isArray(b.cats?.income) ? b.cats.income : [],
+    },
+    plans: b.plans && typeof b.plans === 'object' ? b.plans : {},
+    ops: Array.isArray(b.ops) ? b.ops : [],
+    vaults: Array.isArray(b.vaults) ? b.vaults : [],
+    rules: Array.isArray(b.rules) ? b.rules : [],
+    start: Number(b.start) || 0,
+  };
+
+  // Первый запуск бюджета: заводим статьи и правила, чтобы не начинать с пустоты.
+  if (!merged.budget.cats.expense.length && !merged.budget.ops.length) {
+    const mk = name => ({ id: uid(), name });
+    merged.budget.cats.expense = ['Здоровье', 'Буся', 'Подписки', 'Обучение', 'Спорт', 'Жильё', 'Еда', 'Транспорт', 'Одежда', 'Другое'].map(mk);
+    merged.budget.cats.income = ['От отца', 'Подработка', 'Фриланс', 'Моё дело', 'Работа', 'Льготы'].map(mk);
+    merged.budget.vaults = ['Накопительный', 'Сейв 1', 'Сейв 2'].map(n => ({ ...mk(n), start: 0 }));
+    merged.budget.rules = [
+      'Никакой Лавки', 'По максимуму общественный транспорт', 'Живу красиво только на выходных',
+      'За неделю планировать, сколько тратить в какой день', 'Каждый день класть себе фиксированную сумму',
+      'Не брать в долг', 'Никакого такси',
+    ];
+    // Прежняя «казна» из сферы «Бюджет» переезжает в копилку, чтобы не потерять сумму.
+    const old = merged.spheres?.money?.vault;
+    if (old && Number(old.saved) > 0) {
+      merged.budget.vaults.unshift({ id: uid(), name: old.title || 'Копилка', start: Number(old.saved) || 0 });
+    }
+  }
 
   const food = merged.food && typeof merged.food === 'object' ? merged.food : {};
   merged.food = {
@@ -159,14 +229,15 @@ let needsRewrite = false;
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) { needsRewrite = true; return blank(); }
+    // Через migrate проходит и чистое состояние: там же заводятся статьи бюджета.
+    if (!raw) { needsRewrite = true; return migrate(blank()); }
     const parsed = JSON.parse(raw);
     if (parsed.v !== VERSION) needsRewrite = true;
     return migrate(parsed);
   } catch (e) {
     console.warn('[lifeos] не удалось прочитать сохранение, начинаем заново', e);
     needsRewrite = true;
-    return blank();
+    return migrate(blank());
   }
 }
 

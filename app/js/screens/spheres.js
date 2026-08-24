@@ -6,6 +6,7 @@ import { todayISO, addDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf } from '../selectors.js';
 import { sums } from './food.js';
+import { balanceAt, money } from './budget.js';
 
 const STAGES = ['росток', 'бутон', 'готов ✦'];
 const rec = (s, key) => (s.spheres[key] ||= { items: [], note: '', vault: null });
@@ -22,12 +23,13 @@ function grid() {
       ${SPHERES.map(sp => {
         const pct = sphereProgress(sp.key);
         const food = sp.key === 'food' ? sums(todayISO()) : null;
+        const bal = sp.key === 'money' ? balanceAt(todayISO().slice(0, 7)) : null;
         return raw(h`
           <button class="tile" data-act="open" data-v="${sp.key}">
             <img src="${sp.img}" alt="">
             <span class="tile-badge">${sp.mech}</span>
             <b>${sp.name}</b>
-            <span>${food ? `сегодня ${food.kcal} ккал` : sphereStatus(sp.key)}</span>
+            <span>${food ? `сегодня ${food.kcal} ккал` : bal != null ? `остаток ${money(bal)}` : sphereStatus(sp.key)}</span>
             ${pct != null ? raw(bar(pct, pct >= 100)) : ''}
           </button>`);
       })}
@@ -127,7 +129,7 @@ const curKey = () => location.hash.replace(/^#\/?/, '').split('/')[1];
 
 export const actions = {
   // У питания свой экран: календарь КБЖУ не влезает в общую механику этапов.
-  open: v => { location.hash = v.v === 'food' ? '#/food' : '#/spheres/' + v.v; },
+  open: v => { location.hash = { food: '#/food', money: '#/budget' }[v.v] || '#/spheres/' + v.v; },
   back: () => { location.hash = '#/spheres'; },
 
   itemadd: () => {
