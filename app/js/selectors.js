@@ -225,6 +225,70 @@ export function measureDeltas() {
   return { cur, prev, list, delta: { weight: d('weight'), waist: d('waist'), hips: d('hips'), sleep: d('sleep') } };
 }
 
+// ── энергия ─────────────────────────────────────────────────────
+export const energyDays = () => Object.keys(S.energy).filter(d => S.energy[d] != null).sort();
+const mean = list => (list.length ? Math.round(list.reduce((a, b) => a + b, 0) / list.length) : null);
+
+/** Средняя энергия за месяц — для строки в годовом трекере. */
+export const energyMonth = ym => mean(energyDays().filter(d => d.startsWith(ym)).map(d => S.energy[d]));
+
+/** Последние N дней подряд: и пустые тоже, чтобы график не врал про пропуски. */
+export function energyRecent(n = 30) {
+  return Array.from({ length: n }, (_, i) => {
+    const d = addDays(todayISO(), -(n - 1 - i));
+    return { date: d, value: S.energy[d] ?? null };
+  });
+}
+
+/** Фаза цикла на произвольную дату — нужна, чтобы связать энергию с циклом. */
+export function phaseOn(date) {
+  const blocks = periodBlocks().filter(b => b.start <= date);
+  if (!blocks.length) return null;
+  const last = blocks[blocks.length - 1];
+  const starts = periodBlocks().map(b => b.start);
+  const gaps = starts.slice(1).map((x, i) => diffDays(x, starts[i])).filter(g => g >= 15 && g <= 60);
+  const avgCycle = gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : 28;
+  const day = diffDays(date, last.start) + 1;
+  if (day > avgCycle + 20) return null;                       // слишком давно — считать нечестно
+  const ovulation = Math.max(7, avgCycle - 14);
+  if (day <= last.len) return 'менструация';
+  if (day < ovulation - 2) return 'фолликулярная';
+  if (day <= ovulation + 1) return 'овуляция';
+  if (day >= avgCycle - 4) return 'перед циклом';
+  return 'лютеиновая';
+}
+
+const PHASE_ORDER = ['менструация', 'фолликулярная', 'овуляция', 'лютеиновая', 'перед циклом'];
+
+/** Связки энергии: с фазой цикла и с днями, когда были занятия или спорт. */
+export function energyStats(days = 90) {
+  const from = addDays(todayISO(), -(days - 1));
+  const marks = energyDays().filter(d => d >= from);
+  if (!marks.length) return { count: 0 };
+
+  const byPhase = {};
+  marks.forEach(d => {
+    const ph = phaseOn(d);
+    if (!ph) return;
+    (byPhase[ph] ||= []).push(S.energy[d]);
+  });
+
+  const active = new Set();
+  liveLessons().forEach(l => lessonDates(l).forEach(d => active.add(d)));
+  marks.forEach(d => { if (questsOn(d).some(q => q.done && q.sphere === 'sport')) active.add(d); });
+
+  const withMove = marks.filter(d => active.has(d)).map(d => S.energy[d]);
+  const without = marks.filter(d => !active.has(d)).map(d => S.energy[d]);
+
+  return {
+    count: marks.length,
+    avg: mean(marks.map(d => S.energy[d])),
+    phases: PHASE_ORDER.filter(p => byPhase[p]?.length).map(p => ({ name: p, avg: mean(byPhase[p]), n: byPhase[p].length })),
+    move: { avg: mean(withMove), n: withMove.length },
+    still: { avg: mean(without), n: without.length },
+  };
+}
+
 // ── потребности и роли ──────────────────────────────────────────
 const lastDays = n => Array.from({ length: n }, (_, i) => addDays(todayISO(), -i));
 

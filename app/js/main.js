@@ -129,11 +129,16 @@ function dispatch(kind, e) {
 scr.addEventListener('click', e => dispatch('click', e));
 scr.addEventListener('change', e => dispatch('change', e));
 scr.addEventListener('input', e => {
-  const el = e.target.closest('[data-live]');
-  if (el && scr.contains(el)) {
-    const out = document.getElementById(el.dataset.live);
-    if (out) out.textContent = el.dataset.suffix ? el.value + el.dataset.suffix : el.value;
+  const live = e.target.closest('[data-live]');
+  if (live && scr.contains(live)) {
+    const out = document.getElementById(live.dataset.live);
+    if (out) out.textContent = live.dataset.suffix ? live.value + live.dataset.suffix : live.value;
   }
+  // Отдельная ветка для того, что должно записываться прямо во время движения.
+  const el = e.target.closest('[data-act-input]');
+  if (!el || !scr.contains(el)) return;
+  const mod = S.onboarded ? SCREENS[activeScreen()] : onboarding;
+  mod.actions?.[el.dataset.actInput]?.({ ...el.dataset, value: el.value }, el, e);
 });
 scr.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.matches('input[data-act-enter]')) {

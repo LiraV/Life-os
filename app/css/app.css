@@ -141,6 +141,11 @@ h1,h2,h3{margin:0; font-weight:400}
 input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .range-ends{display:flex; justify-content:space-between; font-size:11px; color:var(--ink4)}
 
+.spark{display:flex; align-items:flex-end; gap:2px; height:34px; margin-top:6px}
+.spark i{flex:1; border-radius:3px 3px 1px 1px; background:var(--caramel); min-height:2px}
+.spark i.none{background:var(--track); height:4px}
+.spark i.cur{background:var(--accent)}
+
 /* ── AI-пузырь ──────────────────────────────────────────────── */
 .ai{background:linear-gradient(135deg,var(--deep),var(--warm)); border-radius:20px 20px 20px 6px; padding:12px 15px;
     color:#ffeee2; font-size:13.5px; line-height:1.45; box-shadow:0 10px 22px rgba(142,43,50,.3); flex:none}

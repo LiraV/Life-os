@@ -285,6 +285,15 @@ export function save() {
 
 if (needsRewrite) save();
 
+/**
+ * Сохранить, не перерисовывая экран. Нужно там, где перерисовка сломала бы
+ * жест: ползунок пересоздался бы прямо под пальцем.
+ */
+export function updateQuiet(mutator) {
+  mutator(S);
+  save();
+}
+
 /** Единственный способ менять состояние: мутируем внутри, дальше — сохранение и перерисовка. */
 export function update(mutator) {
   mutator(S);

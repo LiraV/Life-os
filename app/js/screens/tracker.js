@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth } from '../selectors.js';
+import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
 const cell = n => n >= 10000 ? Math.round(n / 1000) + 'к' : String(n);
@@ -67,6 +67,8 @@ export function buildRows(y) {
       name, dyn: true,
       cells: months.map(ym => ({ value: dynamic[name][ym] ?? null })),
     })),
+    // Энергия — среднее за месяц, поэтому за год у неё тоже среднее, а не сумма.
+    { name: 'Энергия', avg: true, unit: 'сред.', cells: months.map(ym => ({ value: energyMonth(ym) })) },
   ];
 }
 
@@ -76,7 +78,8 @@ export function render() {
   const curM = monthKey(todayISO());
   const rows = buildRows(y);
 
-  const max = Math.max(1, ...rows.flatMap(r => r.cells.map(c => c.value).filter(c => c != null)));
+  // Заливку считаем внутри строки: у энергии шкала до ста, у привычек — до тридцати одного.
+  const rowMax = r => Math.max(1, ...r.cells.map(c => c.value).filter(c => c != null));
 
   return h`
     <div class="stepper">
@@ -102,18 +105,23 @@ export function render() {
             </thead>
             <tbody>
               ${rows.map(r => {
-                const sum = r.cells.reduce((a, c) => a + (c.value || 0), 0);
+                const vals = r.cells.map(c => c.value).filter(c => c != null);
+                const sum = r.avg
+                  ? (vals.length ? Math.round(vals.reduce((a, c) => a + c, 0) / vals.length) : 0)
+                  : r.cells.reduce((a, c) => a + (c.value || 0), 0);
+                const mx = rowMax(r);
                 return raw(h`
                   <tr>
                     <th class="tr-name ${r.own ? 'own' : ''}" ${raw(r.own ? `data-act="rowedit" data-id="${r.id}"` : '')}>${r.name}${
                       r.own ? raw(h`<i class="tr-dyn">${r.unit || 'своя'}</i>`)
                       : r.lesson ? raw('<i class="tr-dyn">занятия</i>')
+                      : r.avg ? raw('<i class="tr-dyn">сред.</i>')
                       : r.dyn ? raw('<i class="tr-dyn">дин.</i>')
                       : r.target > 1 ? raw(h`<i class="tr-dyn">×${r.target}</i>`) : ''}</th>
                     ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c.value ? 'has' : ''} ${r.own || r.habit ? 'edit' : ''} ${c.fixed ? 'fixed' : ''}"
                       ${raw(r.own ? `data-act="cell" data-id="${r.id}" data-m="${months[i]}"`
                         : r.habit ? `data-act="hcell" data-id="${r.id}" data-m="${months[i]}"` : '')}
-                      style="${c.value ? `--f:${Math.min(1, c.value / max)}` : ''}">${c.value == null ? (r.own ? '' : '·') : c.value ? cell(c.value) : ''}</td>`))}
+                      style="${c.value ? `--f:${Math.min(1, c.value / mx)}` : ''}">${c.value == null ? (r.own ? '' : '·') : c.value ? cell(c.value) : ''}</td>`))}
                     <td class="tr-sum">${sum ? cell(sum) : ''}</td>
                   </tr>`);
               })}
@@ -133,7 +141,10 @@ export function render() {
       <div class="card mute">
         <div class="caps">Итог года</div>
         ${rows.map(r => {
-          const sum = r.cells.reduce((a, c) => a + (c.value || 0), 0);
+          const vals = r.cells.map(c => c.value).filter(c => c != null);
+          const sum = r.avg
+            ? (vals.length ? Math.round(vals.reduce((a, c) => a + c, 0) / vals.length) : 0)
+            : r.cells.reduce((a, c) => a + (c.value || 0), 0);
           const best = r.cells.reduce((bi, c, i) => ((c.value || 0) > (r.cells[bi].value || 0) ? i : bi), 0);
           return raw(h`<div class="row between"><span class="lab grow ellip">${r.name}</span>
             <span class="lab">${full(sum)}${r.unit ? ' ' + r.unit : ''}${sum ? ` · лучший ${MONTHS[best].toLowerCase()}` : ''}</span></div>`);

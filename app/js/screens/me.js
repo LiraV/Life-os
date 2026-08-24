@@ -3,7 +3,7 @@
 import { S, update } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf } from '../dates.js';
 import { h, raw, bar, toast, openSheet, field } from '../ui.js';
-import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress } from '../selectors.js';
+import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress, energyStats } from '../selectors.js';
 
 export function render() {
   const li = levelInfo();
@@ -37,10 +37,13 @@ export function render() {
 
     <div class="card">
       <div class="caps">Потребности · 7 дней</div>
-      ${need.map(n => raw(h`
-        <div class="row"><span class="lab" style="width:74px">${n.name}</span>
-          ${raw(n.value == null ? '<span class="lab grow">нет данных</span>' : bar(n.value, n.value < 45))}
-          <span class="lab">${n.value == null ? n.hint : n.value + '%'}</span></div>`))}
+      ${need.map(n => raw(n.value == null
+        // Без данных показываем одну подсказку: раньше рядом стояли «нет данных»
+        // и длинный хвост, и на узком экране они налезали друг на друга.
+        ? h`<div class="row"><span class="lab" style="width:74px">${n.name}</span>
+             <span class="lab grow">${n.hint}</span></div>`
+        : h`<div class="row"><span class="lab" style="width:74px">${n.name}</span>
+             ${raw(bar(n.value, n.value < 45))}<span class="lab">${n.value}%</span></div>`))}
     </div>
 
     <div class="card">
@@ -51,6 +54,8 @@ export function render() {
         : raw('<div class="lab">Целей на месяц пока нет — их можно завести в Планах.</div>')}
       <div class="lab">Неделя: закрыто ${w.done} из ${w.total}</div>
     </div>
+
+    ${raw(energyCard())}
 
     <div class="card">
       <div class="caps">Жемчужина дня</div>
@@ -72,6 +77,40 @@ export function render() {
     ${lonely ? raw(h`<div class="ai">${lonely.name} две недели без дела. Открыть чат — соберём одно маленькое действие?
       <div class="pills" style="margin-top:8px"><button class="pill" data-act="chat" style="background:rgba(255,255,255,.9)">Открыть чат</button></div></div>`) : ''}
     <div style="height:4px"></div>`;
+}
+
+/** Связки энергии — то, ради чего её вообще стоит отмечать. */
+function energyCard() {
+  const e = energyStats();
+  if (!e.count) return '';
+  if (e.count < 5) return h`
+    <div class="card mute">
+      <div class="caps">Энергия</div>
+      <div class="lab">Отмечено ${e.count} ${e.count === 1 ? 'день' : 'дня'}. Связки с циклом и занятиями появятся дней через пять.</div>
+    </div>`;
+
+  const diff = e.move.avg != null && e.still.avg != null ? e.move.avg - e.still.avg : null;
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Энергия · 90 дней</div><span class="lab">в среднем ${e.avg}</span></div>
+
+      ${e.phases.length > 1 ? raw(h`
+        <div class="lab">По фазам цикла</div>
+        ${e.phases.map(p => raw(h`<div class="row">
+          <span class="lab" style="width:104px">${p.name}</span>
+          ${raw(bar(p.avg, p.avg < e.avg - 8))}
+          <span class="lab">${p.avg}</span></div>`))}`) : ''}
+
+      ${e.move.n && e.still.n ? raw(h`
+        <div class="lab" style="margin-top:4px">В дни с занятиями и без</div>
+        <div class="row"><span class="lab" style="width:104px">с движением</span>${raw(bar(e.move.avg))}<span class="lab">${e.move.avg}</span></div>
+        <div class="row"><span class="lab" style="width:104px">без</span>${raw(bar(e.still.avg))}<span class="lab">${e.still.avg}</span></div>
+        <div class="lab">${diff > 4 ? `В дни с движением энергия выше на ${diff}.`
+          : diff < -4 ? `В дни с движением энергия ниже на ${-diff} — возможно, это дни усталости.`
+          : 'Разницы почти нет.'}</div>`) : ''}
+
+      <div class="lab">Считается из твоих отметок за 90 дней — ${e.count} ${e.count % 10 === 1 && e.count % 100 !== 11 ? 'день' : 'дней'}.</div>
+    </div>`;
 }
 
 export const actions = {

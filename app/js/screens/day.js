@@ -1,11 +1,11 @@
 // «День»: реальные даты, энергия дня, квесты с полным редактированием.
 
-import { S, update, uid, XP, addXp, SPHERES, addDiary, tickHabit } from '../store.js';
+import { S, update, updateQuiet, uid, XP, addXp, SPHERES, addDiary, tickHabit } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
-  liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone,
+  liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent,
 } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -29,6 +29,7 @@ export function render() {
   const qs = questsOn(date);
   const isToday = date === todayISO();
   const e = defaultEnergy(date);
+  const marked = S.energy[date] != null;
   const curve = energyCurve();
   const peak = peakBlock();
   const nb = isToday ? nowBlock() : -1;
@@ -52,9 +53,11 @@ export function render() {
       </div>
       <div class="curve-x">${ENERGY_BLOCKS.map(b => raw(h`<span>${b}</span>`))}</div>
       <div class="fld" style="margin-top:2px">
-        <span>Энергия сейчас <b id="e_out">${e} · ${energyLabel(e)}</b></span>
-        <input type="range" min="0" max="100" value="${e}" data-field="energy" data-change="energy" data-live="e_out" aria-label="Энергия">
+        <span>Энергия сейчас <b id="e_out">${marked ? `${e} · ${energyLabel(e)}` : `${e} · не отмечена`}</b></span>
+        <input type="range" min="0" max="100" value="${e}" data-act-input="energyLive" data-change="energy" aria-label="Энергия">
       </div>
+      ${!marked ? raw('<div class="lab">Пока это подсказка по хронотипу. Двинь ползунок — запишется как твоя отметка.</div>') : ''}
+      ${raw(energyHistory(date))}
     </div>
 
     <div class="row between"><div class="caps">Квесты дня</div>
@@ -68,6 +71,20 @@ export function render() {
 
     ${chronicler(date).map(t => raw(h`<div class="ai">${t}</div>`))}
     <div style="height:4px"></div>`;
+}
+
+/** Волна энергии за месяц: пустые дни оставляем пустыми, а не нулём. */
+function energyHistory(date) {
+  const list = energyRecent(30);
+  const marked = list.filter(x => x.value != null);
+  if (marked.length < 2) return '';
+  const avg = Math.round(marked.reduce((a, x) => a + x.value, 0) / marked.length);
+  return h`
+    <div class="spark">
+      ${list.map(x => raw(h`<i class="${x.value == null ? 'none' : ''} ${x.date === date ? 'cur' : ''}"
+        style="${x.value != null ? `height:${Math.max(6, x.value)}%` : ''}" title="${x.date}"></i>`))}
+    </div>
+    <div class="lab">30 дней · в среднем ${avg} · отмечено ${marked.length}</div>`;
 }
 
 /** Ритм дня прямо на главном: норма, счёт и плюс в один тап. */
@@ -203,6 +220,15 @@ export const actions = {
   next: () => update(s => { s.ui.date = addDays(curDate(), 1); }),
   today: () => update(s => { s.ui.date = todayISO(); }),
 
+  /** Пишем сразу, как только ползунок тронули: без перерисовки, чтобы не сорвать жест. */
+  energyLive: (v, el) => {
+    const val = Number(v.value);
+    updateQuiet(s => { s.energy[curDate()] = val; });
+    const out = document.getElementById('e_out');
+    if (out) out.textContent = `${val} · ${energyLabel(val)}`;
+    el?.closest('.card')?.querySelector('.lab.hint-energy')?.remove();
+  },
+  /** По отпусканию перерисовываем: совет Летописца и график должны догнать. */
   energy: v => update(s => { s.energy[curDate()] = Number(v.value); }),
 
   toggle: v => {
