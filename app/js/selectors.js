@@ -145,6 +145,28 @@ export const habitMonthCount = (hb, ym) => monthDates(ym).filter(d => habitDone(
 export const habitMonthTotal = (hb, ym) => monthDates(ym).reduce((a, d) => a + habitCount(hb, d), 0);
 export const habitWeekDone = (hb, date) => weekDates(date).filter(d => habitDone(hb, d)).length;
 
+// ── обучение: курсы и практики ──────────────────────────────────
+export const liveLessons = () => S.lessons.filter(l => !l.archived);
+export const practices = () => liveLessons().filter(l => l.kind === 'practice');
+
+export const lessonDates = l => Object.keys(l.log || {}).filter(d => l.log[d]).sort();
+export const lessonMonth = (l, ym) => lessonDates(l).filter(d => d.startsWith(ym)).length;
+export const lessonLast = l => lessonDates(l).filter(d => d <= todayISO()).pop() || null;
+/** Сколько дней назад было последнее занятие; null — если ни одного. */
+export const lessonAgo = l => { const d = lessonLast(l); return d ? diffDays(todayISO(), d) : null; };
+
+export const courseProgress = l => {
+  const items = l.items || [];
+  if (!items.length) return null;
+  return Math.round((items.filter(i => i.done).length / items.length) * 100);
+};
+
+/** Занятия, которые пользователь просил считать ещё и спортом. */
+export function sportLessonSessions(days) {
+  return liveLessons().filter(l => l.alsoSport)
+    .reduce((a, l) => a + lessonDates(l).filter(d => days.includes(d)).length, 0);
+}
+
 // ── тело ────────────────────────────────────────────────────────
 /** Пропуск в один-два дня внутри месячных — всё ещё те же месячные, а не новый цикл. */
 const MERGE_GAP = 3;
@@ -218,6 +240,14 @@ function questRate(sphereKeys, days, per) {
   return Math.min(100, Math.round((n / per) * 100));
 }
 
+/** Движение — это и спорт-квесты, и занятия с галочкой «считать в спорте». */
+function moveRate(days) {
+  const n = days.reduce((acc, d) => acc + questsOn(d).filter(q => q.done && q.sphere === 'sport').length, 0)
+    + sportLessonSessions(days);
+  if (!n) return habitRate(/растяж|зал|бег|йог/i, days);
+  return Math.min(100, Math.round((n / 3) * 100));
+}
+
 /** Потребности за последние 7 дней: 0..100. null — данных пока нет. */
 export function needs() {
   const days = lastDays(7);
@@ -228,7 +258,7 @@ export function needs() {
                                  : sleepFromHabit;
   return [
     { key: 'sleep', name: 'Сон', value: sleep, hint: 'отметь сон в «Теле» или заведи привычку' },
-    { key: 'move', name: 'Движение', value: questRate(['sport'], days, 3) || habitRate(/растяж|зал|бег|йог/i, days), hint: 'спорт-квесты за неделю' },
+    { key: 'move', name: 'Движение', value: moveRate(days), hint: 'спорт-квесты и занятия за неделю' },
     { key: 'food', name: 'Еда', value: questRate(['food'], days, 3) || habitRate(/вод|еда|завтрак|белок/i, days), hint: 'питание за неделю' },
     { key: 'create', name: 'Творчество', value: questRate(['blog', 'edu', 'study'], days, 4), hint: 'блог, обучение и учёба за неделю' },
   ];
@@ -283,6 +313,15 @@ export function chronicler(date) {
     if (cyc.bleeding) out.push('Идут месячные. Тяжёлое можно отложить — перенос сегодня совершенно нормален.');
     else if (cyc.phase === 'перед циклом') out.push(`До следующего цикла ${cyc.daysToNext >= 0 ? cyc.daysToNext : 0} дн. Планирую мягче — не удивляйся.`);
     else if (cyc.phase === 'овуляция') out.push('Овуляция — обычно это самые сильные дни. Хороший момент для сложного.');
+  }
+
+  const forgotten = practices().filter(l => !l.paused && l.perMonth).map(l => ({ l, ago: lessonAgo(l) }))
+    .filter(x => x.ago == null || x.ago >= 14)
+    .sort((a, b) => (b.ago ?? 999) - (a.ago ?? 999))[0];
+  if (forgotten) {
+    out.push(forgotten.ago == null
+      ? `«${forgotten.l.name}» ещё ни разу не отмечено. Поставим первое занятие?`
+      : `«${forgotten.l.name}» не было ${forgotten.ago} дней. Вернём на этой неделе?`);
   }
 
   const lowRole = roles().find(r => r.low);

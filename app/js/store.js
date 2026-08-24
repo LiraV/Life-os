@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 9;
+const VERSION = 10;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -40,6 +40,7 @@ function blank() {
     spheres: {},         // { key: { items: [], note } }
     habits: [],          // [{ id, name, target, step, unit, log: { date: количество } }]
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
+    lessons: [],                                         // полка обучения: курсы и практики
     budget: {                                            // бюджет: статьи, план по месяцам, операции, копилки
       cats: { expense: [], income: [] },
       plans: {},                                         // { 'YYYY-MM': { expense: { id: сумма }, income: {...} } }
@@ -71,6 +72,18 @@ function migrate(s) {
   if (Array.isArray(merged.health.periods)) {
     merged.health.days ||= {};
   merged.intentions ||= {};
+
+  // Полка обучения: у курса уроки, у практики журнал занятий по датам.
+  merged.lessons = (Array.isArray(merged.lessons) ? merged.lessons : []).map(l => ({
+    ...l,
+    kind: l.kind === 'course' ? 'course' : 'practice',
+    perMonth: Math.max(0, Number(l.perMonth) || 0),
+    cost: Math.max(0, Number(l.cost) || 0),
+    alsoSport: !!l.alsoSport,
+    paused: !!l.paused,
+    log: l.log && typeof l.log === 'object' ? l.log : {},
+    items: Array.isArray(l.items) ? l.items : [],
+  }));
 
   const b = merged.budget && typeof merged.budget === 'object' ? merged.budget : {};
   merged.budget = {
@@ -132,6 +145,18 @@ function migrate(s) {
   }
   merged.health.days ||= {};
   merged.intentions ||= {};
+
+  // Полка обучения: у курса уроки, у практики журнал занятий по датам.
+  merged.lessons = (Array.isArray(merged.lessons) ? merged.lessons : []).map(l => ({
+    ...l,
+    kind: l.kind === 'course' ? 'course' : 'practice',
+    perMonth: Math.max(0, Number(l.perMonth) || 0),
+    cost: Math.max(0, Number(l.cost) || 0),
+    alsoSport: !!l.alsoSport,
+    paused: !!l.paused,
+    log: l.log && typeof l.log === 'object' ? l.log : {},
+    items: Array.isArray(l.items) ? l.items : [],
+  }));
 
   const b = merged.budget && typeof merged.budget === 'object' ? merged.budget : {};
   merged.budget = {

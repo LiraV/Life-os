@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter } from '../selectors.js';
+import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
 const cell = n => n >= 10000 ? Math.round(n / 1000) + 'к' : String(n);
@@ -58,6 +58,11 @@ export function buildRows(y) {
       unit: 'дн.',
       cells: months.map(ym => habitCell(hb, ym)),
     })),
+    // Занятия с полки обучения считаются сами — вручную их заводить не нужно.
+    ...liveLessons().filter(l => l.kind === 'practice').map(l => ({
+      id: l.id, name: l.name, lesson: true, unit: 'занятий',
+      cells: months.map(ym => ({ value: lessonMonth(l, ym) })),
+    })),
     ...Object.keys(dynamic).map(name => ({
       name, dyn: true,
       cells: months.map(ym => ({ value: dynamic[name][ym] ?? null })),
@@ -102,6 +107,7 @@ export function render() {
                   <tr>
                     <th class="tr-name ${r.own ? 'own' : ''}" ${raw(r.own ? `data-act="rowedit" data-id="${r.id}"` : '')}>${r.name}${
                       r.own ? raw(h`<i class="tr-dyn">${r.unit || 'своя'}</i>`)
+                      : r.lesson ? raw('<i class="tr-dyn">занятия</i>')
                       : r.dyn ? raw('<i class="tr-dyn">дин.</i>')
                       : r.target > 1 ? raw(h`<i class="tr-dyn">×${r.target}</i>`) : ''}</th>
                     ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c.value ? 'has' : ''} ${r.own || r.habit ? 'edit' : ''} ${c.fixed ? 'fixed' : ''}"

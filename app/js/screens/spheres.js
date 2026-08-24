@@ -4,7 +4,7 @@
 import { S, update, uid, XP, addXp, SPHERES, addDiary } from '../store.js';
 import { todayISO, addDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
-import { sphereProgress, sphereStatus, questsOn, sphereOf } from '../selectors.js';
+import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions } from '../selectors.js';
 import { sums } from './food.js';
 import { balanceAt, money } from './budget.js';
 
@@ -24,12 +24,18 @@ function grid() {
         const pct = sphereProgress(sp.key);
         const food = sp.key === 'food' ? sums(todayISO()) : null;
         const bal = sp.key === 'money' ? balanceAt(todayISO().slice(0, 7)) : null;
+        const edu = sp.key === 'edu'
+          ? liveLessons().filter(l => !l.paused).reduce((a, l) => a + lessonMonth(l, todayISO().slice(0, 7)), 0)
+          : null;
         return raw(h`
           <button class="tile" data-act="open" data-v="${sp.key}">
             <img src="${sp.img}" alt="">
             <span class="tile-badge">${sp.mech}</span>
             <b>${sp.name}</b>
-            <span>${food ? `сегодня ${food.kcal} ккал` : bal != null ? `остаток ${money(bal)}` : sphereStatus(sp.key)}</span>
+            <span>${food ? `сегодня ${food.kcal} ккал`
+              : bal != null ? `остаток ${money(bal)}`
+              : edu != null ? (edu ? `${edu} занятий за месяц` : 'полка занятий')
+              : sphereStatus(sp.key)}</span>
             ${pct != null ? raw(bar(pct, pct >= 100)) : ''}
           </button>`);
       })}
@@ -115,13 +121,14 @@ function vaultBody(r) {
 
 function sportBody() {
   const days = Array.from({ length: 30 }, (_, i) => addDays(todayISO(), -i));
-  const done = days.reduce((a, d) => a + questsOn(d).filter(q => q.done && q.sphere === 'sport').length, 0);
+  const fromLessons = sportLessonSessions(days);
+  const done = days.reduce((a, d) => a + questsOn(d).filter(q => q.done && q.sphere === 'sport').length, 0) + fromLessons;
   const minutes = days.reduce((a, d) => a + questsOn(d).filter(q => q.done && q.sphere === 'sport').reduce((x, q) => x + (q.minutes || 0), 0), 0);
   return h`<div class="card">
     <div class="ink"><b>Статы за 30 дней</b></div>
     <div class="row"><span class="lab" style="width:78px">Тренировки</span>${raw(bar(Math.min(100, done * 8)))}<span class="lab">${done}</span></div>
     <div class="row"><span class="lab" style="width:78px">Минуты</span>${raw(bar(Math.min(100, minutes / 12)))}<span class="lab">${minutes}</span></div>
-    <div class="lab">Считается из выполненных квестов сферы «Спорт».</div>
+    <div class="lab">Считается из выполненных квестов сферы «Спорт»${fromLessons ? ` и занятий с полки обучения — их ${fromLessons}` : ''}.</div>
   </div>`;
 }
 
@@ -129,7 +136,7 @@ const curKey = () => location.hash.replace(/^#\/?/, '').split('/')[1];
 
 export const actions = {
   // У питания свой экран: календарь КБЖУ не влезает в общую механику этапов.
-  open: v => { location.hash = { food: '#/food', money: '#/budget' }[v.v] || '#/spheres/' + v.v; },
+  open: v => { location.hash = { food: '#/food', money: '#/budget', edu: '#/edu' }[v.v] || '#/spheres/' + v.v; },
   back: () => { location.hash = '#/spheres'; },
 
   itemadd: () => {
