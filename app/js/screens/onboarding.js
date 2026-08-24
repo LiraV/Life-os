@@ -102,7 +102,7 @@ function finish(skipped) {
     s.user.introversion = Number(d.introversion);
     s.user.activity = Number(d.activity);
     s.user.traits = skipped ? [] : traits(d);
-    s.habits = (skipped ? [] : d.habits).map(name => ({ id: uid(), name, log: {}, createdAt: todayISO() }));
+    s.habits = (skipped ? [] : d.habits).map(name => ({ id: uid(), name, target: 1, unit: '', log: {}, createdAt: todayISO() }));
     if (!skipped && d.theme.trim()) s.years[yearOf(todayISO())] = { theme: d.theme.trim(), quarters: {} };
     s.onboarded = true;
     s.ui.onb = null;

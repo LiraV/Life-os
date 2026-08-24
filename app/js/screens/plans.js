@@ -100,9 +100,11 @@ function weekView() {
 // ── месяц ───────────────────────────────────────────────────────
 function monthView() {
   const ym = month();
-  const own = goalsIn('month', ym);
+  const all = goalsIn('month', ym);
+  const own = all.filter(g => !g.dynamic);
+  const dyn = all.filter(g => g.dynamic);
   const planned = goalsPlannedIn(ym);
-  const goals = [...own, ...planned];
+  const goals = [...all, ...planned];
   const qk = quarterKey(ym);
   const theme = S.years[ym.slice(0, 4)]?.theme;
 
@@ -123,6 +125,16 @@ function monthView() {
       <div class="card dash"><div class="empty">Целей на ${monthTitle(ym).toLowerCase()} пока нет.<br>Три штуки — уже много.</div></div>`) : ''}
 
     <button class="add" data-act="goaladd" data-h="month" data-p="${ym}">+ Цель месяца</button>
+
+    <div class="card">
+      <div class="row between">
+        <div class="caps">Динамичные цели</div>
+        <button class="q-edit" data-act="dynadd" data-p="${ym}">+ добавить</button>
+      </div>
+      ${dyn.length ? dyn.map(g => raw(dynRow(g))) : raw(h`
+        <div class="lab">«Сходить на вокал 3 раза», «9 дней правильного питания» — то, что набирается за месяц. Живут только внутри месяца и никуда не переносятся.</div>`)}
+    </div>
+
     ${raw(intentions(ym, 'Намерения месяца'))}
     <div class="card dash">
       <div class="lab">После большого этапа имеет смысл поставить неделю отдыха — на вкладке «Неделя».</div>
@@ -217,6 +229,21 @@ function counterRow(g) {
           : ''}
         <button class="pill" data-act="cntadd" data-id="${g.id}">${small ? '+ ещё' : '+ добавить'}</button>
       </div>
+    </div>`;
+}
+
+/** Динамичная цель — одна строка: набрано, норма и плюс в один тап. */
+function dynRow(g) {
+  const { current, target, unit } = counterOf(g);
+  const full = current >= target;
+  return h`
+    <div class="dyn-row ${full ? 'done' : ''}">
+      <div class="grow" data-act="goaledit" data-id="${g.id}" style="cursor:pointer">
+        <div class="ink">${g.title}</div>
+        <div class="lab">${current} / ${target}${unit ? ' ' + unit : ''}${full ? ' ✦' : ''}</div>
+      </div>
+      ${current ? raw(h`<button class="hab-plus" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус">−</button>`) : ''}
+      <button class="hab-plus ${full ? 'on' : ''}" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс">+</button>
     </div>`;
 }
 
@@ -586,6 +613,34 @@ export const actions = {
   mnext: () => update(s => { s.ui.monthAnchor = addMonths(month(), 1); }),
   goaladd: v => goalSheet(null, { horizon: v.h, period: v.p }),
   plan: v => { const g = goalById(v.id); if (g) planSheet(g); },
+
+  dynadd: v => openSheet({
+    title: 'Динамичная цель',
+    sub: 'то, что набирается за месяц',
+    body: [
+      field.text('title', 'Что делаем', '', 'например, «Сходить на вокал»'),
+      field.number('target', 'Сколько раз за месяц', 4, { min: 1 }),
+      field.text('unit', 'В чём считаем', '', 'раз, дней, часов — необязательно'),
+      field.note('Останется внутри месяца: в кварталы и год такие цели не переносятся.'),
+    ].join(''),
+    primary: 'Добавить',
+    onSave: (val, close) => {
+      const title = (val.title || '').trim();
+      if (!title) return toast('Нужно название');
+      const target = Math.max(1, Number(val.target) || 1);
+      update(s2 => {
+        s2.goals.push({
+          id: uid(), title, horizon: 'month', period: v.p, dynamic: true,
+          target, unit: (val.unit || '').trim(), current: 0,
+          steps: [], slots: [], parentId: '', sphere: '', deadline: '',
+        });
+        s2.ui.planTab = 'month';
+        s2.ui.monthAnchor = v.p;
+      });
+      close();
+      toast('Добавила');
+    },
+  }),
 
   intadd: v => openSheet({
     title: 'Намерения',

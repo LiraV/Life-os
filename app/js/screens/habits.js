@@ -3,14 +3,14 @@
 import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, addDays, weekDates, monthKey, addMonths, monthTitle, daysInMonth, DOW, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
-import { habitMonthCount } from '../selectors.js';
+import { habitMonthCount, habitMonthTotal, habitTarget, habitCount, habitDone, liveHabits } from '../selectors.js';
 
 const mode = () => S.ui.habMode || 'week';
 const anchor = () => S.ui.habitAnchor || todayISO();
 const monthA = () => S.ui.habMonth || monthKey(todayISO());
 
 export function render() {
-  const live = S.habits.filter(hb => !hb.archived);
+  const live = liveHabits();
   return h`
     <div class="title">Ритм</div>
     <div class="sub">Отметка — просто отметка. Пропуск ничего не отнимает.</div>
@@ -38,17 +38,22 @@ function weekView(list) {
       ${DOW.map(d => raw(h`<span class="lab grow" style="text-align:center">${d}</span>`))}
     </div>
     ${list.map(hb => {
-      const n = dates.filter(d => hb.log[d]).length;
+      const target = habitTarget(hb);
+      const n = dates.filter(d => habitDone(hb, d)).length;
       return raw(h`
         <div class="card">
           <div class="row between"><div class="ink grow ellip">${hb.name}</div>
-            <span class="lab">${n} из 7</span>
+            <span class="lab">${n} из 7${target > 1 ? ` · норма ${target}${hb.unit ? ' ' + hb.unit : ''}` : ''}</span>
             <button class="q-edit" data-act="edit" data-id="${hb.id}">›</button></div>
           <div class="hab-grid">
-            ${dates.map(d => raw(h`<button class="hab-cell ${hb.log[d] ? 'on' : ''} ${d === t ? 'today' : ''}"
+            ${dates.map(d => {
+              const c = habitCount(hb, d);
+              const full = c >= target;
+              return raw(h`<button class="hab-cell ${full ? 'on' : ''} ${c && !full ? 'part' : ''} ${d === t ? 'today' : ''}"
                  data-act="tick" data-id="${hb.id}" data-d="${d}"
-                 ${d > t ? 'disabled style="opacity:.4"' : ''}
-                 aria-label="${d}">${d.slice(8)}</button>`))}
+                 ${raw(d > t ? 'disabled style="opacity:.4"' : '')}
+                 aria-label="${dayShort(d)}: ${c} из ${target}">${target > 1 && c ? c : d.slice(8)}</button>`);
+            })}
           </div>
         </div>`);
     })}`;
@@ -68,8 +73,10 @@ function monthView(list) {
     <div class="card">
       ${list.map(hb => {
         const n = habitMonthCount(hb, ym);
+        const all = habitMonthTotal(hb, ym);
         return raw(h`<div class="row"><span class="lab grow ellip">${hb.name}</span>
-          ${raw(bar(Math.round(n / total * 100), n > total / 2))}<span class="lab">${n} из ${total}</span></div>`);
+          ${raw(bar(Math.round(n / total * 100), n > total / 2))}
+          <span class="lab">${n} из ${total}${habitTarget(hb) > 1 ? ` · ${all} раз` : ''}</span></div>`);
       })}
     </div>`;
 }
@@ -78,7 +85,7 @@ const emptyCard = () => h`<div class="card dash"><div class="empty">Привыч
 
 function tip(list) {
   const dates = weekDates(anchor());
-  const scored = list.map(hb => ({ hb, n: dates.filter(d => hb.log[d]).length })).sort((a, b) => a.n - b.n);
+  const scored = list.map(hb => ({ hb, n: dates.filter(d => habitDone(hb, d)).length })).sort((a, b) => a.n - b.n);
   const worst = scored[0], best = scored[scored.length - 1];
   if (best.n >= 5) return `«${best.hb.name}» держится ${best.n} дней из 7. Это уже ритм, а не усилие.`;
   if (worst.n === 0) return `«${worst.hb.name}» на этой неделе не шла. Может, она сейчас просто не нужна?`;
@@ -89,14 +96,23 @@ function habitSheet(hb) {
   const isNew = !hb;
   openSheet({
     title: isNew ? 'Новая привычка' : 'Привычка',
-    body: field.text('name', 'Название', hb?.name || '', 'например, «Итальянский 15 минут»'),
+    body: [
+      field.text('name', 'Название', hb?.name || '', 'например, «Итальянский 15 минут»'),
+      field.number('target', 'Сколько раз в день', hb ? habitTarget(hb) : 1, { min: 1, max: 50 }),
+      field.text('unit', 'В чём считаем', hb?.unit || '', 'раз, приёмов, минут — необязательно'),
+      field.note('Норма больше одного превращает привычку в счётчик: «таблетки 0/3». В ячейке дня показывается, сколько уже набрано.'),
+    ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const target = Math.max(1, Math.min(50, Number(v.target) || 1));
       update(s => {
-        if (isNew) s.habits.push({ id: uid(), name, log: {}, createdAt: todayISO() });
-        else { const x = s.habits.find(y => y.id === hb.id); if (x) x.name = name; }
+        if (isNew) s.habits.push({ id: uid(), name, target, unit: (v.unit || '').trim(), log: {}, createdAt: todayISO() });
+        else {
+          const x = s.habits.find(y => y.id === hb.id);
+          if (x) { x.name = name; x.target = target; x.unit = (v.unit || '').trim(); }
+        }
       });
       close();
     },
@@ -117,10 +133,16 @@ export const actions = {
   mnext: () => update(s => { s.ui.habMonth = addMonths(monthA(), 1); }),
   add: () => habitSheet(null),
   edit: v => habitSheet(S.habits.find(x => x.id === v.id)),
+  /** Тап добавляет один раз; после нормы следующий тап обнуляет день. */
   tick: v => update(s => {
     const hb = s.habits.find(x => x.id === v.id);
     if (!hb) return;
-    if (hb.log[v.d]) { delete hb.log[v.d]; addXp(-XP.habit); }
-    else { hb.log[v.d] = true; addXp(XP.habit); }
+    const target = habitTarget(hb);
+    const was = Math.max(0, Number(hb.log[v.d]) || 0);
+    const next = was >= target ? 0 : was + 1;
+    if (next) hb.log[v.d] = next; else delete hb.log[v.d];
+    // Опыт даём за закрытую норму, а не за каждый тап.
+    if (next >= target && was < target) addXp(XP.habit);
+    if (was >= target && next < target) addXp(-XP.habit);
   }),
 };

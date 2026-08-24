@@ -109,6 +109,10 @@ h1,h2,h3{margin:0; font-weight:400}
 .q-edit{font-size:11.5px; color:var(--ink2); flex:none; padding:4px}
 
 /* ── намерения ──────────────────────────────────────────────── */
+.dyn-row{display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--track)}
+.dyn-row:first-of-type{border-top:0}
+.dyn-row.done .ink{opacity:.65}
+
 .int-block{display:flex; flex-direction:column; gap:6px; padding-top:9px; margin-top:2px;
   border-top:1px solid var(--track)}
 
@@ -161,6 +165,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .hab-cell{width:28px; height:28px; border-radius:10px; background:var(--track); font-size:10px; color:var(--ink4);
           display:flex; align-items:center; justify-content:center; flex:1; transition:all .15s}
 .hab-cell.on{background:var(--accent); color:var(--on-accent)}
+.hab-cell.part{background:#f0d6c4; color:var(--deep); font-weight:500}
 .hab-cell.today{outline:1.5px solid var(--accent); outline-offset:1px; color:var(--deep)}
 .hab-cell.on.today{color:var(--on-accent)}
 
@@ -182,6 +187,33 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .cal-legend .sw-on{background:var(--accent)}
 .cal-legend .sw-pred{box-shadow:inset 0 0 0 1.5px var(--line)}
 .cal-legend .sw-today{outline:1.5px solid var(--deep); outline-offset:-1px; background:var(--track)}
+
+.hab-row{display:flex; align-items:center; gap:10px; padding:6px 0; border-top:1px solid var(--track)}
+.hab-row:first-of-type{border-top:0}
+.hab-row.done .ink{opacity:.6}
+.hab-plus{width:34px; height:34px; border-radius:12px; flex:none; background:var(--track); color:var(--deep);
+  font-size:18px; line-height:1; display:flex; align-items:center; justify-content:center; transition:all .15s}
+.hab-plus:hover{background:#e6d3c6}
+.hab-plus.on{background:var(--accent); color:var(--on-accent); font-size:15px}
+.hab-plus[disabled]{opacity:.35; pointer-events:none}
+
+/* ── большой трекер ─────────────────────────────────────────── */
+.tr-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none}
+.tr-wrap::-webkit-scrollbar{display:none}
+.tr{border-collapse:separate; border-spacing:0; font-size:11.5px; width:max-content}
+.tr th,.tr td{padding:6px 7px; text-align:center; white-space:nowrap}
+.tr thead th{font-weight:500; color:var(--ink4); font-size:10px; text-transform:uppercase; letter-spacing:.3px}
+.tr thead th.now{color:var(--deep)}
+.tr .tr-name{position:sticky; left:0; z-index:1; background:var(--card); text-align:left; font-weight:500;
+  color:var(--ink); max-width:118px; overflow:hidden; text-overflow:ellipsis; box-shadow:1px 0 0 var(--track)}
+.tr thead .tr-name{color:var(--ink4); font-weight:500}
+.tr .tr-dyn{font-style:normal; font-size:9.5px; color:var(--ink4); margin-left:4px}
+.tr tbody td{color:var(--ink2); border-top:1px solid var(--track); min-width:30px}
+.tr tbody td.has{color:var(--deep); font-weight:500;
+  background:color-mix(in srgb, var(--accent) calc(var(--f) * 62%), transparent)}
+.tr tbody td.now{outline:1.5px solid var(--line); outline-offset:-2px; border-radius:8px}
+.tr .tr-sum{position:sticky; right:0; background:var(--card); font-weight:500; color:var(--deep);
+  box-shadow:-1px 0 0 var(--track)}
 
 /* ── нижний бар и drawer ────────────────────────────────────── */
 .nav{flex:none; background:var(--nav); border-radius:99px; padding:7px 8px; display:flex; justify-content:space-between;

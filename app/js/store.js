@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 4;
+const VERSION = 5;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -37,7 +37,7 @@ function blank() {
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
-    habits: [],          // [{ id, name, log: { date: true } }]
+    habits: [],          // [{ id, name, target, unit, log: { date: количество } }]
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
     diary: [],
     chat: [],
@@ -58,6 +58,19 @@ function migrate(s) {
   if (Array.isArray(merged.health.periods)) {
     merged.health.days ||= {};
   merged.intentions ||= {};
+
+  // v4 → v5: привычка была «отмечено / нет», стала «сколько раз за день»
+  // при дневной норме. Старая отметка равна одному разу при норме один.
+  merged.habits = (merged.habits || []).map(hb => ({
+    ...hb,
+    target: Number(hb.target) > 0 ? Number(hb.target) : 1,
+    unit: hb.unit || '',
+    log: Object.fromEntries(
+      Object.entries(hb.log || {})
+        .map(([d, v]) => [d, v === true ? 1 : Math.max(0, Math.round(Number(v) || 0))])
+        .filter(([, v]) => v > 0),
+    ),
+  }));
     const moved = merged.health.periods.filter(d => typeof d === 'string');
     moved.forEach(d => { merged.health.days[d] = true; });
     delete merged.health.periods;
@@ -66,6 +79,19 @@ function migrate(s) {
   }
   merged.health.days ||= {};
   merged.intentions ||= {};
+
+  // v4 → v5: привычка была «отмечено / нет», стала «сколько раз за день»
+  // при дневной норме. Старая отметка равна одному разу при норме один.
+  merged.habits = (merged.habits || []).map(hb => ({
+    ...hb,
+    target: Number(hb.target) > 0 ? Number(hb.target) : 1,
+    unit: hb.unit || '',
+    log: Object.fromEntries(
+      Object.entries(hb.log || {})
+        .map(([d, v]) => [d, v === true ? 1 : Math.max(0, Math.round(Number(v) || 0))])
+        .filter(([, v]) => v > 0),
+    ),
+  }));
 
   // v2 → v3: раньше цель была только месячной и хранила поле month.
   // Переводим на горизонты, чтобы рядом жили цели квартала и года.

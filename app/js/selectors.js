@@ -133,8 +133,17 @@ export function weekStats(date) {
 }
 
 // ── привычки ────────────────────────────────────────────────────
-export const habitWeek = (habit, date) => weekDates(date).map(d => !!habit.log[d]);
-export const habitMonthCount = (habit, ym) => monthDates(ym).filter(d => habit.log[d]).length;
+export const habitTarget = hb => Math.max(1, Number(hb.target) || 1);
+export const habitCount = (hb, date) => Math.max(0, Number(hb.log?.[date]) || 0);
+export const habitDone = (hb, date) => habitCount(hb, date) >= habitTarget(hb);
+
+export const liveHabits = () => S.habits.filter(hb => !hb.archived);
+
+/** Полные дни месяца — те, где норма закрыта целиком. */
+export const habitMonthCount = (hb, ym) => monthDates(ym).filter(d => habitDone(hb, d)).length;
+/** Сколько всего раз за месяц — для большого трекера. */
+export const habitMonthTotal = (hb, ym) => monthDates(ym).reduce((a, d) => a + habitCount(hb, d), 0);
+export const habitWeekDone = (hb, date) => weekDates(date).filter(d => habitDone(hb, d)).length;
 
 // ── тело ────────────────────────────────────────────────────────
 /** Пропуск в один-два дня внутри месячных — всё ещё те же месячные, а не новый цикл. */
@@ -198,9 +207,9 @@ export function measureDeltas() {
 const lastDays = n => Array.from({ length: n }, (_, i) => addDays(todayISO(), -i));
 
 function habitRate(nameMatch, days) {
-  const hs = S.habits.filter(h => nameMatch.test(h.name));
+  const hs = liveHabits().filter(hb => nameMatch.test(hb.name));
   if (!hs.length) return null;
-  const hits = days.filter(d => hs.some(h => h.log[d])).length;
+  const hits = days.filter(d => hs.some(hb => habitDone(hb, d))).length;
   return Math.round((hits / days.length) * 100);
 }
 

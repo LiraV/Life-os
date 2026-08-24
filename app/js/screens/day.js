@@ -3,7 +3,10 @@
 import { S, update, uid, XP, addXp, SPHERES, addDiary } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
-import { questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf, liveGoals, goalChain } from '../selectors.js';
+import {
+  questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
+  liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone,
+} from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
 
@@ -61,8 +64,46 @@ export function render() {
       <div class="card dash"><div class="empty">На этот день пусто.<br>Одно дело — уже достаточно.</div>
         <button class="add" data-act="add">+ Добавить квест</button></div>`)}
 
+    ${raw(habitsBlock(date))}
+
     ${chronicler(date).map(t => raw(h`<div class="ai">${t}</div>`))}
     <div style="height:4px"></div>`;
+}
+
+/** Ритм дня прямо на главном: норма, счёт и плюс в один тап. */
+function habitsBlock(date) {
+  const list = liveHabits();
+  if (!list.length) return h`
+    <div class="card dash">
+      <div class="row between"><div class="caps">Ритм дня</div>
+        <button class="q-edit" data-act="habits">завести ›</button></div>
+      <div class="lab">Привычек пока нет. Одной достаточно, чтобы начать.</div>
+    </div>`;
+
+  const done = list.filter(hb => habitDone(hb, date)).length;
+  const future = date > todayISO();
+  return h`
+    <div class="card">
+      <div class="row between">
+        <div class="caps">Ритм дня</div>
+        <span class="lab">${done} из ${list.length}${raw(' · ')}<span data-act="habits" style="cursor:pointer">все ›</span></span>
+      </div>
+      ${list.map(hb => {
+        const target = habitTarget(hb);
+        const c = habitCount(hb, date);
+        const full = c >= target;
+        return raw(h`
+          <div class="hab-row ${full ? 'done' : ''}">
+            <div class="grow">
+              <div class="ink">${hb.name}</div>
+              <div class="lab">${c} / ${target}${hb.unit ? ' ' + hb.unit : ''}</div>
+            </div>
+            ${full
+              ? raw(h`<button class="hab-plus on" data-act="hab" data-id="${hb.id}" aria-label="Сбросить">✓</button>`)
+              : raw(h`<button class="hab-plus" data-act="hab" data-id="${hb.id}" ${raw(future ? 'disabled' : '')} aria-label="Отметить">+</button>`)}
+          </div>`);
+      })}
+    </div>`;
 }
 
 function questRow(q) {
@@ -179,6 +220,26 @@ export const actions = {
     if (flipped.done && flipped.boss) toast('Босс повержен ✦');
     else if (flipped.done) toast(`+${XP.quest} XP`);
     if (flipped.done && flipped.sphere === 'sport') setTimeout(() => reflectionSheet(flipped), 350);
+  },
+
+  habits: () => { location.hash = '#/habits'; },
+
+  /** Плюс добавляет один раз, галочка на закрытой норме обнуляет день. */
+  hab: v => {
+    const date = curDate();
+    if (date > todayISO()) return;
+    let reached = false, name = '';
+    update(s => {
+      const hb = s.habits.find(x => x.id === v.id);
+      if (!hb) return;
+      const target = Math.max(1, Number(hb.target) || 1);
+      const was = Math.max(0, Number(hb.log[date]) || 0);
+      const next = was >= target ? 0 : was + 1;
+      if (next) hb.log[date] = next; else delete hb.log[date];
+      if (next >= target && was < target) { addXp(XP.habit); reached = true; name = hb.name; }
+      if (was >= target && next < target) addXp(-XP.habit);
+    });
+    if (reached) toast(`${name} — норма закрыта ✦`);
   },
 
   edit: v => {

@@ -14,8 +14,9 @@ import * as health from './screens/health.js';
 import * as inside from './screens/inside.js';
 import * as me from './screens/me.js';
 import * as settings from './screens/settings.js';
+import * as tracker from './screens/tracker.js';
 
-const SCREENS = { day, plans, spheres, habits, health, inside, me, settings };
+const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker };
 
 const NAV = [
   { key: 'more', label: '☰ Ещё' },
@@ -28,6 +29,7 @@ const NAV = [
 const DRAWER = [
   { key: 'spheres', label: 'Сферы' },
   { key: 'habits', label: 'Привычки' },
+  { key: 'tracker', label: 'Трекер года' },
   { key: 'health', label: 'Здоровье' },
   { key: 'inside/diary', label: 'Дневник' },
   { key: 'inside/tests', label: 'Тесты' },
@@ -58,7 +60,7 @@ function renderStatus() {
 
 function renderNav() {
   const cur = activeScreen();
-  const drawerScreens = ['spheres', 'habits', 'health', 'settings'];
+  const drawerScreens = ['spheres', 'habits', 'tracker', 'health', 'settings'];
   nav.hidden = !S.onboarded;
   nav.innerHTML = NAV.map(n => {
     const on = n.key === 'more' ? drawerScreens.includes(cur) : n.key === cur;
