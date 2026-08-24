@@ -176,20 +176,25 @@ function vaultsView() {
   return h`
     ${B().vaults.map(v => {
       const bal = vaultBalance(v);
+      const start = Number(v.start) || 0;
+      const moved = bal - start;
       return raw(h`
         <div class="card">
           <div class="row between">
-            <div class="ink grow" data-act="vaultedit" data-id="${v.id}" style="cursor:pointer"><b>${v.name}</b></div>
+            <div class="ink grow"><b>${v.name}</b></div>
             <span class="ink"><b>${money(bal)}</b></span>
           </div>
+          ${start || moved ? raw(h`<div class="lab">старт ${money(start)}${moved ? ` · ${moved > 0 ? '+' : '−'}${money(Math.abs(moved))} за время учёта` : ''}</div>`) : ''}
           <div class="pills">
             <button class="pill" data-act="vaultadd" data-id="${v.id}">пополнить</button>
             <button class="pill" data-act="vaulttake" data-id="${v.id}">снять</button>
+            <button class="pill" data-act="vaultedit" data-id="${v.id}">стартовая сумма ›</button>
           </div>
         </div>`);
     })}
     <button class="add" data-act="vaultnew">+ Копилка</button>
-    <div class="card mute"><div class="lab">Пополнение уходит с остатка и не считается тратой — как отдельная колонка «накоп» в таблице.</div></div>`;
+    <div class="card mute"><div class="lab">Пополнение уходит с остатка и не считается тратой — как отдельная колонка «накоп» в таблице.
+      Стартовая сумма на остаток не влияет: это то, что уже лежало в копилке до начала учёта.</div></div>`;
 }
 
 // ── шторки ──────────────────────────────────────────────────────
@@ -297,7 +302,11 @@ export const actions = {
 
   vaultnew: () => openSheet({
     title: 'Копилка',
-    body: [field.text('name', 'На что', '', 'например, «Милан»'), field.number('start', 'Уже отложено', 0, { min: 0 })].join(''),
+    body: [
+      field.text('name', 'На что', '', 'например, «Милан»'),
+      field.number('start', 'Стартовая сумма', 0, { min: 0 }),
+      field.note('Если в копилке уже что-то есть, впиши это здесь — дальше только пополнения и снятия.'),
+    ].join(''),
     primary: 'Добавить',
     onSave: (v, close) => {
       const name = (v.name || '').trim();
@@ -312,7 +321,11 @@ export const actions = {
     if (!vault) return;
     openSheet({
       title: vault.name,
-      body: [field.text('name', 'Название', vault.name), field.number('start', 'Было до начала учёта', vault.start || 0, { min: 0 })].join(''),
+      body: [
+        field.text('name', 'Название', vault.name),
+        field.number('start', 'Стартовая сумма', vault.start || 0, { min: 0 }),
+        field.note('Сколько уже лежало в копилке до того, как начался учёт. Пополнения и снятия прибавляются к ней сверху.'),
+      ].join(''),
       onSave: (val, close) => {
         update(s => {
           const x = s.budget.vaults.find(y => y.id === vault.id);
