@@ -238,6 +238,16 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .cal-d.has{background:color-mix(in srgb, var(--caramel) calc(var(--f) * 85%), var(--track)); color:var(--ink)}
 .cal-d.sel{outline:2px solid var(--accent); outline-offset:1px; font-weight:600}
 
+/* ── забота ─────────────────────────────────────────────────── */
+.care-row{display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--track)}
+.care-row:first-of-type{border-top:0}
+.care-name{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; min-width:0}
+.care-name .lab.late{color:var(--accent)}
+.check.linked{border-style:dashed}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px}
+.chip{font-size:11.5px; color:var(--deep); background:var(--tag-bg); border-radius:99px; padding:4px 10px; line-height:1.2; max-width:100%}
+.chip:hover{background:var(--track)}
+
 /* ── большой трекер ─────────────────────────────────────────── */
 /* Таблица года ездит вбок сама — экрану это разрешение не передаётся. */
 .tr-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; touch-action:pan-x pan-y}

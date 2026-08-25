@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 18;
+const VERSION = 19;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -46,6 +46,10 @@ function blank() {
                                                          // подход: { id, exerciseId, value, reps, done }
       exercises: [],                                     // { id, name, unit, dir: 'up'|'down'|'both' }
       templates: [],                                     // шаблоны тренировок: { id, name, sets: [] } — без дат
+    },
+    care: {                                              // забота: повторяющиеся дела с периодичностью
+      items: [],                                         // { id, name, group, every, anchor, last, log: [], cost, note, link }
+      pet: { name: '', kind: '', birth: '', note: '', weights: [] },  // weights: [{ id, date, kg }]
     },
     study: {                                             // учёба: заведения → предметы → этапы
       places: [],                                        // { id, name, note }
@@ -139,6 +143,51 @@ function migrate(s) {
       // У шпагата меньше — лучше: это расстояние до пола, а не достижение.
       { id: uid(), name: 'Шпагат', unit: 'см до пола', dir: 'down' },
     ];
+  }
+
+  // v18 → v19: забота — повторяющиеся дела с периодичностью и профиль питомца.
+  const cr = merged.care && typeof merged.care === 'object' ? merged.care : {};
+  merged.care = {
+    items: (Array.isArray(cr.items) ? cr.items : []).map(it => ({
+      ...it,
+      group: ['health', 'beauty', 'home', 'pet'].includes(it.group) ? it.group : 'health',
+      every: Math.max(1, Number(it.every) || 1),
+      anchor: Number(it.anchor) >= 1 && Number(it.anchor) <= 12 ? Number(it.anchor) : 0,
+      last: it.last || '',
+      log: Array.isArray(it.log) ? it.log : [],
+      cost: Math.max(0, Number(it.cost) || 0),
+    })),
+    pet: { ...base.care.pet, ...(cr.pet && typeof cr.pet === 'object' ? cr.pet : {}),
+      weights: Array.isArray(cr.pet?.weights) ? cr.pet.weights : [] },
+  };
+
+  // Первый запуск: список из «Системы поддержки» — периодичность выведена
+  // из месяцев, а «когда в последний раз» остаётся пустым: за неё не придумываем.
+  if (!merged.care.items.length) {
+    const SEED = [
+      ['Маникюр', 'beauty', 1, 1], ['Педикюр', 'beauty', 1, 1],
+      ['Психиатр', 'health', 3, 1], ['Эпиляция', 'beauty', 3, 2],
+      ['Замеры тела', 'health', 3, 2], ['Кровь на литий', 'health', 3, 3],
+      ['Массаж', 'health', 3, 3], ['Расхламление подписок', 'home', 6, 2],
+      ['Чистка лица', 'beauty', 6, 4], ['Расхламление одежды', 'home', 6, 5],
+      ['Расхламление телефона', 'home', 6, 6], ['Бусик от глистов', 'pet', 6, 3],
+      ['ТО машины', 'home', 12, 1], ['Проверка документов', 'home', 12, 1],
+      ['Общий анализ мочи', 'health', 12, 1], ['Терапевт', 'health', 12, 2],
+      ['ЭКГ + УЗИ сердца', 'health', 12, 3], ['Гинеколог', 'health', 12, 4],
+      ['Таблетки от глистов', 'health', 12, 4], ['Мануальный терапевт', 'health', 12, 5],
+      ['Парикмахер', 'beauty', 12, 6], ['Чек-ап Бусика', 'pet', 12, 8],
+      ['Химчистка', 'home', 12, 9], ['Починка одежды', 'home', 12, 9],
+      ['Общий анализ крови', 'health', 12, 9], ['Проф гигиена', 'health', 12, 9],
+      ['Вакцина Бусику', 'pet', 12, 10], ['Кровь на железо', 'health', 12, 10],
+      ['Кровь на D3', 'health', 12, 11], ['Страховка на машину', 'home', 12, 12],
+      ['Анализ крови биохим', 'health', 12, 12],
+    ];
+    merged.care.items = SEED.map(([name, group, every, anchor]) => ({
+      id: uid(), name, group, every, anchor, last: '', log: [], cost: 0, note: '',
+      // Замеры тела уже живут в «Теле»: отметка берётся оттуда, а не дублируется.
+      link: name === 'Замеры тела' ? 'measure' : '',
+    }));
+    if (!merged.care.pet.name) merged.care.pet = { ...merged.care.pet, name: 'Бусик' };
   }
 
   const stu = merged.study && typeof merged.study === 'object' ? merged.study : {};

@@ -21,8 +21,9 @@ import * as budget from './screens/budget.js';
 import * as edu from './screens/edu.js';
 import * as study from './screens/study.js';
 import * as sport from './screens/sport.js';
+import * as care from './screens/care.js';
 
-const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport };
+const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport, care };
 
 const NAV = [
   { key: 'more', label: '☰ Ещё' },
@@ -36,7 +37,8 @@ const DRAWER = [
   { key: 'spheres', label: 'Сферы' },
   { key: 'habits', label: 'Привычки' },
   { key: 'tracker', label: 'Трекер года' },
-  { key: 'health', label: 'Здоровье' },
+  { key: 'health', label: 'Тело' },
+  { key: 'care', label: 'Забота' },
   { key: 'inside/diary', label: 'Дневник' },
   { key: 'inside/tests', label: 'Тесты' },
   { key: 'settings', label: 'Настройки' },

@@ -5,10 +5,11 @@ import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js'
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
 import { workoutSheet, workoutSetSheet, applyDone } from './sport.js';
+import { markDone, dueLabel } from './care.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
-  workoutsOn, exerciseById,
+  workoutsOn, exerciseById, careDueNow, careDue,
 } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -74,6 +75,8 @@ export function render() {
 
     ${raw(habitsBlock(date))}
 
+    ${raw(careBlock(date))}
+
     ${chronicler(date).map(t => raw(h`<div class="ai">${t}</div>`))}
     <div style="height:4px"></div>`;
 }
@@ -130,6 +133,27 @@ function workoutRow(w) {
         })}
         <button class="add" data-act="wsetadd" data-id="${w.id}">+ Упражнение</button>
       </div>`) : ''}`;
+}
+
+/** Забота на главном: только то, что уже пора, и только на сегодня. */
+function careBlock(date) {
+  if (date !== todayISO()) return '';
+  const due = careDueNow().filter(it => it.link !== 'measure');
+  if (!due.length) return '';
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Пора позаботиться</div>
+        <button class="q-edit" data-act="care">все дела ›</button></div>
+      ${due.slice(0, 4).map(it => raw(h`
+        <div class="care-row">
+          <button class="check" data-act="caredone" data-id="${it.id}" aria-label="Сделано сегодня">✓</button>
+          <div class="grow care-name">
+            <span class="ink ellip">${it.name}</span>
+            <span class="lab ${careDue(it) < 0 ? 'late' : ''}">${dueLabel(it)}</span>
+          </div>
+        </div>`))}
+      ${due.length > 4 ? raw(h`<div class="lab">и ещё ${due.length - 4}</div>`) : ''}
+    </div>`;
 }
 
 /** Ритм дня прямо на главном: норма, счёт и плюс в один тап. */
@@ -322,6 +346,8 @@ export const actions = {
   },
 
   habits: () => { location.hash = '#/habits'; },
+  care: () => { location.hash = '#/care'; },
+  caredone: v => markDone(v.id, todayISO()),
 
   wadd: () => workoutSheet(null, curDate()),
   wopen: v => workoutSheet(S.sport.workouts.find(x => x.id === v.id)),

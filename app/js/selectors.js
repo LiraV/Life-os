@@ -3,7 +3,7 @@
 
 import { S, SPHERES, level, levelFloor } from './store.js';
 import { effects, hasTrait } from './traits.js';
-import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths } from './dates.js';
+import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
 export const sphereOf = key => SPHERES.find(s => s.key === key);
@@ -584,3 +584,92 @@ export function chronicler(date) {
   if (!out.length) out.push(`Всё идёт ровно. Пик энергии сегодня в ${peakLabel()}.`);
   return out;
 }
+
+// ── забота: повторяющиеся дела ──────────────────────────────────
+export const CARE_GROUPS = [
+  { key: 'health', name: 'Здоровье' },
+  { key: 'beauty', name: 'Красота' },
+  { key: 'home',   name: 'Дом и документы' },
+  { key: 'pet',    name: 'Питомец' },
+];
+export const careGroupName = key => (CARE_GROUPS.find(g => g.key === key) || {}).name || 'Забота';
+
+/** Замеры тела не дублируются: «последний раз» берётся из раздела «Тело». */
+export function careLast(it) {
+  if (it.link === 'measure') {
+    const dates = (S.health.measures || []).map(m => m.date).filter(Boolean).sort();
+    return dates.length ? dates[dates.length - 1] : '';
+  }
+  return it.last || '';
+}
+
+/**
+ * Когда пора. Если дело уже отмечали — считаем от последней отметки.
+ * Если нет — берём ближайший месяц из плана: точный день не выдумываем.
+ */
+export function careNext(it, from = todayISO()) {
+  const last = careLast(it);
+  const every = Math.max(1, Number(it.every) || 1);
+  if (last) {
+    // 31 января плюс месяц — это 28 февраля, а не «31 февраля».
+    const ym = addMonths(last.slice(0, 7), every);
+    const day = Math.min(Number(last.slice(8, 10)), daysInMonth(ym));
+    return { date: `${ym}-${String(day).padStart(2, '0')}`, exact: true };
+  }
+  const anchor = Number(it.anchor) || 0;
+  if (!anchor) return { date: from, exact: false, never: true };
+  // Ближайший месяц, который попадает в ритм: от якоря шагами по every.
+  let ym = from.slice(0, 4) + '-' + String(anchor).padStart(2, '0');
+  while ((Number(ym.slice(5, 7)) - anchor) % every !== 0) ym = addMonths(ym, 1);
+  while (ym < monthKey(from)) ym = addMonths(ym, every);
+  return { date: ym + '-01', exact: false, month: ym };
+}
+
+/** Сколько дней осталось: минус — просрочено. */
+export const careDue = (it, from = todayISO()) => diffDays(careNext(it, from).date, from);
+
+export const careItems = () => S.care.items;
+export const careSorted = (list = careItems()) => [...list].sort((a, b) => careDue(a) - careDue(b));
+export const careDueNow = () => careSorted().filter(it => careDue(it) <= 0);
+export const careSoon = (days = 30) => careSorted().filter(it => careDue(it) > 0 && careDue(it) <= days);
+export const careInGroup = key => careSorted(careItems().filter(it => it.group === key));
+
+/** Во сколько обойдётся месяц: считаем только дела с проставленной ценой. */
+export const careMonthCost = (ym = monthKey(todayISO())) =>
+  careItems().reduce((a, it) => a + (careNext(it).date.slice(0, 7) === ym ? Number(it.cost) || 0 : 0), 0);
+
+/** План на год: что в каком месяце, если ритм не сбивать. */
+export function careYearPlan(year = todayISO().slice(0, 4)) {
+  const y = String(year);            // yearOf возвращает число — сравнения строк ломались
+  const out = {};
+  careItems().forEach(it => {
+    const every = Math.max(1, Number(it.every) || 1);
+    let cur = careNext(it, `${y}-01-01`);
+    for (let i = 0; i < 12 && cur.date.slice(0, 4) <= y; i++) {
+      const ym = cur.date.slice(0, 7);
+      if (ym.slice(0, 4) === y) (out[ym] ||= []).push(it);
+      cur = { date: addMonths(cur.date.slice(0, 7), every) + '-01' };
+    }
+  });
+  return out;
+}
+
+/** Возраст питомца словами — из даты рождения. */
+export function petAge(birth, from = todayISO()) {
+  if (!birth) return '';
+  const months = (Number(from.slice(0, 4)) - Number(birth.slice(0, 4))) * 12
+    + (Number(from.slice(5, 7)) - Number(birth.slice(5, 7)))
+    - (Number(from.slice(8, 10)) < Number(birth.slice(8, 10)) ? 1 : 0);
+  if (months < 0) return '';
+  const y = Math.floor(months / 12), m = months % 12;
+  const yy = y ? `${y} ${plural(y, 'год', 'года', 'лет')}` : '';
+  const mm = m ? `${m} ${plural(m, 'месяц', 'месяца', 'месяцев')}` : '';
+  return [yy, mm].filter(Boolean).join(' ') || 'меньше месяца';
+}
+
+const plural = (n, one, few, many) => {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  return b === 1 ? one : many;
+};
