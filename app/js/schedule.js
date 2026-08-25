@@ -6,9 +6,12 @@
 // расписание можно поправить задним числом и прошлое не поедет.
 
 import { S, update, uid, XP, addXp, touchTracker } from './store.js';
-import { DOW, todayISO, monthKey } from './dates.js';
+import { DOW, todayISO, monthKey, dayShort, dowIndex, addDays } from './dates.js';
 import { h, raw, field, toast, openSheet } from './ui.js';
-import { schedulesOf, scheduleLabel, scheduleTitle, templateById, scheduleMonthCount } from './selectors.js';
+import {
+  schedulesOf, scheduleLabel, scheduleTitle, templateById, scheduleMonthCount,
+  scheduleMovedFrom, scheduleDone,
+} from './selectors.js';
 
 /** Подпись одной строкой: «пн, чт · 19:30» или что расписания нет. */
 export const scheduleHint = (kind, refId) => {
@@ -137,3 +140,58 @@ export const scheduleActions = {
   schedadd: v => ruleSheet(v.k, v.id, null),
   schededit: v => ruleSheet(v.k, v.id, S.schedules.find(x => x.id === v.s)),
 };
+
+/**
+ * Одно занятие: перенести на другой день или отменить. Правило при этом не
+ * меняется — переезжает только эта дата, поэтому «итальянский по четвергам»
+ * остаётся по четвергам, даже если конкретное занятие уехало на пятницу.
+ */
+export function occurrenceSheet(sc, date) {
+  const from = scheduleMovedFrom(sc, date) || date;   // дата по правилу
+  const moved = from !== date;
+  const done = scheduleDone(sc, date);
+  openSheet({
+    title: scheduleTitle(sc),
+    sub: moved ? `перенесено с ${dayShort(from)} на ${dayShort(date)}` : `${DOW[dowIndex(date)]}, ${dayShort(date)} · ${sc.time || 'без времени'}`,
+    body: [
+      done ? field.note('Это занятие уже отмечено. Перенос уберёт его из этого дня, а отметка останется там, где стоит.') : '',
+      field.date('date', 'Перенести на', date),
+      field.note('Меняется только это занятие. Правило остаётся прежним: остальные недели идут как шли.'),
+    ].join(''),
+    primary: 'Перенести',
+    onSave: (v, close) => {
+      const to = v.date || date;
+      if (to === date) return close();
+      update(s => {
+        const rule = s.schedules.find(x => x.id === sc.id);
+        if (!rule) return;
+        rule.moves ||= {};
+        // Вернули на свой день — запись о переносе больше не нужна.
+        if (to === from) delete rule.moves[from];
+        else rule.moves[from] = to;
+      });
+      close();
+      toast(`Перенесла на ${dayShort(to)}`);
+    },
+    secondary: moved ? 'Вернуть на место' : '',
+    onSecondary: moved ? (_v, close) => {
+      update(s => {
+        const rule = s.schedules.find(x => x.id === sc.id);
+        if (rule) delete (rule.moves || {})[from];
+      });
+      close();
+      toast(`Вернула на ${dayShort(from)}`);
+    } : undefined,
+    danger: 'Отменить это занятие',
+    onDanger: (_v, close) => {
+      update(s => {
+        const rule = s.schedules.find(x => x.id === sc.id);
+        if (!rule) return;
+        rule.moves ||= {};
+        rule.moves[from] = '';       // пустая строка — занятия в этот раз не будет
+      });
+      close();
+      toast('Отменила — только на этот раз');
+    },
+  });
+}

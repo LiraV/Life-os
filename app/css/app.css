@@ -103,6 +103,7 @@ h1,h2,h3{margin:0; font-weight:400}
 .quest{display:flex; align-items:flex-start; gap:10px; background:var(--card); border-radius:var(--r-card);
        padding:11px 13px; box-shadow:var(--shadow); flex:none}
 .quest.done{opacity:.65}
+.quest.mute{background:var(--card-mute); box-shadow:none}
 .quest.done .q-title{text-decoration:line-through}
 .check{width:22px; height:22px; border-radius:8px; border:1.5px solid var(--line); flex:none; margin-top:1px;
        display:flex; align-items:center; justify-content:center; color:transparent; font-size:13px; transition:all .18s}

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 20;
+const VERSION = 21;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -48,7 +48,8 @@ function blank() {
       templates: [],                                     // шаблоны тренировок: { id, name, sets: [] } — без дат
     },
     schedules: [],                                       // расписание — дело по дням недели:
-                                                         // { id, kind, refId, days: [], time, dur, every, from, to, place, note, off }
+                                                         // { id, kind, refId, days: [], time, dur, every, from, to, place, note, off,
+                                                         //   moves: { 'дата по правилу': 'новая дата' | '' — отменено } }
     care: {                                              // забота: повторяющиеся дела с периодичностью
       items: [],                                         // { id, name, group, every, anchor, last, log: [], cost, note, link }
       pet: { name: '', kind: '', birth: '', note: '', weights: [] },  // weights: [{ id, date, kg }]
@@ -201,6 +202,8 @@ function migrate(s) {
     every: Number(sc.every) === 2 ? 2 : 1,
     dur: Math.max(0, Number(sc.dur) || 0),
     off: !!sc.off,
+    // v20 → v21: перенос и отмена одного занятия живут отдельно от правила.
+    moves: sc.moves && typeof sc.moves === 'object' ? sc.moves : {},
   }));
 
   const stu = merged.study && typeof merged.study === 'object' ? merged.study : {};

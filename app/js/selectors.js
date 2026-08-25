@@ -711,12 +711,37 @@ export function scheduleDone(sc, date) {
   return false;
 }
 
+/**
+ * Одно занятие можно перенести или отменить, не трогая правило: перенос
+ * хранится как «дата по правилу → новая дата», пустая строка — отмена.
+ */
+export const scheduleMovedTo = (sc, date) => (sc.moves || {})[date];
+export const scheduleMovedFrom = (sc, date) =>
+  Object.keys(sc.moves || {}).find(from => sc.moves[from] === date) || '';
+
+/** Бывает ли занятие в этот день с учётом переносов. */
+export function scheduleOccursOn(sc, date) {
+  if (sc.off) return false;
+  if (scheduleMovedFrom(sc, date)) return true;
+  if (!scheduleHits(sc, date)) return false;
+  // Пустая строка — отменённое занятие, непустая — уехало в другой день.
+  return scheduleMovedTo(sc, date) === undefined;
+}
+
 /** События дня, отсортированные по времени. Тренировка, уже заведённая
  *  на день, из расписания пропадает — её показывает свой же блок. */
 export const scheduleOn = date => schedules()
-  .filter(sc => scheduleHits(sc, date))
+  .filter(sc => scheduleOccursOn(sc, date))
   .filter(sc => !(sc.kind === 'template' && scheduleDone(sc, date)))
   .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+
+/**
+ * Занятия, которые в этот день были по правилу, но уехали или отменены.
+ * Показываем их же на своём дне, иначе отмену будет некуда вернуть.
+ */
+export const scheduleShiftedOn = date => schedules()
+  .filter(sc => !sc.off && scheduleHits(sc, date) && scheduleMovedTo(sc, date) !== undefined)
+  .map(sc => ({ sc, to: scheduleMovedTo(sc, date) }));
 
 /** «пн, чт · 19:30 · 1 ч» — как правило читается одной строкой. */
 export function scheduleLabel(sc) {
@@ -730,5 +755,5 @@ export function scheduleLabel(sc) {
 
 /** Сколько занятий по расписанию выпадает на месяц — для плана и трекера. */
 export function scheduleMonthCount(sc, ym) {
-  return monthDates(ym).filter(d => scheduleHits(sc, d)).length;
+  return monthDates(ym).filter(d => scheduleOccursOn(sc, d)).length;
 }

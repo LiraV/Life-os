@@ -5,11 +5,11 @@ import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js'
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
 import { workoutSheet, workoutSetSheet, applyDone } from './sport.js';
-import { scheduleMark } from '../schedule.js';
+import { scheduleMark, occurrenceSheet } from '../schedule.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
-  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle,
+  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn,
 } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -98,22 +98,34 @@ function energyHistory(date) {
 /** По расписанию: не записи, а правила — считаются на лету для этого дня. */
 function scheduleBlock(date) {
   const list = scheduleOn(date);
-  if (!list.length) return '';
+  const shifted = scheduleShiftedOn(date);
+  if (!list.length && !shifted.length) return '';
   const KIND = { lesson: 'занятие', subject: 'учёба', template: 'тренировка' };
-  return list.map(sc => {
+  const moved = shifted.map(({ sc, to }) => h`
+    <div class="quest mute">
+      <div class="grow">
+        <div class="q-title lab">${scheduleTitle(sc)}</div>
+        <div class="q-meta"><span class="q-time">${to ? `перенесено на ${dayShort(to)}` : 'отменено на этот раз'}</span></div>
+      </div>
+      <button class="q-edit" data-act="schedback" data-id="${sc.id}">вернуть</button>
+    </div>`).join('');
+  return moved + list.map(sc => {
     const done = scheduleDone(sc, date);
+    const from = scheduleMovedFrom(sc, date);
     return h`
       <div class="quest ${done ? 'done' : ''}">
         <button class="check ${done ? 'on' : ''}" data-act="scheddone" data-id="${sc.id}"
           aria-label="Было">✓</button>
-        <div class="grow">
+        <div class="grow" data-act="schedmove" data-id="${sc.id}" style="cursor:pointer">
           <div class="q-title">${scheduleTitle(sc)}</div>
           <div class="q-meta">
             <span class="tag">${KIND[sc.kind] || 'по расписанию'}</span>
+            ${from ? raw(h`<span class="tag">перенос с ${dayShort(from)}</span>`) : ''}
             ${sc.place ? raw(h`<span class="tag">${sc.place}</span>`) : ''}
             <span class="q-time">${sc.time || 'по расписанию'}${sc.dur ? ` · ${sc.dur} мин` : ''}</span>
           </div>
         </div>
+        <button class="q-edit" data-act="schedmove" data-id="${sc.id}">перенести ›</button>
       </div>`;
   }).join('');
 }
@@ -348,6 +360,14 @@ export const actions = {
   },
 
   habits: () => { location.hash = '#/habits'; },
+  schedback: v => update(s => {
+    const sc = s.schedules.find(x => x.id === v.id);
+    if (sc) delete (sc.moves || {})[curDate()];
+  }),
+  schedmove: v => {
+    const sc = S.schedules.find(x => x.id === v.id);
+    if (sc) occurrenceSheet(sc, curDate());
+  },
   scheddone: v => {
     const sc = S.schedules.find(x => x.id === v.id);
     if (sc) scheduleMark(sc, curDate());
