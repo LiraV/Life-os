@@ -103,7 +103,10 @@ function exView() {
             <div class="lab">максимум ${r.max} · минимум ${r.min} · записей ${r.count}</div>
             ${r.was != null ? raw(h`<div class="lab">${r.improved ? 'лучше' : 'слабее'}, чем месяц назад: было ${r.was}</div>`) : ''}`)
           : raw('<div class="lab">результатов пока нет</div>')}
-          <button class="add" data-act="exlog" data-id="${ex.id}">+ Результат</button>
+          <div class="pills">
+            <button class="pill" data-act="exlog" data-id="${ex.id}">+ результат</button>
+            <button class="pill" data-act="exgoal" data-id="${ex.id}">сделать целью</button>
+          </div>
           ${S.ui.openEx === ex.id ? raw(historyBlock(ex)) : ''}
         </div>`);
     })}
@@ -156,13 +159,22 @@ export function workoutSheet(workout, date) {
   const isNew = !workout;
   const w = workout || { id: uid(), date: date || todayISO(), kind: kinds()[0]?.id || 'gym', title: '', lessonId: '', goalId: '', done: false, sets: [], note: '' };
   const lessons = liveLessons().filter(l => l.kind === 'practice');
-  // К целям-счётчикам тренировка прибавляется сама: «сходить в зал 4 раза».
-  const goals = liveGoals().filter(isCounter);
+  // Прибавлять по единице имеет смысл только счётчикам походов: цель, взятая
+  // из упражнения, считается сама и вручную не двигается.
+  const goals = liveGoals().filter(g => isCounter(g) && !g.exerciseId);
+  // Шаблон из уже заполненной тренировки — чтобы не набивать состав заново.
+  const past = S.sport.workouts.filter(x => (x.sets || []).length && x.id !== w.id)
+    .sort((a, c) => c.date.localeCompare(a.date)).slice(0, 12);
 
   openSheet({
     title: isNew ? 'Тренировка' : (w.title || kindName(w.kind)),
     sub: isNew ? 'по умолчанию — план на день; можно отметить сразу как сделанную' : dayShort(w.date),
     body: [
+      isNew && past.length
+        ? field.select('copyFrom', 'Взять состав из прошлой', [{ value: '', label: 'с нуля' },
+            ...past.map(x => ({ value: x.id, label: `${x.title || kindName(x.kind)} · ${dayShort(x.date)} · ${(x.sets || []).length} упр.` }))], '')
+        : '',
+      isNew && past.length ? field.note('Упражнения и подходы скопируются, дату и всё остальное можно поправить.') : '',
       field.select('kind', 'Что за тренировка', kinds().map(k => ({ value: k.id, label: k.name })), w.kind),
       field.text('title', 'Название — необязательно', w.title, 'например, «Зал А · ноги»'),
       field.date('date', 'Когда', w.date),
@@ -187,10 +199,11 @@ export function workoutSheet(workout, date) {
           date: v.date || w.date, lessonId: v.lessonId || '', goalId: v.goalId || '',
           note: (v.note || '').trim(), done: !!v.done,
         };
-        // У своего вида есть готовый набор упражнений — подставляем при создании.
         if (!prev && !next.sets.length) {
-          const k = s.sport.kinds.find(x => x.id === next.kind);
-          next.sets = (k?.sets || []).map(x => ({ ...x, id: uid() }));
+          // Сначала прошлая тренировка, если выбрана, иначе готовый набор вида.
+          const src = v.copyFrom ? s.sport.workouts.find(x => x.id === v.copyFrom) : null;
+          const from = src ? src.sets : (s.sport.kinds.find(x => x.id === next.kind)?.sets || []);
+          next.sets = from.map(x => ({ ...x, id: uid() }));
         }
         const i = s.sport.workouts.findIndex(x => x.id === w.id);
         if (i >= 0) s.sport.workouts[i] = next; else s.sport.workouts.push(next);
@@ -366,6 +379,36 @@ export const actions = {
     const k = s.sport.kinds.find(x => x.id === v.id);
     if (k) k.sets = (k.sets || []).filter(x => x.id !== v.s);
   }),
+
+  /** Цель из упражнения: набранное будет браться из тренировок само. */
+  exgoal: v => {
+    const ex = exerciseById(v.id);
+    if (!ex) return;
+    const rec = exerciseRecord(ex);
+    openSheet({
+      title: 'Цель из упражнения',
+      sub: `${ex.name}${rec ? ` · сейчас ${rec.best} ${ex.unit}` : ''}`,
+      body: [
+        field.text('title', 'Как назвать', `${ex.name}`, 'например, «Подтянуться 1 раз»'),
+        field.number('target', `Сколько, ${ex.unit}`, '', { min: 0 }),
+        field.note('Набранное будет браться из тренировок: как только результат достигнет цели, она закроется сама. Вручную двигать не нужно.'),
+      ].join(''),
+      primary: 'Создать цель',
+      onSave: (val, close) => {
+        const target = Number(val.target);
+        if (!target) return toast('Укажи, к чему идём');
+        update(s => {
+          s.goals.push({
+            id: uid(), title: (val.title || ex.name).trim(), horizon: 'month', period: monthKey(todayISO()),
+            dynamic: true, target, unit: ex.unit, current: 0, exerciseId: ex.id,
+            steps: [], slots: [], parentId: '', sphere: 'sport', deadline: '',
+          });
+        });
+        close();
+        toast('Цель создана — считается из тренировок');
+      },
+    });
+  },
 
   exadd: () => exSheet(null),
   exedit: v => exSheet(exerciseById(v.id)),

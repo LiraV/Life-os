@@ -49,7 +49,20 @@ export const goalById = id => S.goals.find(g => g.id === id);
 export const goalChildren = id => liveGoals().filter(g => g.parentId === id);
 
 export const isCounter = g => Number(g?.target) > 0;
-export const counterOf = g => ({ current: Number(g.current) || 0, target: Number(g.target) || 0, unit: g.unit || '' });
+
+/**
+ * Счётчик цели. Если цель привязана к упражнению, набранное берётся из
+ * тренировок: «подтянуться 1 раз» — это результат, а не число походов в зал.
+ */
+export function counterOf(g) {
+  const target = Number(g.target) || 0;
+  if (g.exerciseId) {
+    const ex = exerciseById(g.exerciseId);
+    const rec = ex ? exerciseRecord(ex) : null;
+    return { current: rec ? rec.best : 0, target, unit: g.unit || (ex?.unit || ''), fromExercise: ex || null };
+  }
+  return { current: Number(g.current) || 0, target, unit: g.unit || '', fromExercise: null };
+}
 
 /** Прогресс: «выполнено» перебивает всё, дальше счётчик, этапы, вложенные цели, вручную. */
 export function goalProgress(goal, seen = new Set()) {
