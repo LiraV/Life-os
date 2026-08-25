@@ -7,6 +7,7 @@ import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions } from '../selectors.js';
 import { sums } from './food.js';
 import { balanceAt, money } from './budget.js';
+import { studyNow } from '../selectors.js';
 
 const STAGES = ['росток', 'бутон', 'готов ✦'];
 const rec = (s, key) => (s.spheres[key] ||= { items: [], note: '', vault: null });
@@ -24,6 +25,7 @@ function grid() {
         const pct = sphereProgress(sp.key);
         const food = sp.key === 'food' ? sums(todayISO()) : null;
         const bal = sp.key === 'money' ? balanceAt(todayISO().slice(0, 7)) : null;
+        const stu = sp.key === 'study' ? studyNow() : null;
         const edu = sp.key === 'edu'
           ? liveLessons().filter(l => !l.paused).reduce((a, l) => a + lessonMonth(l, todayISO().slice(0, 7)), 0)
           : null;
@@ -35,6 +37,9 @@ function grid() {
             <span>${food ? `сегодня ${food.kcal} ккал`
               : bal != null ? `остаток ${money(bal)}`
               : edu != null ? (edu ? `${edu} занятий за месяц` : 'полка занятий')
+              : stu ? (stu.overdue.length ? `просрочено ${stu.overdue.length}`
+                : stu.due.length ? `скоро сдавать ${stu.due.length}`
+                : stu.open.length ? `${stu.open.length} в работе` : 'всё закрыто')
               : sphereStatus(sp.key)}</span>
             ${pct != null ? raw(bar(pct, pct >= 100)) : ''}
           </button>`);
@@ -136,7 +141,7 @@ const curKey = () => location.hash.replace(/^#\/?/, '').split('/')[1];
 
 export const actions = {
   // У питания свой экран: календарь КБЖУ не влезает в общую механику этапов.
-  open: v => { location.hash = { food: '#/food', money: '#/budget', edu: '#/edu' }[v.v] || '#/spheres/' + v.v; },
+  open: v => { location.hash = { food: '#/food', money: '#/budget', edu: '#/edu', study: '#/study' }[v.v] || '#/spheres/' + v.v; },
   back: () => { location.hash = '#/spheres'; },
 
   itemadd: () => {

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 12;
+const VERSION = 13;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -41,6 +41,11 @@ function blank() {
     habits: [],          // [{ id, name, target, step, unit, log: { date: количество } }]
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
     lessons: [],                                         // полка обучения: курсы и практики
+    study: {                                             // учёба: заведения → предметы → этапы
+      places: [],                                        // { id, name, note }
+      subjects: [],                                      // { id, placeId, name, teacher, from, to, grade, archived }
+      tasks: [],                                         // { id, subjectId, title, stage, stageAt, due, note }
+    },
     budget: {                                            // бюджет: статьи, план по месяцам, операции, копилки
       cats: { expense: [], income: [] },
       plans: {},                                         // { 'YYYY-MM': { expense: { id: сумма }, income: {...} } }
@@ -85,6 +90,13 @@ function migrate(s) {
   merged.user.traits = [...new Set((merged.user.traits || [])
     .map(t => (typeof t === 'string' && OLD_TRAITS[t]) ? OLD_TRAITS[t] : t)
     .filter(t => typeof t === 'string' && /^[a-z]+$/.test(t)))];
+
+  const stu = merged.study && typeof merged.study === 'object' ? merged.study : {};
+  merged.study = {
+    places: Array.isArray(stu.places) ? stu.places : [],
+    subjects: Array.isArray(stu.subjects) ? stu.subjects : [],
+    tasks: (Array.isArray(stu.tasks) ? stu.tasks : []).map(t => ({ ...t, stage: t.stage || 'todo' })),
+  };
 
   // Полка обучения: у курса уроки, у практики журнал занятий по датам.
   merged.lessons = (Array.isArray(merged.lessons) ? merged.lessons : []).map(l => ({
@@ -171,6 +183,13 @@ function migrate(s) {
   merged.user.traits = [...new Set((merged.user.traits || [])
     .map(t => (typeof t === 'string' && OLD_TRAITS[t]) ? OLD_TRAITS[t] : t)
     .filter(t => typeof t === 'string' && /^[a-z]+$/.test(t)))];
+
+  const stu = merged.study && typeof merged.study === 'object' ? merged.study : {};
+  merged.study = {
+    places: Array.isArray(stu.places) ? stu.places : [],
+    subjects: Array.isArray(stu.subjects) ? stu.subjects : [],
+    tasks: (Array.isArray(stu.tasks) ? stu.tasks : []).map(t => ({ ...t, stage: t.stage || 'todo' })),
+  };
 
   // Полка обучения: у курса уроки, у практики журнал занятий по датам.
   merged.lessons = (Array.isArray(merged.lessons) ? merged.lessons : []).map(l => ({

@@ -152,6 +152,59 @@ export const habitMonthCount = (hb, ym) => monthDates(ym).filter(d => habitDone(
 export const habitMonthTotal = (hb, ym) => monthDates(ym).reduce((a, d) => a + habitCount(hb, d), 0);
 export const habitWeekDone = (hb, date) => weekDates(date).filter(d => habitDone(hb, d)).length;
 
+// ── учёба: заведения, предметы, этапы ───────────────────────────
+/** Одна лестница стадий на всё: простой этап просто перепрыгивает середину. */
+export const STAGES = [
+  { id: 'todo', name: 'Не начато', short: 'не начато' },
+  { id: 'plan', name: 'План', short: 'план' },
+  { id: 'draft', name: 'В работе', short: 'в работе' },
+  { id: 'sent', name: 'У преподавателя', short: 'отправлено' },
+  { id: 'fixes', name: 'Правки', short: 'правки' },
+  { id: 'done', name: 'Сдано', short: 'сдано' },
+];
+export const stageOf = id => STAGES.find(s => s.id === id) || STAGES[0];
+export const stageIndex = id => Math.max(0, STAGES.findIndex(s => s.id === id));
+
+export const livePlaces = () => S.study.places;
+export const liveSubjects = () => S.study.subjects.filter(x => !x.archived);
+export const subjectsOf = placeId => liveSubjects().filter(x => x.placeId === placeId);
+export const subjectById = id => S.study.subjects.find(x => x.id === id);
+export const tasksOf = subjectId => S.study.tasks.filter(t => t.subjectId === subjectId);
+
+/** Этапы живых предметов — доска показывает только их. */
+export const liveTasks = () => {
+  const ids = new Set(liveSubjects().map(x => x.id));
+  return S.study.tasks.filter(t => ids.has(t.subjectId));
+};
+
+export const taskSubject = t => subjectById(t.subjectId) || { name: '—' };
+
+/** Сколько дней этап ждёт ответа: считаем с момента перевода в «у преподавателя». */
+export const waitingDays = t => (t.stage === 'sent' && t.stageAt ? diffDays(todayISO(), t.stageAt) : null);
+
+/** Прогресс предмета — по стадиям всех этапов, а не по числу галочек. */
+export function subjectProgress(id) {
+  const list = tasksOf(id);
+  if (!list.length) return null;
+  const max = STAGES.length - 1;
+  return Math.round(list.reduce((a, t) => a + stageIndex(t.stage) / max, 0) / list.length * 100);
+}
+
+/** Что висит прямо сейчас: просроченное, ожидание, ближайшие сроки, в работе. */
+export function studyNow(days = 14) {
+  const t = todayISO();
+  const soon = addDays(t, days);
+  const open = liveTasks().filter(x => x.stage !== 'done');
+  const byDue = (a, b) => (a.due || '9999').localeCompare(b.due || '9999');
+  return {
+    overdue: open.filter(x => x.due && x.due < t).sort(byDue),
+    waiting: open.filter(x => x.stage === 'sent').sort((a, b) => (waitingDays(b) || 0) - (waitingDays(a) || 0)),
+    due: open.filter(x => x.due && x.due >= t && x.due <= soon).sort(byDue),
+    inWork: open.filter(x => ['plan', 'draft', 'fixes'].includes(x.stage)).sort(byDue),
+    open,
+  };
+}
+
 // ── обучение: курсы и практики ──────────────────────────────────
 export const liveLessons = () => S.lessons.filter(l => !l.archived);
 export const practices = () => liveLessons().filter(l => l.kind === 'practice');
@@ -408,6 +461,17 @@ export function chronicler(date) {
     else if (cyc.phase === 'перед циклом') out.push(`До следующего цикла ${cyc.daysToNext >= 0 ? cyc.daysToNext : 0} дн. Планирую мягче — не удивляйся.`);
     else if (cyc.phase === 'овуляция') out.push('Овуляция — обычно это самые сильные дни. Хороший момент для сложного.');
   }
+
+  const stu = studyNow(7);
+  if (stu.overdue.length) {
+    const first = stu.overdue[0];
+    out.push(`«${first.title}» просрочено на ${-diffDays(first.due, t)} дн. Срок уже прошёл — либо доделать, либо перенести честно.`);
+  } else if (stu.due.length) {
+    const first = stu.due[0];
+    out.push(`До «${first.title}» ${diffDays(first.due, t)} дн., а этап пока ${stageOf(first.stage).short}.`);
+  }
+  const longWait = stu.waiting.find(x => (waitingDays(x) || 0) >= 7);
+  if (longWait) out.push(`«${longWait.title}» у преподавателя ${waitingDays(longWait)} дн. Может, напомнить о себе?`);
 
   const forgotten = practices().filter(l => !l.paused && l.perMonth).map(l => ({ l, ago: lessonAgo(l) }))
     .filter(x => x.ago == null || x.ago >= 14)
