@@ -108,6 +108,12 @@ h1,h2,h3{margin:0; font-weight:400}
 .q-time{font-size:11.5px; color:var(--ink4)}
 .q-edit{font-size:11.5px; color:var(--ink2); flex:none; padding:4px}
 
+/* состав тренировки прямо под её строкой */
+.w-sets{display:flex; flex-wrap:wrap; gap:6px; margin:-2px 0 2px 32px}
+.w-set{font-size:11.5px; color:var(--deep); background:var(--tag-bg); border-radius:99px; padding:4px 10px; line-height:1.2}
+.w-set.add-set{background:transparent; border:1px dashed var(--line); color:var(--ink2)}
+.w-set:hover{background:var(--track)}
+
 /* ── намерения ──────────────────────────────────────────────── */
 .dyn-row{display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--track)}
 .dyn-row:first-of-type{border-top:0}

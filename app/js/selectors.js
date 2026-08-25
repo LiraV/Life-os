@@ -51,18 +51,10 @@ export const goalChildren = id => liveGoals().filter(g => g.parentId === id);
 export const isCounter = g => Number(g?.target) > 0;
 
 /**
- * Счётчик цели. Если цель привязана к упражнению, набранное берётся из
- * тренировок: «подтянуться 1 раз» — это результат, а не число походов в зал.
+ * Счётчик цели: набранное ставит сама пользовательница. Автоматики тут нет —
+ * тренировка лишь подписывается, к какой цели относится.
  */
-export function counterOf(g) {
-  const target = Number(g.target) || 0;
-  if (g.exerciseId) {
-    const ex = exerciseById(g.exerciseId);
-    const rec = ex ? exerciseRecord(ex) : null;
-    return { current: rec ? rec.best : 0, target, unit: g.unit || (ex?.unit || ''), fromExercise: ex || null };
-  }
-  return { current: Number(g.current) || 0, target, unit: g.unit || '', fromExercise: null };
-}
+export const counterOf = g => ({ current: Number(g.current) || 0, target: Number(g.target) || 0, unit: g.unit || '' });
 
 /** Прогресс: «выполнено» перебивает всё, дальше счётчик, этапы, вложенные цели, вручную. */
 export function goalProgress(goal, seen = new Set()) {
@@ -166,10 +158,10 @@ export const habitMonthTotal = (hb, ym) => monthDates(ym).reduce((a, d) => a + h
 export const habitWeekDone = (hb, date) => weekDates(date).filter(d => habitDone(hb, d)).length;
 
 // ── спорт: тренировки и рекорды ─────────────────────────────────
-/** Виды тренировок задаёт сама пользовательница: список живёт в данных. */
-export const kinds = () => S.sport.kinds;
-export const kindById = id => kinds().find(k => k.id === id);
-export const kindName = id => (kindById(id) || {}).name || 'Тренировка';
+/** Шаблоны тренировок: без дат, только название и состав. */
+export const templates = () => S.sport.templates;
+export const templateById = id => templates().find(t => t.id === id);
+export const templateName = id => (templateById(id) || {}).name || '';
 
 export const workoutsOn = date => S.sport.workouts.filter(w => w.date === date);
 export const exerciseById = id => S.sport.exercises.find(e => e.id === id);

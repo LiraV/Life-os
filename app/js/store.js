@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 16;
+const VERSION = 17;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -42,9 +42,9 @@ function blank() {
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
     lessons: [],                                         // полка обучения: курсы и практики
     sport: {                                             // спорт: тренировки и упражнения с рекордами
-      workouts: [],                                      // { id, date, kind, title, lessonId, done, sets: [], note }
+      workouts: [],                                      // { id, date, title, templateId, lessonId, goalId, done, sets: [], note }
       exercises: [],                                     // { id, name, unit, dir: 'up'|'down'|'both' }
-      kinds: [],                                         // свои виды тренировок с готовым набором упражнений
+      templates: [],                                     // шаблоны тренировок: { id, name, sets: [] } — без дат
     },
     study: {                                             // учёба: заведения → предметы → этапы
       places: [],                                        // { id, name, note }
@@ -81,117 +81,6 @@ function migrate(s) {
   // в отмеченные дни как есть — придумывать длительность за пользователя нельзя.
   if (Array.isArray(merged.health.periods)) {
     merged.health.days ||= {};
-  merged.intentions ||= {};
-
-  // v10 → v11: черты стали идентификаторами с эффектами, а не подписями.
-  const OLD_TRAITS = {
-    'Сова': 'owl', 'Жаворонок': 'lark', 'Плавающий ритм': 'floating',
-    'Спринтер': 'sprinter', 'Марафонец': 'marathoner',
-    'Нужна тишина': 'quiet', 'Заряжаюсь от людей': 'social',
-    'Эстет достижений ✦': 'aesthete', 'Эстет достижений': 'aesthete',
-    'Исследовательница': 'explorer', 'Соревновательница': 'racer',
-    'Хранительница смысла': 'keeper',
-  };
-  merged.user.traits = [...new Set((merged.user.traits || [])
-    .map(t => (typeof t === 'string' && OLD_TRAITS[t]) ? OLD_TRAITS[t] : t)
-    .filter(t => typeof t === 'string' && /^[a-z]+$/.test(t)))];
-
-  const sp = merged.sport && typeof merged.sport === 'object' ? merged.sport : {};
-  merged.sport = {
-    workouts: (Array.isArray(sp.workouts) ? sp.workouts : []).map(w => ({ ...w, sets: Array.isArray(w.sets) ? w.sets : [] })),
-    exercises: (Array.isArray(sp.exercises) ? sp.exercises : []).map(e => ({ ...e, dir: ['up', 'down', 'both'].includes(e.dir) ? e.dir : 'up' })),
-    kinds: (Array.isArray(sp.kinds) ? sp.kinds : []).map(k => ({ ...k, sets: Array.isArray(k.sets) ? k.sets : [] })),
-  };
-  // Виды тренировок переехали из кода в данные: теперь их можно менять и добавлять.
-  if (!merged.sport.kinds.length) {
-    merged.sport.kinds = [
-      { id: 'gym', name: 'Зал сама', sets: [] }, { id: 'coach', name: 'Зал с тренером', sets: [] },
-      { id: 'dance', name: 'Танцы', sets: [] }, { id: 'stretch', name: 'Растяжка', sets: [] },
-      { id: 'cardio', name: 'Кардио', sets: [] }, { id: 'other', name: 'Другое', sets: [] },
-    ];
-  }
-  // Первый запуск: заводим упражнения, которые уже считались в таблице.
-  if (!merged.sport.exercises.length && !merged.sport.workouts.length) {
-    merged.sport.exercises = [
-      { id: uid(), name: 'Планка', unit: 'сек', dir: 'up' },
-      { id: uid(), name: 'Турник', unit: 'раз', dir: 'up' },
-      { id: uid(), name: 'Пресс', unit: 'раз', dir: 'up' },
-      // У шпагата меньше — лучше: это расстояние до пола, а не достижение.
-      { id: uid(), name: 'Шпагат', unit: 'см до пола', dir: 'down' },
-    ];
-  }
-
-  const stu = merged.study && typeof merged.study === 'object' ? merged.study : {};
-  merged.study = {
-    places: Array.isArray(stu.places) ? stu.places : [],
-    subjects: Array.isArray(stu.subjects) ? stu.subjects : [],
-    tasks: (Array.isArray(stu.tasks) ? stu.tasks : []).map(t => ({ ...t, stage: t.stage || 'todo' })),
-  };
-
-  // Полка обучения: у курса уроки, у практики журнал занятий по датам.
-  merged.lessons = (Array.isArray(merged.lessons) ? merged.lessons : []).map(l => ({
-    ...l,
-    kind: l.kind === 'course' ? 'course' : 'practice',
-    perMonth: Math.max(0, Number(l.perMonth) || 0),
-    cost: Math.max(0, Number(l.cost) || 0),
-    alsoSport: !!l.alsoSport,
-    paused: !!l.paused,
-    log: l.log && typeof l.log === 'object' ? l.log : {},
-    items: Array.isArray(l.items) ? l.items : [],
-  }));
-
-  const b = merged.budget && typeof merged.budget === 'object' ? merged.budget : {};
-  merged.budget = {
-    cats: {
-      expense: Array.isArray(b.cats?.expense) ? b.cats.expense : [],
-      income: Array.isArray(b.cats?.income) ? b.cats.income : [],
-    },
-    plans: b.plans && typeof b.plans === 'object' ? b.plans : {},
-    ops: Array.isArray(b.ops) ? b.ops : [],
-    vaults: Array.isArray(b.vaults) ? b.vaults : [],
-    rules: Array.isArray(b.rules) ? b.rules : [],
-    start: Number(b.start) || 0,
-  };
-
-  // Первый запуск бюджета: заводим статьи и правила, чтобы не начинать с пустоты.
-  if (!merged.budget.cats.expense.length && !merged.budget.ops.length) {
-    const mk = name => ({ id: uid(), name });
-    merged.budget.cats.expense = ['Здоровье', 'Буся', 'Подписки', 'Обучение', 'Спорт', 'Жильё', 'Еда', 'Транспорт', 'Одежда', 'Другое'].map(mk);
-    merged.budget.cats.income = ['От отца', 'Подработка', 'Фриланс', 'Моё дело', 'Работа', 'Льготы'].map(mk);
-    merged.budget.vaults = ['Накопительный', 'Сейв 1', 'Сейв 2'].map(n => ({ ...mk(n), start: 0 }));
-    merged.budget.rules = [
-      'Никакой Лавки', 'По максимуму общественный транспорт', 'Живу красиво только на выходных',
-      'За неделю планировать, сколько тратить в какой день', 'Каждый день класть себе фиксированную сумму',
-      'Не брать в долг', 'Никакого такси',
-    ];
-    // Прежняя «казна» из сферы «Бюджет» переезжает в копилку, чтобы не потерять сумму.
-    const old = merged.spheres?.money?.vault;
-    if (old && Number(old.saved) > 0) {
-      merged.budget.vaults.unshift({ id: uid(), name: old.title || 'Копилка', start: Number(old.saved) || 0 });
-    }
-  }
-
-  const food = merged.food && typeof merged.food === 'object' ? merged.food : {};
-  merged.food = {
-    targets: { ...base.food.targets, ...(food.targets || {}) },
-    days: food.days && typeof food.days === 'object' ? food.days : {},
-  };
-
-  // v4 → v5: привычка была «отмечено / нет», стала «сколько раз за день»
-  // при дневной норме. Старая отметка равна одному разу при норме один.
-  // v5 → v6: у привычки появился шаг — сколько добавляет один тап.
-  // Для «вода 2000 мл» это 250, для «таблетки 3 раза» — один.
-  merged.habits = (merged.habits || []).map(hb => ({
-    ...hb,
-    target: Number(hb.target) > 0 ? Number(hb.target) : 1,
-    step: Number(hb.step) > 0 ? Number(hb.step) : 1,
-    unit: hb.unit || '',
-    log: Object.fromEntries(
-      Object.entries(hb.log || {})
-        .map(([d, v]) => [d, v === true ? 1 : Math.max(0, Math.round(Number(v) || 0))])
-        .filter(([, v]) => v > 0),
-    ),
-  }));
     const moved = merged.health.periods.filter(d => typeof d === 'string');
     moved.forEach(d => { merged.health.days[d] = true; });
     delete merged.health.periods;
@@ -199,6 +88,7 @@ function migrate(s) {
     if (moved.length) merged.health.startsOnlyNotice = true;
   }
   merged.health.days ||= {};
+
   merged.intentions ||= {};
 
   // v10 → v11: черты стали идентификаторами с эффектами, а не подписями.
@@ -215,19 +105,30 @@ function migrate(s) {
     .filter(t => typeof t === 'string' && /^[a-z]+$/.test(t)))];
 
   const sp = merged.sport && typeof merged.sport === 'object' ? merged.sport : {};
+  // v16 → v17: виды тренировок стали шаблонами без дат, а сами тренировки
+  // живут только на своих днях. Названия и наборы упражнений переносим.
+  const oldKinds = Array.isArray(sp.kinds) ? sp.kinds : [];
+  const templates = Array.isArray(sp.templates) && sp.templates.length
+    ? sp.templates
+    : oldKinds.filter(k => k.sets?.length || !['gym', 'coach', 'dance', 'stretch', 'cardio', 'other'].includes(k.id))
+        .map(k => ({ id: k.id, name: k.name, sets: Array.isArray(k.sets) ? k.sets : [] }));
+  const kindName = id => (oldKinds.find(k => k.id === id) || {}).name || '';
+
   merged.sport = {
-    workouts: (Array.isArray(sp.workouts) ? sp.workouts : []).map(w => ({ ...w, sets: Array.isArray(w.sets) ? w.sets : [] })),
+    workouts: (Array.isArray(sp.workouts) ? sp.workouts : []).map(w => ({
+      ...w,
+      title: (w.title || '').trim() || kindName(w.kind) || 'Тренировка',
+      templateId: w.templateId || (templates.some(t => t.id === w.kind) ? w.kind : ''),
+      sets: Array.isArray(w.sets) ? w.sets : [],
+      kind: undefined,
+    })),
     exercises: (Array.isArray(sp.exercises) ? sp.exercises : []).map(e => ({ ...e, dir: ['up', 'down', 'both'].includes(e.dir) ? e.dir : 'up' })),
-    kinds: (Array.isArray(sp.kinds) ? sp.kinds : []).map(k => ({ ...k, sets: Array.isArray(k.sets) ? k.sets : [] })),
+    templates: templates.map(t => ({ ...t, sets: Array.isArray(t.sets) ? t.sets : [] })),
   };
-  // Виды тренировок переехали из кода в данные: теперь их можно менять и добавлять.
-  if (!merged.sport.kinds.length) {
-    merged.sport.kinds = [
-      { id: 'gym', name: 'Зал сама', sets: [] }, { id: 'coach', name: 'Зал с тренером', sets: [] },
-      { id: 'dance', name: 'Танцы', sets: [] }, { id: 'stretch', name: 'Растяжка', sets: [] },
-      { id: 'cardio', name: 'Кардио', sets: [] }, { id: 'other', name: 'Другое', sets: [] },
-    ];
-  }
+
+  // Автоматическое закрытие целей убрано: цели отмечаются вручную,
+  // связь с тренировкой осталась только подписью.
+  merged.goals = merged.goals.map(g => ({ ...g, exerciseId: undefined }));
   // Первый запуск: заводим упражнения, которые уже считались в таблице.
   if (!merged.sport.exercises.length && !merged.sport.workouts.length) {
     merged.sport.exercises = [

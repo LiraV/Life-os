@@ -216,36 +216,34 @@ const num = n => Number(n).toLocaleString('ru-RU');
 /** Счётчик: «7 из 12 книг» и кнопки прибавления.
  *  Для мелких величин удобны шаги по единице, для крупных — только сумма. */
 function counterRow(g) {
-  const { current, target, unit, fromExercise } = counterOf(g);
-  const small = target <= 200 && !fromExercise;
+  const { current, target, unit } = counterOf(g);
+  const small = target <= 200;
   const reached = current >= target;
   return h`
     <div class="cnt-row">
       <div class="grow ink"><b>${num(current)}</b> из ${num(target)}${unit ? ' ' + unit : ''}${reached ? ' ✦' : ''}</div>
       <div class="row tight" style="flex:none">
-        ${fromExercise ? raw(h`<span class="lab">из тренировок · ${fromExercise.name}</span>`) : ''}
-        ${fromExercise ? '' : small
+        ${small
           ? raw(h`<button class="pill" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус один">−1</button>
                   <button class="pill" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс один">+1</button>`)
           : ''}
-        ${fromExercise ? '' : raw(h`<button class="pill" data-act="cntadd" data-id="${g.id}">${small ? '+ ещё' : '+ добавить'}</button>`)}
+        <button class="pill" data-act="cntadd" data-id="${g.id}">${small ? '+ ещё' : '+ добавить'}</button>
       </div>
     </div>`;
 }
 
 /** Динамичная цель — одна строка: набрано, норма и плюс в один тап. */
 function dynRow(g) {
-  const { current, target, unit, fromExercise } = counterOf(g);
+  const { current, target, unit } = counterOf(g);
   const full = current >= target;
   return h`
     <div class="dyn-row ${full ? 'done' : ''}">
       <div class="grow" data-act="goaledit" data-id="${g.id}" style="cursor:pointer">
         <div class="ink">${g.title}</div>
-        <div class="lab">${current} / ${target}${unit ? ' ' + unit : ''}${full ? ' ✦' : ''}${fromExercise ? ` · из тренировок: ${fromExercise.name}` : ''}</div>
+        <div class="lab">${current} / ${target}${unit ? ' ' + unit : ''}${full ? ' ✦' : ''}</div>
       </div>
-      ${fromExercise ? '' : raw(h`
-        ${current ? raw(h`<button class="hab-plus" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус">−</button>`) : ''}
-        <button class="hab-plus ${full ? 'on' : ''}" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс">+</button>`)}
+      ${current ? raw(h`<button class="hab-plus" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус">−</button>`) : ''}
+      <button class="hab-plus ${full ? 'on' : ''}" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс">+</button>
     </div>`;
 }
 
@@ -446,13 +444,6 @@ function goalSheet(goal, preset) {
       field.date('deadline', 'Срок — если он есть', g.deadline || ''),
       field.number('target', 'Счётчик — сколько всего', g.target ?? '', { min: 0 }),
       field.text('unit', 'В чём считаем', g.unit || '', 'книг, ₽, км — необязательно'),
-      S.sport.exercises.length
-        ? field.select('exerciseId', 'Брать из упражнения', [{ value: '', label: 'считать вручную' },
-            ...S.sport.exercises.map(x => ({ value: x.id, label: `${x.name}, ${x.unit}` }))], g.exerciseId || '')
-        : '',
-      S.sport.exercises.length
-        ? field.note('Если выбрать упражнение, набранное берётся из тренировок само: «подтянуться 1 раз» закроется, когда в тренировке появится результат. Вручную такую цель менять не нужно.')
-        : '',
       field.note('Со счётчиком прогресс считается от набранного. Без него — по этапам, которые добавляются в самой цели.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
@@ -479,7 +470,7 @@ function goalSheet(goal, preset) {
         const next = {
           ...g, title, horizon, period, parentId: v.parentId || '',
           sphere: v.sphere || '', deadline: v.deadline || '',
-          target, unit: (v.unit || '').trim(), exerciseId: v.exerciseId || '',
+          target, unit: (v.unit || '').trim(),
           current: target ? (Number(g.current) || 0) : 0,
         };
         const i = s.goals.findIndex(x => x.id === g.id);

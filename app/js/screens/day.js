@@ -4,11 +4,11 @@ import { S, update, updateQuiet, uid, XP, addXp, SPHERES, addDiary, tickHabit, t
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
-import { workoutSheet, applyDone } from './sport.js';
+import { workoutSheet, workoutSetSheet, applyDone } from './sport.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
-  workoutsOn, kindName, exerciseById,
+  workoutsOn, exerciseById,
 } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -94,24 +94,30 @@ function energyHistory(date) {
 
 const goalTitleOf = id => (liveGoals().find(g => g.id === id) || {}).title || '';
 
-/** Тренировка на дне: план видно заранее, отметка засчитывает её, занятие и цель. */
+/** Тренировка на дне: план видно заранее, отметка засчитывает её, занятие и цель.
+ *  Состав правится тут же — результат пишется в день, когда он был. */
 function workoutRow(w) {
-  const sets = (w.sets || []).map(x => {
-    const ex = exerciseById(x.exerciseId);
-    return ex ? `${ex.name} ${x.reps > 1 ? x.reps + '×' : ''}${x.value}${ex.unit ? ' ' + ex.unit : ''}` : '';
-  }).filter(Boolean);
+  const sets = w.sets || [];
   return h`
     <div class="quest ${w.done ? 'done' : ''}">
       <button class="check ${w.done ? 'on' : ''}" data-act="wdone" data-id="${w.id}" aria-label="Тренировка сделана">✓</button>
       <div class="grow" data-act="wopen" data-id="${w.id}" style="cursor:pointer">
-        <div class="q-title">${w.title || kindName(w.kind)}</div>
+        <div class="q-title">${w.title || 'Тренировка'}</div>
         <div class="q-meta">
-          <span class="tag">${kindName(w.kind)}</span>
+          <span class="tag">тренировка</span>
           ${w.goalId && goalTitleOf(w.goalId) ? raw(h`<span class="tag">→ ${goalTitleOf(w.goalId)}</span>`) : ''}
-          ${sets.length ? raw(h`<span class="q-time">${sets.join(' · ')}</span>`) : raw('<span class="q-time">упражнения не заданы</span>')}
         </div>
       </div>
       <button class="q-edit" data-act="wopen" data-id="${w.id}">настроить ›</button>
+    </div>
+    <div class="w-sets">
+      ${sets.map(x => {
+        const ex = exerciseById(x.exerciseId);
+        return raw(h`<button class="w-set" data-act="wsetedit" data-id="${w.id}" data-s="${x.id}">
+          ${ex ? ex.name : 'упражнение'} · ${x.reps > 1 ? x.reps + ' × ' : ''}${x.value}${ex?.unit ? ' ' + ex.unit : ''}
+        </button>`);
+      })}
+      <button class="w-set add-set" data-act="wsetadd" data-id="${w.id}">+ упражнение</button>
     </div>`;
 }
 
@@ -308,18 +314,20 @@ export const actions = {
 
   wadd: () => workoutSheet(null, curDate()),
   wopen: v => workoutSheet(S.sport.workouts.find(x => x.id === v.id)),
+  wsetadd: v => workoutSetSheet(v.id),
+  wsetedit: v => workoutSetSheet(v.id, v.s),
   wdone: v => {
     let name = '';
     update(s => {
       const w = s.sport.workouts.find(x => x.id === v.id);
       if (!w) return;
       w.done = !w.done;
-      name = w.title || kindName(w.kind);
+      name = w.title || 'Тренировка';
       applyDone(s, w, !w.done);
     });
     const w = S.sport.workouts.find(x => x.id === v.id);
     if (w?.done) toast(`${name} · засчитана`);
-    if (w?.done && w.kind !== 'other') setTimeout(() => reflectionSheet({ title: name, sphere: 'sport' }), 350);
+    if (w?.done && !w.measure) setTimeout(() => reflectionSheet({ title: name, sphere: 'sport' }), 350);
   },
 
   /** Плюс добавляет шаг, галочка на закрытой норме обнуляет день. */
