@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 17;
+const VERSION = 18;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -43,6 +43,7 @@ function blank() {
     lessons: [],                                         // полка обучения: курсы и практики
     sport: {                                             // спорт: тренировки и упражнения с рекордами
       workouts: [],                                      // { id, date, title, templateId, lessonId, goalId, done, sets: [], note }
+                                                         // подход: { id, exerciseId, value, reps, done }
       exercises: [],                                     // { id, name, unit, dir: 'up'|'down'|'both' }
       templates: [],                                     // шаблоны тренировок: { id, name, sets: [] } — без дат
     },
@@ -119,7 +120,7 @@ function migrate(s) {
       ...w,
       title: (w.title || '').trim() || kindName(w.kind) || 'Тренировка',
       templateId: w.templateId || (templates.some(t => t.id === w.kind) ? w.kind : ''),
-      sets: Array.isArray(w.sets) ? w.sets : [],
+      sets: (Array.isArray(w.sets) ? w.sets : []).map(x => ({ ...x, done: typeof x.done === 'boolean' ? x.done : !!w.done })),
       kind: undefined,
     })),
     exercises: (Array.isArray(sp.exercises) ? sp.exercises : []).map(e => ({ ...e, dir: ['up', 'down', 'both'].includes(e.dir) ? e.dir : 'up' })),

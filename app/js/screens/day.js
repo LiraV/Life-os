@@ -94,31 +94,42 @@ function energyHistory(date) {
 
 const goalTitleOf = id => (liveGoals().find(g => g.id === id) || {}).title || '';
 
-/** Тренировка на дне: план видно заранее, отметка засчитывает её, занятие и цель.
- *  Состав правится тут же — результат пишется в день, когда он был. */
+/** Тренировка на дне: свёрнута до строки, по тапу — состав с отметками.
+ *  Отметка подхода и есть результат: неотмеченное в рекорды не идёт. */
 function workoutRow(w) {
   const sets = w.sets || [];
+  const open = S.ui.openWorkout === w.id;
+  const done = sets.filter(x => x.done).length;
   return h`
     <div class="quest ${w.done ? 'done' : ''}">
       <button class="check ${w.done ? 'on' : ''}" data-act="wdone" data-id="${w.id}" aria-label="Тренировка сделана">✓</button>
-      <div class="grow" data-act="wopen" data-id="${w.id}" style="cursor:pointer">
+      <div class="grow" data-act="wtoggle" data-id="${w.id}" style="cursor:pointer">
         <div class="q-title">${w.title || 'Тренировка'}</div>
         <div class="q-meta">
           <span class="tag">тренировка</span>
           ${w.goalId && goalTitleOf(w.goalId) ? raw(h`<span class="tag">→ ${goalTitleOf(w.goalId)}</span>`) : ''}
+          <span class="q-time">${sets.length
+            ? `${sets.length} упр.${done ? ` · сделано ${done}` : ''}`
+            : 'упражнения не заданы'} ${open ? '▴' : '▾'}</span>
         </div>
       </div>
       <button class="q-edit" data-act="wopen" data-id="${w.id}">настроить ›</button>
     </div>
-    <div class="w-sets">
-      ${sets.map(x => {
-        const ex = exerciseById(x.exerciseId);
-        return raw(h`<button class="w-set" data-act="wsetedit" data-id="${w.id}" data-s="${x.id}">
-          ${ex ? ex.name : 'упражнение'} · ${x.reps > 1 ? x.reps + ' × ' : ''}${x.value}${ex?.unit ? ' ' + ex.unit : ''}
-        </button>`);
-      })}
-      <button class="w-set add-set" data-act="wsetadd" data-id="${w.id}">+ упражнение</button>
-    </div>`;
+    ${open ? raw(h`
+      <div class="w-sets">
+        ${sets.map(x => {
+          const ex = exerciseById(x.exerciseId);
+          return raw(h`<div class="w-set-row ${x.done ? 'done' : ''}">
+            <button class="check sm ${x.done ? 'on' : ''}" data-act="wsetdone" data-id="${w.id}" data-s="${x.id}"
+              aria-label="Упражнение сделано">✓</button>
+            <button class="grow w-set-name" data-act="wsetedit" data-id="${w.id}" data-s="${x.id}">
+              <span class="ellip">${ex ? ex.name : 'упражнение'}</span>
+              <span class="lab">${x.reps > 1 ? x.reps + ' × ' : ''}${x.value}${ex?.unit ? ' ' + ex.unit : ''} ›</span>
+            </button>
+          </div>`);
+        })}
+        <button class="add" data-act="wsetadd" data-id="${w.id}">+ Упражнение</button>
+      </div>`) : ''}`;
 }
 
 /** Ритм дня прямо на главном: норма, счёт и плюс в один тап. */
@@ -314,8 +325,17 @@ export const actions = {
 
   wadd: () => workoutSheet(null, curDate()),
   wopen: v => workoutSheet(S.sport.workouts.find(x => x.id === v.id)),
+  // Состав видно только у раскрытой тренировки: строка дня остаётся строкой.
+  wtoggle: v => update(s => { s.ui.openWorkout = s.ui.openWorkout === v.id ? '' : v.id; }),
   wsetadd: v => workoutSetSheet(v.id),
   wsetedit: v => workoutSetSheet(v.id, v.s),
+  wsetdone: v => update(s => {
+    const w = s.sport.workouts.find(x => x.id === v.id);
+    const set = w && (w.sets || []).find(x => x.id === v.s);
+    if (!set) return;
+    set.done = !set.done;
+    touchTracker(s);
+  }),
   wdone: v => {
     let name = '';
     update(s => {

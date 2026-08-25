@@ -169,8 +169,10 @@ export const exerciseById = id => S.sport.exercises.find(e => e.id === id);
 /** Все результаты упражнения по датам — из подходов выполненных тренировок. */
 export function exerciseHistory(id) {
   const out = [];
+  // Результат — то, что отмечено сделанным: и тренировка целиком, и сам подход.
+  // Запланированное, но не отмеченное, рекордом не считается.
   S.sport.workouts.filter(w => w.done).forEach(w => {
-    (w.sets || []).filter(x => x.exerciseId === id && x.value != null && x.value !== '').forEach(x => {
+    (w.sets || []).filter(x => x.done && x.exerciseId === id && x.value != null && x.value !== '').forEach(x => {
       out.push({ date: w.date, value: Number(x.value), reps: Number(x.reps) || 1 });
     });
   });

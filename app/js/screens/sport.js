@@ -142,7 +142,7 @@ export function workoutSheet(workout, date) {
         // Шаблон подставляет состав один раз, при создании.
         if (!prev && !next.sets.length && v.templateId) {
           const t = s.sport.templates.find(x => x.id === v.templateId);
-          next.sets = (t?.sets || []).map(x => ({ ...x, id: uid() }));
+          next.sets = (t?.sets || []).map(x => ({ ...x, id: uid(), done: false }));
         }
         const i = s.sport.workouts.findIndex(x => x.id === w.id);
         if (i >= 0) s.sport.workouts[i] = next; else s.sport.workouts.push(next);
@@ -164,6 +164,11 @@ const counterLabel = g => `${Number(g.current) || 0}/${Number(g.target) || 0}${g
 /** Выполненная тренировка засчитывает занятие и опыт. Цель — только подпись. */
 export function applyDone(s, w, undo = false) {
   addXp(undo ? -XP.quest : XP.quest);
+  // Отметка всей тренировки закрывает и её состав — но только если ничего
+  // не размечено вручную: разметку по упражнениям затирать нельзя.
+  const sets = w.sets || [];
+  if (undo) sets.forEach(x => { x.done = false; });
+  else if (!sets.some(x => x.done)) sets.forEach(x => { x.done = true; });
   if (w.lessonId) {
     const l = s.lessons.find(x => x.id === w.lessonId);
     if (l) { if (undo) delete l.log[w.date]; else l.log[w.date] = 1; }
@@ -202,7 +207,8 @@ export function workoutSetSheet(workoutId, setId) {
         x.sets ||= [];
         const at = cur ? x.sets.findIndex(y => y.id === setId) : -1;
         if (at >= 0) x.sets[at] = { ...x.sets[at], ...set };
-        else x.sets.push({ id: uid(), ...set });
+        // Упражнение, дописанное в уже отмеченную тренировку, — это тоже сделанное.
+        else x.sets.push({ id: uid(), ...set, done: !!x.done });
         touchTracker(s);
       });
       close();
@@ -366,7 +372,7 @@ export const actions = {
             w = { id: uid(), date, title: 'Замер', measure: true, templateId: '', lessonId: '', goalId: '', done: true, sets: [], note: '' };
             s.sport.workouts.push(w);
           }
-          w.sets.push({ id: uid(), exerciseId: ex.id, value, reps: Math.max(1, Number(val.reps) || 1) });
+          w.sets.push({ id: uid(), exerciseId: ex.id, value, reps: Math.max(1, Number(val.reps) || 1), done: true });
           touchTracker(s);
         });
         close();

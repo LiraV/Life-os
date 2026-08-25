@@ -108,11 +108,16 @@ h1,h2,h3{margin:0; font-weight:400}
 .q-time{font-size:11.5px; color:var(--ink4)}
 .q-edit{font-size:11.5px; color:var(--ink2); flex:none; padding:4px}
 
-/* состав тренировки прямо под её строкой */
-.w-sets{display:flex; flex-wrap:wrap; gap:6px; margin:-2px 0 2px 32px}
-.w-set{font-size:11.5px; color:var(--deep); background:var(--tag-bg); border-radius:99px; padding:4px 10px; line-height:1.2}
-.w-set.add-set{background:transparent; border:1px dashed var(--line); color:var(--ink2)}
-.w-set:hover{background:var(--track)}
+/* состав раскрытой тренировки — под её строкой */
+.w-sets{display:flex; flex-direction:column; gap:4px; margin:-2px 0 2px 32px}
+.w-set-row{display:flex; align-items:center; gap:9px}
+.w-set-row.done .w-set-name .ellip{text-decoration:line-through; color:var(--ink4)}
+.w-set-name{display:flex; align-items:center; justify-content:space-between; gap:8px; flex:1;
+            font-size:12.5px; color:var(--ink); text-align:left; padding:5px 9px;
+            background:var(--card); border-radius:10px; min-width:0}
+.w-set-name:hover{background:var(--track)}
+.check.sm{width:19px; height:19px; border-radius:7px; margin-top:0; font-size:11px}
+.w-sets .add{padding:7px; font-size:12px}
 .tpl-set{width:100%; text-align:left; padding:3px 0; border-radius:8px}
 .tpl-set:hover{background:var(--track)}
 
