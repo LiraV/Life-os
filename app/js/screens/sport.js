@@ -42,11 +42,10 @@ function tplView() {
           <div class="list">
             ${t.sets.map(x => {
               const ex = exerciseById(x.exerciseId);
-              return raw(h`<div class="row between">
+              return raw(h`<button class="row between tpl-set" data-act="tplsetedit" data-id="${t.id}" data-s="${x.id}">
                 <span class="lab grow ellip">${ex ? ex.name : 'упражнение'}</span>
-                <span class="lab">${x.reps > 1 ? `${x.reps} × ` : ''}${x.value || '—'}${ex?.unit ? ' ' + ex.unit : ''}
-                  <button class="q-edit" data-act="tplsetdel" data-id="${t.id}" data-s="${x.id}">×</button></span>
-              </div>`);
+                <span class="lab">${x.reps > 1 ? `${x.reps} × ` : ''}${x.value || '—'}${ex?.unit ? ' ' + ex.unit : ''} ›</span>
+              </button>`);
             })}
           </div>`) : raw('<div class="lab">упражнений пока нет</div>')}
         <button class="add" data-act="tplsetadd" data-id="${t.id}">+ Упражнение</button>
@@ -188,13 +187,14 @@ export function workoutSetSheet(workoutId, setId) {
     sub: w.title || 'Тренировка',
     body: [
       field.select('exerciseId', 'Что', list.map(e => ({ value: e.id, label: `${e.name}, ${e.unit}` })), cur?.exerciseId || list[0].id),
-      field.number('value', 'Результат', cur ? cur.value : '', { min: 0 }),
-      field.number('reps', 'Сколько подходов', cur ? cur.reps : 1, { min: 1 }),
+      field.number('reps', 'Подходов', cur ? cur.reps : 1, { min: 1 }),
+      field.number('value', 'Повторов в подходе', cur ? cur.value : '', { min: 0 }),
+      field.note('Считаем в единице упражнения: у турника это повторы, у планки — секунды, у шпагата — сантиметры. В рекорд идёт один подход, а не сумма.'),
     ].join(''),
     primary: cur ? 'Сохранить' : 'Добавить',
     onSave: (v, close) => {
       const value = Number(v.value);
-      if (!Number.isFinite(value) || v.value === '') return toast('Введи результат');
+      if (!Number.isFinite(value) || v.value === '') return toast('Введи, сколько повторов');
       const set = { exerciseId: v.exerciseId, value, reps: Math.max(1, Number(v.reps) || 1) };
       update(s => {
         const x = s.sport.workouts.find(y => y.id === workoutId);
@@ -213,6 +213,51 @@ export function workoutSetSheet(workoutId, setId) {
         const x = s.sport.workouts.find(y => y.id === workoutId);
         if (x) x.sets = (x.sets || []).filter(y => y.id !== setId);
         touchTracker(s);
+      });
+      close();
+    } : undefined,
+  });
+}
+
+/** Набор шаблона правится так же, как состав тренировки: подходы и повторы. */
+function tplSetSheet(tplId, setId) {
+  const t = templateById(tplId);
+  if (!t) return;
+  const list = S.sport.exercises;
+  if (!list.length) return toast('Сначала заведи упражнение');
+  const cur = setId ? (t.sets || []).find(x => x.id === setId) : null;
+
+  openSheet({
+    title: cur ? 'Упражнение в наборе' : 'Упражнение в набор',
+    sub: t.name,
+    body: [
+      field.select('exerciseId', 'Что', list.map(e => ({ value: e.id, label: `${e.name}, ${e.unit}` })), cur?.exerciseId || list[0].id),
+      field.number('reps', 'Подходов', cur ? cur.reps : 1, { min: 1 }),
+      field.number('value', 'Повторов в подходе — ориентир', cur ? cur.value : '', { min: 0 }),
+      field.note('Это заготовка: в тренировке на дне числа правятся под то, как получилось на самом деле.'),
+    ].join(''),
+    primary: cur ? 'Сохранить' : 'Добавить',
+    onSave: (val, close) => {
+      const set = {
+        exerciseId: val.exerciseId,
+        value: val.value === '' ? '' : Number(val.value),
+        reps: Math.max(1, Number(val.reps) || 1),
+      };
+      update(s => {
+        const k = s.sport.templates.find(x => x.id === tplId);
+        if (!k) return;
+        k.sets ||= [];
+        const at = cur ? k.sets.findIndex(y => y.id === setId) : -1;
+        if (at >= 0) k.sets[at] = { ...k.sets[at], ...set };
+        else k.sets.push({ id: uid(), ...set });
+      });
+      close();
+    },
+    danger: cur ? 'Убрать из набора' : '',
+    onDanger: cur ? (_v, close) => {
+      update(s => {
+        const k = s.sport.templates.find(x => x.id === tplId);
+        if (k) k.sets = (k.sets || []).filter(y => y.id !== setId);
       });
       close();
     } : undefined,
@@ -290,34 +335,8 @@ export const actions = {
 
   tpladd: () => tplSheet(null),
   tpledit: v => tplSheet(templateById(v.id)),
-  tplsetadd: v => {
-    const list = S.sport.exercises;
-    if (!list.length) return toast('Сначала заведи упражнение');
-    openSheet({
-      title: 'Упражнение в набор',
-      sub: templateName(v.id),
-      body: [
-        field.select('exerciseId', 'Что', list.map(e => ({ value: e.id, label: `${e.name}, ${e.unit}` })), list[0].id),
-        field.number('value', 'Ориентир — необязательно', '', { min: 0 }),
-        field.number('reps', 'Подходов', 1, { min: 1 }),
-      ].join(''),
-      primary: 'Добавить',
-      onSave: (val, close) => {
-        update(s => {
-          const k = s.sport.templates.find(x => x.id === v.id);
-          if (k) (k.sets ||= []).push({
-            id: uid(), exerciseId: val.exerciseId,
-            value: val.value === '' ? '' : Number(val.value), reps: Math.max(1, Number(val.reps) || 1),
-          });
-        });
-        close();
-      },
-    });
-  },
-  tplsetdel: v => update(s => {
-    const k = s.sport.templates.find(x => x.id === v.id);
-    if (k) k.sets = (k.sets || []).filter(x => x.id !== v.s);
-  }),
+  tplsetadd: v => tplSetSheet(v.id),
+  tplsetedit: v => tplSetSheet(v.id, v.s),
 
   exadd: () => exSheet(null),
   exedit: v => exSheet(exerciseById(v.id)),
