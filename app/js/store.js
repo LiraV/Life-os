@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 14;
+const VERSION = 15;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -43,7 +43,8 @@ function blank() {
     lessons: [],                                         // полка обучения: курсы и практики
     sport: {                                             // спорт: тренировки и упражнения с рекордами
       workouts: [],                                      // { id, date, kind, title, lessonId, done, sets: [], note }
-      exercises: [],                                     // { id, name, unit, dir: 'up'|'down', target }
+      exercises: [],                                     // { id, name, unit, dir: 'up'|'down'|'both' }
+      kinds: [],                                         // свои виды тренировок с готовым набором упражнений
     },
     study: {                                             // учёба: заведения → предметы → этапы
       places: [],                                        // { id, name, note }
@@ -98,8 +99,17 @@ function migrate(s) {
   const sp = merged.sport && typeof merged.sport === 'object' ? merged.sport : {};
   merged.sport = {
     workouts: (Array.isArray(sp.workouts) ? sp.workouts : []).map(w => ({ ...w, sets: Array.isArray(w.sets) ? w.sets : [] })),
-    exercises: Array.isArray(sp.exercises) ? sp.exercises : [],
+    exercises: (Array.isArray(sp.exercises) ? sp.exercises : []).map(e => ({ ...e, dir: ['up', 'down', 'both'].includes(e.dir) ? e.dir : 'up' })),
+    kinds: (Array.isArray(sp.kinds) ? sp.kinds : []).map(k => ({ ...k, sets: Array.isArray(k.sets) ? k.sets : [] })),
   };
+  // Виды тренировок переехали из кода в данные: теперь их можно менять и добавлять.
+  if (!merged.sport.kinds.length) {
+    merged.sport.kinds = [
+      { id: 'gym', name: 'Зал сама', sets: [] }, { id: 'coach', name: 'Зал с тренером', sets: [] },
+      { id: 'dance', name: 'Танцы', sets: [] }, { id: 'stretch', name: 'Растяжка', sets: [] },
+      { id: 'cardio', name: 'Кардио', sets: [] }, { id: 'other', name: 'Другое', sets: [] },
+    ];
+  }
   // Первый запуск: заводим упражнения, которые уже считались в таблице.
   if (!merged.sport.exercises.length && !merged.sport.workouts.length) {
     merged.sport.exercises = [
@@ -207,8 +217,17 @@ function migrate(s) {
   const sp = merged.sport && typeof merged.sport === 'object' ? merged.sport : {};
   merged.sport = {
     workouts: (Array.isArray(sp.workouts) ? sp.workouts : []).map(w => ({ ...w, sets: Array.isArray(w.sets) ? w.sets : [] })),
-    exercises: Array.isArray(sp.exercises) ? sp.exercises : [],
+    exercises: (Array.isArray(sp.exercises) ? sp.exercises : []).map(e => ({ ...e, dir: ['up', 'down', 'both'].includes(e.dir) ? e.dir : 'up' })),
+    kinds: (Array.isArray(sp.kinds) ? sp.kinds : []).map(k => ({ ...k, sets: Array.isArray(k.sets) ? k.sets : [] })),
   };
+  // Виды тренировок переехали из кода в данные: теперь их можно менять и добавлять.
+  if (!merged.sport.kinds.length) {
+    merged.sport.kinds = [
+      { id: 'gym', name: 'Зал сама', sets: [] }, { id: 'coach', name: 'Зал с тренером', sets: [] },
+      { id: 'dance', name: 'Танцы', sets: [] }, { id: 'stretch', name: 'Растяжка', sets: [] },
+      { id: 'cardio', name: 'Кардио', sets: [] }, { id: 'other', name: 'Другое', sets: [] },
+    ];
+  }
   // Первый запуск: заводим упражнения, которые уже считались в таблице.
   if (!merged.sport.exercises.length && !merged.sport.workouts.length) {
     merged.sport.exercises = [

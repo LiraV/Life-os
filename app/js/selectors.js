@@ -153,12 +153,10 @@ export const habitMonthTotal = (hb, ym) => monthDates(ym).reduce((a, d) => a + h
 export const habitWeekDone = (hb, date) => weekDates(date).filter(d => habitDone(hb, d)).length;
 
 // ── спорт: тренировки и рекорды ─────────────────────────────────
-export const KINDS = [
-  { id: 'gym', name: 'Зал сама' }, { id: 'coach', name: 'Зал с тренером' },
-  { id: 'dance', name: 'Танцы' }, { id: 'stretch', name: 'Растяжка' },
-  { id: 'cardio', name: 'Кардио' }, { id: 'other', name: 'Другое' },
-];
-export const kindName = id => (KINDS.find(k => k.id === id) || KINDS[5]).name;
+/** Виды тренировок задаёт сама пользовательница: список живёт в данных. */
+export const kinds = () => S.sport.kinds;
+export const kindById = id => kinds().find(k => k.id === id);
+export const kindName = id => (kindById(id) || {}).name || 'Тренировка';
 
 export const workoutsOn = date => S.sport.workouts.filter(w => w.date === date);
 export const exerciseById = id => S.sport.exercises.find(e => e.id === id);
@@ -174,19 +172,28 @@ export function exerciseHistory(id) {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** Рекорд и сдвиг за месяц. Направление важно: у шпагата меньше — лучше. */
+/** Что считать лучшим: вниз — меньше, вверх и «оба» — больше. */
+export const betterOf = ex => (a, b) => (ex.dir === 'down' ? a < b : a > b);
+
+/**
+ * Рекорд, оба края и сдвиг за месяц. Крайние значения показываем всегда:
+ * иногда важен максимум, иногда минимум, и заранее это не угадать.
+ */
 export function exerciseRecord(ex) {
   const hist = exerciseHistory(ex.id);
   if (!hist.length) return null;
-  const better = (a, b) => (ex.dir === 'down' ? a < b : a > b);
+  const better = betterOf(ex);
   const best = hist.reduce((acc, x) => (better(x.value, acc.value) ? x : acc), hist[0]);
+  const vals = hist.map(x => x.value);
+  const max = Math.max(...vals);
+  const min = Math.min(...vals);
   const last = hist[hist.length - 1];
   const monthAgo = addDays(todayISO(), -30);
   const older = hist.filter(x => x.date < monthAgo);
   const was = older.length ? older[older.length - 1].value : null;
   return {
     best: best.value, bestDate: best.date, last: last.value, lastDate: last.date,
-    was, gain: was == null ? null : Number((last.value - was).toFixed(1)),
+    max, min, was, gain: was == null ? null : Number((last.value - was).toFixed(1)),
     improved: was == null ? null : better(last.value, was),
     count: hist.length,
   };

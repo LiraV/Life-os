@@ -8,11 +8,11 @@ import { S, update, uid, XP, addXp, addDiary, touchTracker } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import {
-  KINDS, kindName, workoutsOn, exerciseById, exerciseHistory, exerciseRecord,
+  kinds, kindById, kindName, workoutsOn, exerciseById, exerciseHistory, exerciseRecord,
   liveLessons,
 } from '../selectors.js';
 
-const TABS = [['plan', 'Тренировки'], ['ex', 'Упражнения']];
+const TABS = [['plan', 'Тренировки'], ['ex', 'Упражнения'], ['kinds', 'Виды']];
 const tab = () => S.ui.sportTab || 'plan';
 
 export function render() {
@@ -23,7 +23,7 @@ export function render() {
     </div>
     <div class="title">Спорт</div>
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
-    ${raw(tab() === 'plan' ? planView() : exView())}
+    ${raw({ plan: planView, ex: exView, kinds: kindsView }[tab()]())}
     <div style="height:4px"></div>`;
 }
 
@@ -89,17 +89,17 @@ function exView() {
           <div class="row between">
             <div class="grow" data-act="exopen" data-id="${ex.id}" style="cursor:pointer">
               <div class="ink"><b>${ex.name}</b></div>
-              <div class="lab">${ex.unit}${ex.dir === 'down' ? ' · меньше лучше' : ''}</div>
+              <div class="lab">${ex.unit} · ${{ up: 'больше лучше', down: 'меньше лучше', both: 'важны оба края' }[ex.dir]}</div>
             </div>
             <button class="q-edit" data-act="exedit" data-id="${ex.id}">изменить ›</button>
           </div>
           ${r ? raw(h`
             <div class="row between">
               <span class="ink"><b>${r.last}</b><span class="lab"> ${ex.unit} · ${dayShort(r.lastDate)}</span></span>
-              <span class="lab">рекорд ${r.best} ✦</span>
+              <span class="lab">${ex.dir === 'both' ? '' : 'рекорд '}${r.best} ✦</span>
             </div>
-            ${r.was != null ? raw(h`<div class="lab">${r.improved ? 'лучше' : 'слабее'}, чем месяц назад: было ${r.was}</div>`)
-              : raw(h`<div class="lab">записей: ${r.count}</div>`)}`)
+            <div class="lab">максимум ${r.max} · минимум ${r.min} · записей ${r.count}</div>
+            ${r.was != null ? raw(h`<div class="lab">${r.improved ? 'лучше' : 'слабее'}, чем месяц назад: было ${r.was}</div>`) : ''}`)
           : raw('<div class="lab">результатов пока нет</div>')}
           <button class="add" data-act="exlog" data-id="${ex.id}">+ Результат</button>
           ${S.ui.openEx === ex.id ? raw(historyBlock(ex)) : ''}
@@ -122,17 +122,44 @@ function historyBlock(ex) {
     </div>`;
 }
 
+// ── свои виды тренировок ────────────────────────────────────────
+function kindsView() {
+  return h`
+    ${kinds().map(k => raw(h`
+      <div class="card">
+        <div class="row between">
+          <div class="ink grow"><b>${k.name}</b></div>
+          <button class="q-edit" data-act="kindedit" data-id="${k.id}">изменить ›</button>
+        </div>
+        ${k.sets?.length ? raw(h`
+          <div class="list">
+            ${k.sets.map(x => {
+              const ex = exerciseById(x.exerciseId);
+              return raw(h`<div class="row between">
+                <span class="lab grow ellip">${ex ? ex.name : 'упражнение'}</span>
+                <span class="lab">${x.reps > 1 ? `${x.reps} × ` : ''}${x.value || '—'}${ex?.unit ? ' ' + ex.unit : ''}
+                  <button class="q-edit" data-act="kindsetdel" data-id="${k.id}" data-s="${x.id}">×</button></span>
+              </div>`);
+            })}
+          </div>`) : raw('<div class="lab">без готового набора</div>')}
+        <button class="add" data-act="kindsetadd" data-id="${k.id}">+ Упражнение в набор</button>
+      </div>`))}
+    <button class="add" data-act="kindadd">+ Свой вид тренировки</button>
+    <div class="card mute"><div class="lab">Свой вид — это и название, и готовый набор упражнений: «Зал А · ноги»
+      подставится сам, когда выберешь его в новой тренировке.</div></div>`;
+}
+
 // ── шторки ──────────────────────────────────────────────────────
 export function workoutSheet(workout, date) {
   const isNew = !workout;
-  const w = workout || { id: uid(), date: date || todayISO(), kind: 'gym', title: '', lessonId: '', done: false, sets: [], note: '' };
+  const w = workout || { id: uid(), date: date || todayISO(), kind: kinds()[0]?.id || 'gym', title: '', lessonId: '', done: false, sets: [], note: '' };
   const lessons = liveLessons().filter(l => l.kind === 'practice');
 
   openSheet({
     title: isNew ? 'Тренировка' : (w.title || kindName(w.kind)),
     sub: isNew ? 'по умолчанию — план на день; можно отметить сразу как сделанную' : dayShort(w.date),
     body: [
-      field.opts('kind', 'Что за тренировка', KINDS.map(k => ({ value: k.id, label: k.name })), w.kind),
+      field.select('kind', 'Что за тренировка', kinds().map(k => ({ value: k.id, label: k.name })), w.kind),
       field.text('title', 'Название — необязательно', w.title, 'например, «Зал А · ноги»'),
       field.date('date', 'Когда', w.date),
       lessons.length
@@ -150,6 +177,11 @@ export function workoutSheet(workout, date) {
           ...w, kind: v.kind || w.kind, title: (v.title || '').trim(),
           date: v.date || w.date, lessonId: v.lessonId || '', note: (v.note || '').trim(), done: !!v.done,
         };
+        // У своего вида есть готовый набор упражнений — подставляем при создании.
+        if (!prev && !next.sets.length) {
+          const k = s.sport.kinds.find(x => x.id === next.kind);
+          next.sets = (k?.sets || []).map(x => ({ ...x, id: uid() }));
+        }
         const i = s.sport.workouts.findIndex(x => x.id === w.id);
         if (i >= 0) s.sport.workouts[i] = next; else s.sport.workouts.push(next);
         if (next.done && !prev?.done) applyDone(s, next);
@@ -202,6 +234,37 @@ function setSheet(workoutId, exId) {
   });
 }
 
+function kindSheet(kind) {
+  const isNew = !kind;
+  const k = kind || { id: uid(), name: '', sets: [] };
+  openSheet({
+    title: isNew ? 'Свой вид тренировки' : k.name,
+    sub: 'например, «Зал А · ноги» или «Пилатес»',
+    body: [
+      field.text('name', 'Название', k.name, 'как называешь про себя'),
+      isNew ? field.note('Набор упражнений добавишь на карточке — он будет подставляться в новые тренировки.') : '',
+    ].join(''),
+    primary: isNew ? 'Добавить' : 'Сохранить',
+    onSave: (v, close) => {
+      const name = (v.name || '').trim();
+      if (!name) return toast('Нужно название');
+      update(s => {
+        const i = s.sport.kinds.findIndex(x => x.id === k.id);
+        if (i >= 0) s.sport.kinds[i].name = name; else s.sport.kinds.push({ ...k, name });
+      });
+      close();
+    },
+    danger: isNew ? null : 'Удалить вид',
+    onDanger: (_v, close) => {
+      const used = S.sport.workouts.some(w => w.kind === k.id);
+      if (used) { close(); return toast('Этот вид уже стоит у тренировок — сначала смени его там'); }
+      update(s => { s.sport.kinds = s.sport.kinds.filter(x => x.id !== k.id); });
+      close();
+      toast('Убрала');
+    },
+  });
+}
+
 function exSheet(ex) {
   const isNew = !ex;
   const e = ex || { id: uid(), name: '', unit: 'раз', dir: 'up' };
@@ -210,15 +273,19 @@ function exSheet(ex) {
     body: [
       field.text('name', 'Название', e.name, 'например, «Планка»'),
       field.text('unit', 'В чём меряем', e.unit, 'сек, раз, кг, см'),
-      field.opts('dir', 'Что считается ростом', [{ value: 'up', label: 'Больше лучше' }, { value: 'down', label: 'Меньше лучше' }], e.dir),
-      field.note('«Меньше лучше» — для расстояния до пола в шпагате и подобного: иначе прогресс считался бы наоборот.'),
+      field.opts('dir', 'Что считается ростом', [
+        { value: 'up', label: 'Больше лучше' },
+        { value: 'down', label: 'Меньше лучше' },
+        { value: 'both', label: 'Важны оба' },
+      ], e.dir),
+      field.note('«Меньше лучше» — для расстояния до пола в шпагате: иначе прогресс считался бы наоборот. «Важны оба» — когда интересны и максимум, и минимум; максимум и минимум показываются в любом случае, направление решает лишь, что считать рекордом.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
       update(s => {
-        const next = { ...e, name, unit: (v.unit || 'раз').trim(), dir: v.dir === 'down' ? 'down' : 'up' };
+        const next = { ...e, name, unit: (v.unit || 'раз').trim(), dir: ['up', 'down', 'both'].includes(v.dir) ? v.dir : 'up' };
         const i = s.sport.exercises.findIndex(x => x.id === e.id);
         if (i >= 0) s.sport.exercises[i] = next; else s.sport.exercises.push(next);
       });
@@ -252,6 +319,37 @@ export const actions = {
     });
     if (name) toast(`${name} · засчитана`);
   },
+
+  kindadd: () => kindSheet(null),
+  kindedit: v => kindSheet(kindById(v.id)),
+  kindsetadd: v => {
+    const list = S.sport.exercises;
+    if (!list.length) return toast('Сначала заведи упражнение');
+    openSheet({
+      title: 'Упражнение в набор',
+      sub: kindName(v.id),
+      body: [
+        field.select('exerciseId', 'Что', list.map(e => ({ value: e.id, label: `${e.name}, ${e.unit}` })), list[0].id),
+        field.number('value', 'Ориентир — необязательно', '', { min: 0 }),
+        field.number('reps', 'Подходов', 1, { min: 1 }),
+      ].join(''),
+      primary: 'Добавить',
+      onSave: (val, close) => {
+        update(s => {
+          const k = s.sport.kinds.find(x => x.id === v.id);
+          if (k) (k.sets ||= []).push({
+            id: uid(), exerciseId: val.exerciseId,
+            value: val.value === '' ? '' : Number(val.value), reps: Math.max(1, Number(val.reps) || 1),
+          });
+        });
+        close();
+      },
+    });
+  },
+  kindsetdel: v => update(s => {
+    const k = s.sport.kinds.find(x => x.id === v.id);
+    if (k) k.sets = (k.sets || []).filter(x => x.id !== v.s);
+  }),
 
   exadd: () => exSheet(null),
   exedit: v => exSheet(exerciseById(v.id)),
