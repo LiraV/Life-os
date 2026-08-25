@@ -47,7 +47,7 @@ h1,h2,h3{margin:0; font-weight:400}
 .statusbar{display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--ink4); flex:none; min-height:16px}
 .statusbar b{font-weight:500; color:var(--deep)}
 
-.scr{flex:1; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:11px; padding:2px 2px 8px;
+.scr{flex:1; overflow-y:auto; overflow-x:hidden; overflow-x:clip; display:flex; flex-direction:column; gap:11px; padding:2px 2px 8px;
      scrollbar-width:none; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y}
 .scr::-webkit-scrollbar{display:none}
 
@@ -284,22 +284,29 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 /* ── шторки, тосты ──────────────────────────────────────────── */
 .overlay{position:absolute; inset:0; background:rgba(90,45,42,.35); z-index:8; display:flex; flex-direction:column;
          justify-content:flex-end; padding:12px}
+/* Прокрутка только вниз: с overflow-y:auto браузер сам включает и боковую,
+   и шторку получается таскать вбок. */
 .sheet{background:var(--card); border-radius:26px; padding:14px 16px calc(14px + env(safe-area-inset-bottom));
-       display:flex; flex-direction:column; gap:10px; max-height:88%; overflow-y:auto; box-shadow:0 -10px 40px rgba(90,45,42,.3);
-       animation:sin .22s ease-out}
+       display:flex; flex-direction:column; gap:10px; max-height:88%; min-width:0;
+       overflow-y:auto; overflow-x:hidden; overflow-x:clip; overscroll-behavior:contain; touch-action:pan-y;
+       box-shadow:0 -10px 40px rgba(90,45,42,.3); animation:sin .22s ease-out}
 @keyframes sin{from{transform:translateY(14px); opacity:.4}to{transform:translateY(0); opacity:1}}
 .grab{width:38px; height:4px; border-radius:99px; background:var(--track); align-self:center; flex:none}
 .sheet-title{font-family:Prata,serif; font-size:18px; color:var(--deep)}
 .sheet-sub{font-size:12.5px; color:var(--ink2); margin-top:-4px}
-.sheet-body{display:flex; flex-direction:column; gap:11px}
+.sheet-body{display:flex; flex-direction:column; gap:11px; min-width:0}
 .sheet-actions{display:flex; flex-direction:column; gap:2px; padding-top:2px}
 
-.fld{display:flex; flex-direction:column; gap:6px}
+.fld{display:flex; flex-direction:column; gap:6px; min-width:0}
 .fld>span{font-size:12px; color:var(--ink3); display:flex; justify-content:space-between; align-items:baseline}
 .fld>span b{color:var(--deep); font-weight:500}
 .fld>span i{font-style:normal; color:var(--ink4)}
 .fld input[type=text],.fld input[type=number],.fld input[type=date],.fld input[type=time],.fld textarea,.fld select{
-  background:rgba(255,250,243,.8); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:16px; width:100%}
+  background:rgba(255,250,243,.8); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:16px;
+  width:100%; min-width:0; max-width:100%}
+/* Safari меряет поля даты и времени по своему усмотрению и не даёт им сжаться:
+   без сброса вида такое поле распирает шторку и она едет вбок. */
+.fld input[type=date],.fld input[type=time]{appearance:none; -webkit-appearance:none; text-align:left}
 .fld textarea{resize:vertical; min-height:64px}
 .fld select{appearance:none; -webkit-appearance:none; cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,var(--ink2) 50%),linear-gradient(135deg,var(--ink2) 50%,transparent 50%);
