@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 22;
+const VERSION = 23;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -29,6 +29,7 @@ function blank() {
     user: {
       name: '', chronotype: 'сова', sleep: 10, introversion: 55, activity: 55,
       traits: [], xp: 0, createdAt: t,
+      avatar: '',                                        // 'a1'…'a5' из assets/avatars или пусто — буква имени
     },
     quests: {},          // { 'YYYY-MM-DD': [quest] }
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
@@ -85,6 +86,8 @@ function migrate(s) {
   const base = blank();
   const merged = { ...base, ...s, v: VERSION };
   merged.user = { ...base.user, ...(s.user || {}) };
+  // v22 → v23: аватар профиля. Пусто — рисуем букву имени, как раньше.
+  merged.user.avatar = typeof merged.user.avatar === 'string' ? merged.user.avatar : '';
   merged.health = { ...base.health, ...(s.health || {}) };
   merged.ui = { ...base.ui, ...(s.ui || {}) };
   // v21 → v22: подсказки на экранах. 'ask' — предложение ещё не показывали;

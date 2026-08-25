@@ -3,7 +3,7 @@
 // Код приложения отдаётся из сети в первую очередь, кеш — только запасной
 // вариант офлайна. Обратный порядок означал бы, что после выкладки на телефоне
 // ещё долго крутится старая сборка.
-const VERSION = 'lifeos-v37';
+const VERSION = 'lifeos-v38';
 const ASSETS = 'lifeos-assets-v1';
 const FONTS = 'lifeos-fonts-v1';
 
@@ -50,6 +50,11 @@ const MEDIA = [
   './assets/illustration_06.png',
   './assets/illustration_09.png',
   './assets/illustration_10.png',
+  './assets/avatars/a1.webp',
+  './assets/avatars/a2.webp',
+  './assets/avatars/a3.webp',
+  './assets/avatars/a4.webp',
+  './assets/avatars/a5.webp',
 ];
 
 const isMedia = url => /\.(png|jpg|jpeg|svg|webp|woff2?)$/i.test(url.pathname);

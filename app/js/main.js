@@ -23,6 +23,7 @@ import * as study from './screens/study.js';
 import * as sport from './screens/sport.js';
 import * as care from './screens/care.js';
 import { tipCard, tipActions, offerTips } from './tips.js';
+import { avatarHtml } from './avatars.js';
 
 const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport, care };
 
@@ -86,7 +87,7 @@ function renderDrawer() {
   wrap.innerHTML = `
     <div class="drawer">
       <div class="drawer-head">
-        <div class="avatar">${(S.user.name || '?').trim().charAt(0).toUpperCase()}</div>
+        ${avatarHtml(S.user)}
         <div>
           <div class="ink" style="font-weight:500">${S.user.name || 'Персонаж'}</div>
           <div class="lab">${S.user.chronotype} · ур. ${level(S.user.xp)}</div>

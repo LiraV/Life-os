@@ -5,6 +5,7 @@ import { TRAITS, GROUPS, byId, hasTrait, effects } from '../traits.js';
 import { titleFor } from '../traits.js';
 import { todayISO, monthKey, MONTHS, yearOf, addDays } from '../dates.js';
 import { h, raw, bar, toast, openSheet, field } from '../ui.js';
+import { AVATARS, avatarSrc, avatarHtml } from '../avatars.js';
 import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress, energyStats, dayLoad, restLine } from '../selectors.js';
 
 export function render() {
@@ -22,13 +23,15 @@ export function render() {
 
   return h`
     <div class="row" style="gap:12px">
-      <div class="avatar" style="width:58px;height:58px;font-size:24px">${(S.user.name || '?').trim().charAt(0).toUpperCase()}</div>
+      <button data-act="avatar" aria-label="Сменить аватар">${raw(avatarHtml(S.user, 58))}</button>
       <div class="grow">
         <div class="title" style="font-size:21px">${S.user.name || 'Персонаж'}</div>
         <div class="caps">${titleFor(li.lv)} · ур. ${li.lv}</div>
       </div>
       <button class="q-edit" data-act="edit">изменить ›</button>
     </div>
+
+    ${S.ui.avatarOpen ? raw(avatarGrid()) : ''}
 
     <div class="card">
       <div class="row between"><div class="caps">${titleFor(li.lv)}</div>
@@ -155,6 +158,8 @@ function energyCard() {
 }
 
 export const actions = {
+  avatar: () => update(s => { s.ui.avatarOpen = !s.ui.avatarOpen; }),
+  pick: v => update(s => { s.user.avatar = v.v; s.ui.avatarOpen = false; }),
   traits: () => update(s => { s.ui.traitsOpen = !s.ui.traitsOpen; }),
   chat: () => { location.hash = '#/inside/chat'; },
   edit: () => openSheet({
@@ -175,3 +180,24 @@ export const actions = {
     },
   }),
 };
+
+/** Выбор аватара прямо на экране: пять портретов и буква имени как было. */
+function avatarGrid() {
+  const cur = S.user.avatar || '';
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Аватар</div>
+        <button class="q-edit" data-act="avatar">свернуть</button></div>
+      <div class="av-grid">
+        <button class="av-pick ${cur === '' ? 'on' : ''}" data-act="pick" data-v="">
+          ${raw(avatarHtml({ ...S.user, avatar: '' }, 62))}
+          <span class="lab">Буква</span>
+        </button>
+        ${AVATARS.map(a => raw(h`
+          <button class="av-pick ${cur === a.id ? 'on' : ''}" data-act="pick" data-v="${a.id}">
+            <img src="${avatarSrc(a.id)}" alt="${a.name}" loading="lazy">
+            <span class="lab">${a.name}</span>
+          </button>`))}
+      </div>
+    </div>`;
+}
