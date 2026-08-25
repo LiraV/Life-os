@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, exerciseMonthBest } from '../selectors.js';
+import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, exerciseMonthBest, exerciseById } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
 const cell = n => n >= 10000 ? Math.round(n / 1000) + 'к' : String(n);
@@ -33,6 +33,13 @@ export function lessonCell(l, ym) {
   const fixed = S.tracker.lessonValues?.[l.id]?.[ym];
   if (typeof fixed === 'number') return { value: fixed, fixed: true };
   return { value: lessonMonth(l, ym), fixed: false };
+}
+
+/** Результат упражнения за месяц: ручная правка поверх лучшего из тренировок. */
+export function exerciseCell(ex, ym) {
+  const fixed = S.tracker.exerciseValues?.[ex.id]?.[ym];
+  if (typeof fixed === 'number') return { value: fixed, fixed: true };
+  return { value: exerciseMonthBest(ex, ym), fixed: false };
 }
 
 /** Полных дней за месяц: ручная правка, если она есть, иначе расчёт по отметкам. */
@@ -76,8 +83,8 @@ export function buildRows(y) {
     })),
     // Упражнения — лучший результат месяца, поэтому за год тоже лучший, а не сумма.
     ...S.sport.exercises.map(ex => ({
-      name: ex.name, best: true, dir: ex.dir, unit: ex.unit,
-      cells: monthsOf(y).map(ym => ({ value: exerciseMonthBest(ex, ym) })),
+      id: ex.id, name: ex.name, exercise: true, best: true, dir: ex.dir, unit: ex.unit,
+      cells: monthsOf(y).map(ym => exerciseCell(ex, ym)),
     })),
     // Энергия — среднее за месяц, поэтому за год у неё тоже среднее, а не сумма.
     { name: 'Энергия', avg: true, unit: 'сред.', cells: months.map(ym => ({ value: energyMonth(ym) })) },
@@ -135,10 +142,11 @@ export function render() {
                       : r.best ? raw(h`<i class="tr-dyn">${r.unit}</i>`)
                       : r.dyn ? raw('<i class="tr-dyn">дин.</i>')
                       : r.target > 1 ? raw(h`<i class="tr-dyn">×${r.target}</i>`) : ''}</th>
-                    ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c.value ? 'has' : ''} ${r.own || r.habit || r.lesson ? 'edit' : ''} ${c.fixed ? 'fixed' : ''}"
+                    ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c.value ? 'has' : ''} ${r.own || r.habit || r.lesson || r.exercise ? 'edit' : ''} ${c.fixed ? 'fixed' : ''}"
                       ${raw(r.own ? `data-act="cell" data-id="${r.id}" data-m="${months[i]}"`
                         : r.habit ? `data-act="hcell" data-id="${r.id}" data-m="${months[i]}"`
-                        : r.lesson ? `data-act="lcell" data-id="${r.id}" data-m="${months[i]}"` : '')}
+                        : r.lesson ? `data-act="lcell" data-id="${r.id}" data-m="${months[i]}"`
+                        : r.exercise ? `data-act="xcell" data-id="${r.id}" data-m="${months[i]}"` : '')}
                       style="${c.value ? `--f:${Math.min(1, c.value / mx)}` : ''}">${c.value == null ? (r.own ? '' : '·') : c.value ? cell(c.value) : ''}</td>`))}
                     <td class="tr-sum">${sum ? cell(sum) : ''}</td>
                   </tr>`);
@@ -183,7 +191,8 @@ function rowSheet(row) {
       field.note('Значения по месяцам вводятся прямо в таблице: тапни ячейку.'),
       isNew || !mergeTargets().length ? '' : field.select('merge', 'Это то же, что…',
         [{ value: '', label: 'отдельная строка' },
-          ...mergeTargets().map(t => ({ value: `${t.kind}:${t.id}`, label: `${t.name} · ${t.kind === 'lesson' ? 'занятие' : 'привычка'}` }))], ''),
+          ...mergeTargets().map(t => ({ value: `${t.kind}:${t.id}`,
+            label: `${t.name} · ${{ lesson: 'занятие', habit: 'привычка', exercise: 'упражнение' }[t.kind]}` }))], ''),
       isNew ? '' : field.note('Если выбрать, строка сольётся с ним: месячные значения станут ручными правками, а дубль пропадёт.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
@@ -224,6 +233,7 @@ const norm = v => String(v ?? '').trim().toLowerCase().replace(/ё/g, 'е').repl
 export const mergeTargets = () => [
   ...liveLessons().filter(l => l.kind === 'practice').map(l => ({ kind: 'lesson', id: l.id, name: l.name })),
   ...liveHabits().map(hb => ({ kind: 'habit', id: hb.id, name: hb.name })),
+  ...S.sport.exercises.map(ex => ({ kind: 'exercise', id: ex.id, name: ex.name })),
 ];
 
 /** Своя строка с тем же названием, что занятие или привычка, — почти наверняка дубль. */
@@ -235,7 +245,7 @@ function duplicateHint() {
   return h`
     <div class="card dash">
       <div class="ink">«${dup.name}» дублируется</div>
-      <div class="lab">Такая же ${t.kind === 'lesson' ? 'практика есть на полке обучения' : 'привычка уже есть'}.
+      <div class="lab">Такое же уже есть ${{ lesson: 'практикой на полке обучения', habit: 'привычкой', exercise: 'упражнением в спорте' }[t.kind]}.
         Объединю: месячные значения станут ручными правками этой строки, а лишняя пропадёт.</div>
       <button class="add" data-act="mergerow" data-id="${dup.id}" data-k="${t.kind}" data-t="${t.id}">Объединить</button>
     </div>`;
@@ -321,6 +331,41 @@ export const actions = {
     });
   },
 
+  /** Ручной результат упражнения за месяц — чтобы перенести прошлое. */
+  xcell: v => {
+    const ex = exerciseById(v.id);
+    if (!ex) return;
+    const i = Number(v.m.slice(5, 7)) - 1;
+    const auto = exerciseMonthBest(ex, v.m);
+    const fixed = S.tracker.exerciseValues?.[ex.id]?.[v.m];
+    openSheet({
+      title: `${ex.name} · ${MONTHS[i].toLowerCase()}`,
+      sub: auto == null ? 'из тренировок ничего нет' : `из тренировок — ${auto} ${ex.unit}`,
+      body: [
+        field.number('n', `Результат, ${ex.unit}`, fixed ?? (auto ?? ''), { min: 0 }),
+        field.note('Запишется поверх расчёта по тренировкам. Сами тренировки не меняются.'),
+      ].join(''),
+      primary: 'Записать',
+      onSave: (val, close) => {
+        update(s => { (s.tracker.exerciseValues[ex.id] ||= {})[v.m] = Math.max(0, Number(val.n) || 0); touchTracker(s); });
+        close();
+        toast('Записала');
+      },
+      secondary: fixed != null ? 'вернуть расчётное' : null,
+      onSecondary: (_val, close) => {
+        update(s => {
+          const by = s.tracker.exerciseValues[ex.id];
+          if (!by) return;
+          delete by[v.m];
+          if (!Object.keys(by).length) delete s.tracker.exerciseValues[ex.id];
+          touchTracker(s);
+        });
+        close();
+        toast('Вернула расчёт по тренировкам');
+      },
+    });
+  },
+
   /** Объединить свою строку с занятием или привычкой: значения переезжают, дубль исчезает. */
   mergerow: v => {
     const row = S.tracker.rows.find(x => x.id === v.id);
@@ -329,7 +374,9 @@ export const actions = {
     let moved = 0;
     update(s => {
       const vals = s.tracker.values[row.id] || {};
-      const store = v.k === 'lesson' ? (s.tracker.lessonValues[v.t] ||= {}) : (s.tracker.habitValues[v.t] ||= {});
+      const store = v.k === 'lesson' ? (s.tracker.lessonValues[v.t] ||= {})
+        : v.k === 'exercise' ? (s.tracker.exerciseValues[v.t] ||= {})
+        : (s.tracker.habitValues[v.t] ||= {});
       Object.entries(vals).forEach(([ym, n]) => {
         if (typeof n === 'number' && n > 0 && store[ym] == null) { store[ym] = n; moved++; }
       });

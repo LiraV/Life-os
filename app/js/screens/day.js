@@ -4,7 +4,7 @@ import { S, update, updateQuiet, uid, XP, addXp, SPHERES, addDiary, tickHabit, t
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
-import { workoutSheet } from './sport.js';
+import { workoutSheet, applyDone } from './sport.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
@@ -92,7 +92,9 @@ function energyHistory(date) {
     <div class="lab">30 дней · в среднем ${avg} · отмечено ${marked.length}</div>`;
 }
 
-/** Тренировка на дне: план видно заранее, отметка засчитывает её и занятие. */
+const goalTitleOf = id => (liveGoals().find(g => g.id === id) || {}).title || '';
+
+/** Тренировка на дне: план видно заранее, отметка засчитывает её, занятие и цель. */
 function workoutRow(w) {
   const sets = (w.sets || []).map(x => {
     const ex = exerciseById(x.exerciseId);
@@ -105,6 +107,7 @@ function workoutRow(w) {
         <div class="q-title">${w.title || kindName(w.kind)}</div>
         <div class="q-meta">
           <span class="tag">${kindName(w.kind)}</span>
+          ${w.goalId && goalTitleOf(w.goalId) ? raw(h`<span class="tag">→ ${goalTitleOf(w.goalId)}</span>`) : ''}
           ${sets.length ? raw(h`<span class="q-time">${sets.join(' · ')}</span>`) : raw('<span class="q-time">упражнения не заданы</span>')}
         </div>
       </div>
@@ -312,14 +315,7 @@ export const actions = {
       if (!w) return;
       w.done = !w.done;
       name = w.title || kindName(w.kind);
-      if (w.done) {
-        addXp(XP.quest);
-        if (w.lessonId) { const l = s.lessons.find(x => x.id === w.lessonId); if (l) l.log[w.date] = 1; }
-      } else {
-        addXp(-XP.quest);
-        if (w.lessonId) { const l = s.lessons.find(x => x.id === w.lessonId); if (l) delete l.log[w.date]; }
-      }
-      touchTracker(s);
+      applyDone(s, w, !w.done);
     });
     const w = S.sport.workouts.find(x => x.id === v.id);
     if (w?.done) toast(`${name} · засчитана`);

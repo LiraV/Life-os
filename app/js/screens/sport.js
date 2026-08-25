@@ -9,10 +9,11 @@ import { todayISO, addDays, dayShort, monthKey, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import {
   kinds, kindById, kindName, workoutsOn, exerciseById, exerciseHistory, exerciseRecord,
-  liveLessons,
+  liveLessons, liveGoals, isCounter, goalChain,
 } from '../selectors.js';
 
 const TABS = [['plan', 'Тренировки'], ['ex', 'Упражнения'], ['kinds', 'Виды']];
+const goalTitle = id => (liveGoals().find(g => g.id === id) || {}).title || '';
 const tab = () => S.ui.sportTab || 'plan';
 
 export function render() {
@@ -57,6 +58,7 @@ function workoutCard(w) {
           <div class="ink"><b>${w.title || kindName(w.kind)}</b></div>
           <div class="row tight" style="margin-top:3px;flex-wrap:wrap">
             <span class="tag">${kindName(w.kind)}</span>
+            ${w.goalId && goalTitle(w.goalId) ? raw(h`<span class="tag">→ ${goalTitle(w.goalId)}</span>`) : ''}
             <span class="lab">${dayShort(w.date)}${w.date === todayISO() ? ' · сегодня' : ''}</span>
             ${late ? raw('<span class="tag boss">не отмечена</span>') : ''}
             ${w.done ? raw('<span class="lab">✓ сделана</span>') : ''}
@@ -152,8 +154,10 @@ function kindsView() {
 // ── шторки ──────────────────────────────────────────────────────
 export function workoutSheet(workout, date) {
   const isNew = !workout;
-  const w = workout || { id: uid(), date: date || todayISO(), kind: kinds()[0]?.id || 'gym', title: '', lessonId: '', done: false, sets: [], note: '' };
+  const w = workout || { id: uid(), date: date || todayISO(), kind: kinds()[0]?.id || 'gym', title: '', lessonId: '', goalId: '', done: false, sets: [], note: '' };
   const lessons = liveLessons().filter(l => l.kind === 'practice');
+  // К целям-счётчикам тренировка прибавляется сама: «сходить в зал 4 раза».
+  const goals = liveGoals().filter(isCounter);
 
   openSheet({
     title: isNew ? 'Тренировка' : (w.title || kindName(w.kind)),
@@ -166,6 +170,11 @@ export function workoutSheet(workout, date) {
         ? field.select('lessonId', 'Занятие с полки', [{ value: '', label: 'не связано' }, ...lessons.map(l => ({ value: l.id, label: l.name }))], w.lessonId || '')
         : '',
       lessons.length ? field.note('Связанная тренировка засчитает занятие и не удвоит статистику.') : '',
+      goals.length
+        ? field.select('goalId', 'Считать в цель', [{ value: '', label: 'не считать' },
+            ...goals.map(g => ({ value: g.id, label: `${g.title} · ${counterLabel(g)}` }))], w.goalId || '')
+        : '',
+      goals.length ? field.note('Выполненная тренировка прибавит единицу к счётчику цели, снятая — убавит.') : '',
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="done" ${w.done ? 'checked' : ''}> Уже сделала</label>`,
       field.area('note', 'Заметка', w.note || ''),
     ].join(''),
@@ -175,7 +184,8 @@ export function workoutSheet(workout, date) {
         const prev = s.sport.workouts.find(x => x.id === w.id);
         const next = {
           ...w, kind: v.kind || w.kind, title: (v.title || '').trim(),
-          date: v.date || w.date, lessonId: v.lessonId || '', note: (v.note || '').trim(), done: !!v.done,
+          date: v.date || w.date, lessonId: v.lessonId || '', goalId: v.goalId || '',
+          note: (v.note || '').trim(), done: !!v.done,
         };
         // У своего вида есть готовый набор упражнений — подставляем при создании.
         if (!prev && !next.sets.length) {
@@ -197,12 +207,18 @@ export function workoutSheet(workout, date) {
   });
 }
 
-/** Выполненная тренировка засчитывает занятие и даёт опыт — в одном месте. */
-function applyDone(s, w) {
-  addXp(XP.quest);
+const counterLabel = g => `${Number(g.current) || 0}/${Number(g.target) || 0}${g.unit ? ' ' + g.unit : ''}`;
+
+/** Выполненная тренировка засчитывает занятие, цель и опыт — в одном месте. */
+export function applyDone(s, w, undo = false) {
+  addXp(undo ? -XP.quest : XP.quest);
   if (w.lessonId) {
     const l = s.lessons.find(x => x.id === w.lessonId);
-    if (l) l.log[w.date] = 1;
+    if (l) { if (undo) delete l.log[w.date]; else l.log[w.date] = 1; }
+  }
+  if (w.goalId) {
+    const g = s.goals.find(x => x.id === w.goalId);
+    if (g) g.current = Math.max(0, (Number(g.current) || 0) + (undo ? -1 : 1));
   }
   touchTracker(s);
 }
