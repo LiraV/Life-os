@@ -239,6 +239,11 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .cal-d.has{background:color-mix(in srgb, var(--caramel) calc(var(--f) * 85%), var(--track)); color:var(--ink)}
 .cal-d.sel{outline:2px solid var(--accent); outline-offset:1px; font-weight:600}
 
+/* подсказка на экране: заметная, но не перекрывает работу */
+.card.tip{background:var(--card-mute); border:1px dashed var(--line); box-shadow:none; gap:5px}
+.card.tip .lab{line-height:1.45}
+.card.tip .pill{align-self:flex-start; margin-top:3px}
+
 /* ── расписание ─────────────────────────────────────────────── */
 .days{display:flex; flex-wrap:wrap; gap:7px}
 .day-box{cursor:pointer}

@@ -22,6 +22,7 @@ import * as edu from './screens/edu.js';
 import * as study from './screens/study.js';
 import * as sport from './screens/sport.js';
 import * as care from './screens/care.js';
+import { tipCard, tipActions, offerTips } from './tips.js';
 
 const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport, care };
 
@@ -129,7 +130,7 @@ export function render() {
   const params = route().slice(1);
   const key = name + '/' + params.join('/');
   const keep = key === lastKey ? scr.scrollTop : 0;
-  scr.innerHTML = SCREENS[name].render(params);
+  scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
   scr.scrollTop = keep;
   lastKey = key;
   renderNav();
@@ -142,7 +143,8 @@ function dispatch(kind, e) {
   if (!el || !scr.contains(el)) return;
   const mod = S.onboarded ? SCREENS[activeScreen()] : onboarding;
   const name = kind === 'click' ? el.dataset.act : el.dataset.change;
-  const fn = mod.actions && mod.actions[name];
+  // Подсказка живёт над экраном, поэтому её кнопки ловим до экранных.
+  const fn = tipActions[name] || (mod.actions && mod.actions[name]);
   if (!fn) { console.warn('[lifeos] нет обработчика', name); return; }
   fn({ ...el.dataset, value: el.value, checked: el.checked }, el, e);
 }
@@ -190,6 +192,9 @@ setInterval(() => {
 
 if (!location.hash) location.hash = '#/day';
 render();
+
+// Предложение про подсказки — после того, как персонаж уже заведён.
+setTimeout(offerTips, 600);
 
 // Приложение должно само догонять выложенную версию: спрашиваем воркер об
 // обновлении при запуске и при возврате на вкладку, а когда новый воркер

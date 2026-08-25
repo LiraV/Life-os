@@ -5,6 +5,7 @@ import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, yearOf } from '../dates.js';
 import { h, raw, field, toast, collect } from '../ui.js';
 import { peakLabel } from '../selectors.js';
+import { offerTips } from '../tips.js';
 
 const SUGGESTED = ['Итальянский 15 минут', 'Вода 2 литра', 'Растяжка', 'Сон до 00:30', 'Страница дневника'];
 
@@ -110,6 +111,8 @@ function finish(skipped) {
   });
   location.hash = '#/day';
   toast(skipped ? 'Готово. Всё можно настроить позже' : 'Персонаж создан ✦');
+  // Подсказки предлагаем сразу после того, как персонаж заведён.
+  setTimeout(offerTips, 900);
 }
 
 /** Снять всё, что на экране, в черновик — перед любым переходом. */

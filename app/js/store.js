@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 21;
+const VERSION = 22;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -75,7 +75,9 @@ function blank() {
     diary: [],
     chat: [],
     tests: {},
-    ui: { tab: 'day', date: t, weekAnchor: t, monthAnchor: monthKey(t), year: yearOf(t), habitAnchor: t },
+    // tips: 'ask' — предложение ещё не показывали, 'on' — показываем, 'off' — отказалась
+    ui: { tab: 'day', date: t, weekAnchor: t, monthAnchor: monthKey(t), year: yearOf(t), habitAnchor: t,
+          tips: 'ask', tipsSeen: {} },
   };
 }
 
@@ -85,6 +87,10 @@ function migrate(s) {
   merged.user = { ...base.user, ...(s.user || {}) };
   merged.health = { ...base.health, ...(s.health || {}) };
   merged.ui = { ...base.ui, ...(s.ui || {}) };
+  // v21 → v22: подсказки на экранах. 'ask' — предложение ещё не показывали;
+  // оно приходит после онбординга, а тем, кто уже пользуется, — при запуске.
+  if (!['ask', 'on', 'off'].includes(merged.ui.tips)) merged.ui.tips = 'ask';
+  merged.ui.tipsSeen = merged.ui.tipsSeen && typeof merged.ui.tipsSeen === 'object' ? merged.ui.tipsSeen : {};
 
   // v1 → v2: раньше хранились только даты начала цикла. Переносим их
   // в отмеченные дни как есть — придумывать длительность за пользователя нельзя.

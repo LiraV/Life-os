@@ -5,6 +5,7 @@ import { todayISO } from '../dates.js';
 import { BUILD } from '../version.js';
 import { hasKey, maskKey, setKey, setModel, getModel, checkKey, DEFAULT_MODEL } from '../ai.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
+import { tipsOn, tipsReset, tipsDisable } from '../tips.js';
 
 export function render() {
   const size = (() => {
@@ -63,6 +64,14 @@ export function render() {
     </div>
 
     <div class="card">
+      <div class="caps">Подсказки</div>
+      <div class="lab">${tipsOn()
+        ? 'Показываю по одной карточке на экран — каждую только раз.'
+        : 'Сейчас выключены.'}</div>
+      <button class="add" data-act="tips">${tipsOn() ? 'Выключить подсказки' : 'Показать подсказки заново'}</button>
+    </div>
+
+    <div class="card">
       <div class="caps">Версия</div>
       <div class="row between"><span class="ink">Сборка</span><span class="lab">${BUILD}</span></div>
       <div class="lab">Приложение обновляется само при запуске. Если номер сборки не меняется после выхода новой версии — обнови вручную.</div>
@@ -87,6 +96,7 @@ export function render() {
 }
 
 export const actions = {
+  tips: () => { if (tipsOn()) { tipsDisable(); toast('Выключила'); } else { tipsReset(); toast('Подсказки вернулись'); } },
   aikey: () => openSheet({
     title: 'Ключ OpenAI',
     sub: 'создаётся на platform.openai.com → API keys',
