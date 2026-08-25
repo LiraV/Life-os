@@ -5,10 +5,11 @@ import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js'
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
 import { workoutSheet, workoutSetSheet, applyDone } from './sport.js';
+import { scheduleMark } from '../schedule.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
-  workoutsOn, exerciseById,
+  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle,
 } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -66,6 +67,8 @@ export function render() {
     <div class="row between"><div class="caps">Квесты дня</div>
       <span class="lab">${qs.length ? raw('<span data-act="add" style="cursor:pointer">+ квест</span> · ') : ''}<span data-act="wadd" style="cursor:pointer">+ тренировка</span></span></div>
 
+    ${raw(scheduleBlock(date))}
+
     ${workoutsOn(date).map(w => raw(workoutRow(w)))}
 
     ${qs.length ? qs.map(q => raw(questRow(q))) : raw(h`
@@ -90,6 +93,29 @@ function energyHistory(date) {
         style="${x.value != null ? `height:${Math.max(6, x.value)}%` : ''}" title="${x.date}"></i>`))}
     </div>
     <div class="lab">30 дней · в среднем ${avg} · отмечено ${marked.length}</div>`;
+}
+
+/** По расписанию: не записи, а правила — считаются на лету для этого дня. */
+function scheduleBlock(date) {
+  const list = scheduleOn(date);
+  if (!list.length) return '';
+  const KIND = { lesson: 'занятие', subject: 'учёба', template: 'тренировка' };
+  return list.map(sc => {
+    const done = scheduleDone(sc, date);
+    return h`
+      <div class="quest ${done ? 'done' : ''}">
+        <button class="check ${done ? 'on' : ''}" data-act="scheddone" data-id="${sc.id}"
+          aria-label="Было">✓</button>
+        <div class="grow">
+          <div class="q-title">${scheduleTitle(sc)}</div>
+          <div class="q-meta">
+            <span class="tag">${KIND[sc.kind] || 'по расписанию'}</span>
+            ${sc.place ? raw(h`<span class="tag">${sc.place}</span>`) : ''}
+            <span class="q-time">${sc.time || 'по расписанию'}${sc.dur ? ` · ${sc.dur} мин` : ''}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 const goalTitleOf = id => (liveGoals().find(g => g.id === id) || {}).title || '';
@@ -322,6 +348,10 @@ export const actions = {
   },
 
   habits: () => { location.hash = '#/habits'; },
+  scheddone: v => {
+    const sc = S.schedules.find(x => x.id === v.id);
+    if (sc) scheduleMark(sc, curDate());
+  },
 
   wadd: () => workoutSheet(null, curDate()),
   wopen: v => workoutSheet(S.sport.workouts.find(x => x.id === v.id)),

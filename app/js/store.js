@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 19;
+const VERSION = 20;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -47,6 +47,8 @@ function blank() {
       exercises: [],                                     // { id, name, unit, dir: 'up'|'down'|'both' }
       templates: [],                                     // шаблоны тренировок: { id, name, sets: [] } — без дат
     },
+    schedules: [],                                       // расписание — дело по дням недели:
+                                                         // { id, kind, refId, days: [], time, dur, every, from, to, place, note, off }
     care: {                                              // забота: повторяющиеся дела с периодичностью
       items: [],                                         // { id, name, group, every, anchor, last, log: [], cost, note, link }
       pet: { name: '', kind: '', birth: '', note: '', weights: [] },  // weights: [{ id, date, kg }]
@@ -55,6 +57,7 @@ function blank() {
       places: [],                                        // { id, name, note }
       subjects: [],                                      // { id, placeId, name, teacher, from, to, grade, archived }
       tasks: [],                                         // { id, subjectId, title, stage, stageAt, due, note }
+      attend: {},                                        // посещения по расписанию: { предмет: { дата: 1 } }
     },
     budget: {                                            // бюджет: статьи, план по месяцам, операции, копилки
       cats: { expense: [], income: [] },
@@ -190,11 +193,23 @@ function migrate(s) {
     if (!merged.care.pet.name) merged.care.pet = { ...merged.care.pet, name: 'Бусик' };
   }
 
+  // v19 → v20: расписание. Событие не хранится по датам — только правило,
+  // поэтому расписание можно поменять задним числом и ничего не разъедется.
+  merged.schedules = (Array.isArray(merged.schedules) ? merged.schedules : []).map(sc => ({
+    ...sc,
+    days: (Array.isArray(sc.days) ? sc.days : []).map(Number).filter(d => d >= 0 && d <= 6),
+    every: Number(sc.every) === 2 ? 2 : 1,
+    dur: Math.max(0, Number(sc.dur) || 0),
+    off: !!sc.off,
+  }));
+
   const stu = merged.study && typeof merged.study === 'object' ? merged.study : {};
   merged.study = {
     places: Array.isArray(stu.places) ? stu.places : [],
     subjects: Array.isArray(stu.subjects) ? stu.subjects : [],
     tasks: (Array.isArray(stu.tasks) ? stu.tasks : []).map(t => ({ ...t, stage: t.stage || 'todo' })),
+    // Посещения по расписанию: { предмет: { 'YYYY-MM-DD': 1 } }
+    attend: stu.attend && typeof stu.attend === 'object' ? stu.attend : {},
   };
 
   // Полка обучения: у курса уроки, у практики журнал занятий по датам.

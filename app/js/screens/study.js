@@ -7,6 +7,7 @@
 import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, dayShort, diffDays, monthKey, weekKey } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
+import { scheduleBlock, scheduleActions } from '../schedule.js';
 import {
   STAGES, stageOf, stageIndex, livePlaces, liveSubjects, subjectsOf, subjectById,
   tasksOf, liveTasks, taskSubject, waitingDays, subjectProgress, studyNow,
@@ -168,6 +169,7 @@ function subjectCard(id) {
           </div>`))}
       </div>`) : raw('<div class="lab">этапов пока нет</div>')}
       <button class="add" data-act="taskadd" data-id="${sb.id}">+ Этап</button>
+      ${raw(scheduleBlock('subject', sb.id))}
     </div>`;
 }
 
@@ -227,6 +229,7 @@ function taskSheet(task, subjectId) {
 }
 
 export const actions = {
+  ...scheduleActions,
   back: () => { location.hash = '#/spheres'; },
   tab: v => update(s => { s.ui.studyTab = v.v; }),
 

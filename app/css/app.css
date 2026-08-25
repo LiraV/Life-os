@@ -238,6 +238,16 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .cal-d.has{background:color-mix(in srgb, var(--caramel) calc(var(--f) * 85%), var(--track)); color:var(--ink)}
 .cal-d.sel{outline:2px solid var(--accent); outline-offset:1px; font-weight:600}
 
+/* ── расписание ─────────────────────────────────────────────── */
+.days{display:flex; flex-wrap:wrap; gap:7px}
+.day-box{cursor:pointer}
+.day-box input{position:absolute; opacity:0; pointer-events:none}
+.day-box span{display:inline-block; font-size:12.5px; color:var(--deep); border:1px solid var(--line);
+  border-radius:99px; padding:6px 13px; background:rgba(255,250,243,.65)}
+.day-box:has(input:checked) span{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
+.sched-row{display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--track)}
+.sched-row:first-of-type{border-top:0}
+
 /* ── забота ─────────────────────────────────────────────────── */
 .care-row{display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--track)}
 .care-row:first-of-type{border-top:0}

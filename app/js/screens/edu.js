@@ -6,6 +6,7 @@ import { S, update, uid, XP, addXp, addDiary, touchTracker } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, dayShort, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { liveLessons, lessonMonth, lessonLast, lessonAgo, courseProgress } from '../selectors.js';
+import { scheduleBlock, scheduleActions } from '../schedule.js';
 
 const cal = () => S.ui.eduMonth || monthKey(todayISO());
 const money = n => `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ₽`;
@@ -87,6 +88,7 @@ function practiceCard(l, m) {
         ${lessonLast(l) ? raw(h`<button class="pill" data-act="undo" data-id="${l.id}">убрать последнее</button>`) : ''}
         <button class="pill" data-act="pause" data-id="${l.id}">пауза</button>
       </div>
+      ${raw(scheduleBlock('lesson', l.id))}
     </div>`;
 }
 
@@ -120,6 +122,7 @@ function courseCard(l) {
             </div>`))}
         </div>
         <button class="add" data-act="itemadd" data-id="${l.id}">+ Урок</button>
+        ${raw(scheduleBlock('lesson', l.id))}
         <button class="btn-ghost" data-act="pause" data-id="${l.id}">поставить на паузу</button>`) : ''}
     </div>`;
 }
@@ -178,6 +181,7 @@ function lessonSheet(lesson) {
 }
 
 export const actions = {
+  ...scheduleActions,
   back: () => { location.hash = '#/spheres'; },
   prev: () => update(s => { s.ui.eduMonth = addMonths(cal(), -1); }),
   next: () => update(s => { s.ui.eduMonth = addMonths(cal(), 1); }),

@@ -3,7 +3,7 @@
 
 import { S, SPHERES, level, levelFloor } from './store.js';
 import { effects, hasTrait } from './traits.js';
-import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth } from './dates.js';
+import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
 export const sphereOf = key => SPHERES.find(s => s.key === key);
@@ -673,3 +673,62 @@ const plural = (n, one, few, many) => {
   if (b > 1 && b < 5) return few;
   return b === 1 ? one : many;
 };
+
+// ── расписание ──────────────────────────────────────────────────
+// Событие не хранится по датам: хранится правило, а день считается из него.
+// Поэтому расписание можно поменять задним числом — прошлое не поедет.
+export const schedules = () => S.schedules || [];
+export const schedulesOf = (kind, refId) => schedules().filter(sc => sc.kind === kind && sc.refId === refId);
+
+/** Попадает ли правило на эту дату: день недели, срок и чётность недели. */
+export function scheduleHits(sc, date) {
+  if (sc.off) return false;
+  if (!sc.days?.length) return false;
+  if (!sc.days.includes(dowIndex(date))) return false;
+  if (sc.from && date < sc.from) return false;
+  if (sc.to && date > sc.to) return false;
+  if (Number(sc.every) === 2) {
+    const anchor = sc.from || date;
+    const weeks = Math.round(diffDays(startOfWeek(date), startOfWeek(anchor)) / 7);
+    if (weeks % 2 !== 0) return false;
+  }
+  return true;
+}
+
+/** Как называется то, к чему привязано правило. */
+export function scheduleTitle(sc) {
+  if (sc.kind === 'lesson') return (S.lessons.find(l => l.id === sc.refId) || {}).name || 'Занятие';
+  if (sc.kind === 'subject') return (S.study.subjects.find(x => x.id === sc.refId) || {}).name || 'Предмет';
+  if (sc.kind === 'template') return templateName(sc.refId) || 'Тренировка';
+  return sc.title || 'Событие';
+}
+
+/** Отмечено ли уже: у каждого вида своя честная запись, отдельной галочки нет. */
+export function scheduleDone(sc, date) {
+  if (sc.kind === 'lesson') return !!(S.lessons.find(l => l.id === sc.refId) || {}).log?.[date];
+  if (sc.kind === 'subject') return !!S.study.attend?.[sc.refId]?.[date];
+  if (sc.kind === 'template') return S.sport.workouts.some(w => w.date === date && w.templateId === sc.refId);
+  return false;
+}
+
+/** События дня, отсортированные по времени. Тренировка, уже заведённая
+ *  на день, из расписания пропадает — её показывает свой же блок. */
+export const scheduleOn = date => schedules()
+  .filter(sc => scheduleHits(sc, date))
+  .filter(sc => !(sc.kind === 'template' && scheduleDone(sc, date)))
+  .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+
+/** «пн, чт · 19:30 · 1 ч» — как правило читается одной строкой. */
+export function scheduleLabel(sc) {
+  const days = (sc.days || []).slice().sort((a, b) => a - b).map(d => DOW[d].toLowerCase()).join(', ');
+  const parts = [days];
+  if (Number(sc.every) === 2) parts.push('раз в две недели');
+  if (sc.time) parts.push(sc.time);
+  if (sc.dur) parts.push(sc.dur >= 60 ? `${Math.round(sc.dur / 60 * 10) / 10} ч` : `${sc.dur} мин`);
+  return parts.filter(Boolean).join(' · ');
+}
+
+/** Сколько занятий по расписанию выпадает на месяц — для плана и трекера. */
+export function scheduleMonthCount(sc, ym) {
+  return monthDates(ym).filter(d => scheduleHits(sc, d)).length;
+}

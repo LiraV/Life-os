@@ -8,6 +8,7 @@
 import { S, update, uid, XP, addXp, addDiary, touchTracker } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
+import { scheduleBlock, scheduleActions } from '../schedule.js';
 import {
   templates, templateById, templateName, exerciseById, exerciseHistory, exerciseRecord,
   liveLessons, liveGoals, isCounter,
@@ -49,6 +50,7 @@ function tplView() {
             })}
           </div>`) : raw('<div class="lab">упражнений пока нет</div>')}
         <button class="add" data-act="tplsetadd" data-id="${t.id}">+ Упражнение</button>
+        ${raw(scheduleBlock('template', t.id))}
       </div>`))}
     ${!list.length ? raw(h`<div class="card dash"><div class="empty">Шаблонов пока нет.<br>Шаблон — это состав тренировки без даты.</div></div>`) : ''}
     <button class="add" data-act="tpladd">+ Шаблон</button>
@@ -336,6 +338,7 @@ function exSheet(ex) {
 }
 
 export const actions = {
+  ...scheduleActions,
   back: () => { location.hash = '#/spheres'; },
   tab: v => update(s => { s.ui.sportTab = v.v; }),
 
