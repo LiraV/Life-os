@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 13;
+const VERSION = 14;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -41,6 +41,10 @@ function blank() {
     habits: [],          // [{ id, name, target, step, unit, log: { date: количество } }]
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
     lessons: [],                                         // полка обучения: курсы и практики
+    sport: {                                             // спорт: тренировки и упражнения с рекордами
+      workouts: [],                                      // { id, date, kind, title, lessonId, done, sets: [], note }
+      exercises: [],                                     // { id, name, unit, dir: 'up'|'down', target }
+    },
     study: {                                             // учёба: заведения → предметы → этапы
       places: [],                                        // { id, name, note }
       subjects: [],                                      // { id, placeId, name, teacher, from, to, grade, archived }
@@ -90,6 +94,22 @@ function migrate(s) {
   merged.user.traits = [...new Set((merged.user.traits || [])
     .map(t => (typeof t === 'string' && OLD_TRAITS[t]) ? OLD_TRAITS[t] : t)
     .filter(t => typeof t === 'string' && /^[a-z]+$/.test(t)))];
+
+  const sp = merged.sport && typeof merged.sport === 'object' ? merged.sport : {};
+  merged.sport = {
+    workouts: (Array.isArray(sp.workouts) ? sp.workouts : []).map(w => ({ ...w, sets: Array.isArray(w.sets) ? w.sets : [] })),
+    exercises: Array.isArray(sp.exercises) ? sp.exercises : [],
+  };
+  // Первый запуск: заводим упражнения, которые уже считались в таблице.
+  if (!merged.sport.exercises.length && !merged.sport.workouts.length) {
+    merged.sport.exercises = [
+      { id: uid(), name: 'Планка', unit: 'сек', dir: 'up' },
+      { id: uid(), name: 'Турник', unit: 'раз', dir: 'up' },
+      { id: uid(), name: 'Пресс', unit: 'раз', dir: 'up' },
+      // У шпагата меньше — лучше: это расстояние до пола, а не достижение.
+      { id: uid(), name: 'Шпагат', unit: 'см до пола', dir: 'down' },
+    ];
+  }
 
   const stu = merged.study && typeof merged.study === 'object' ? merged.study : {};
   merged.study = {
@@ -183,6 +203,22 @@ function migrate(s) {
   merged.user.traits = [...new Set((merged.user.traits || [])
     .map(t => (typeof t === 'string' && OLD_TRAITS[t]) ? OLD_TRAITS[t] : t)
     .filter(t => typeof t === 'string' && /^[a-z]+$/.test(t)))];
+
+  const sp = merged.sport && typeof merged.sport === 'object' ? merged.sport : {};
+  merged.sport = {
+    workouts: (Array.isArray(sp.workouts) ? sp.workouts : []).map(w => ({ ...w, sets: Array.isArray(w.sets) ? w.sets : [] })),
+    exercises: Array.isArray(sp.exercises) ? sp.exercises : [],
+  };
+  // Первый запуск: заводим упражнения, которые уже считались в таблице.
+  if (!merged.sport.exercises.length && !merged.sport.workouts.length) {
+    merged.sport.exercises = [
+      { id: uid(), name: 'Планка', unit: 'сек', dir: 'up' },
+      { id: uid(), name: 'Турник', unit: 'раз', dir: 'up' },
+      { id: uid(), name: 'Пресс', unit: 'раз', dir: 'up' },
+      // У шпагата меньше — лучше: это расстояние до пола, а не достижение.
+      { id: uid(), name: 'Шпагат', unit: 'см до пола', dir: 'down' },
+    ];
+  }
 
   const stu = merged.study && typeof merged.study === 'object' ? merged.study : {};
   merged.study = {

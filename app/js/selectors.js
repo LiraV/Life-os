@@ -152,6 +152,57 @@ export const habitMonthCount = (hb, ym) => monthDates(ym).filter(d => habitDone(
 export const habitMonthTotal = (hb, ym) => monthDates(ym).reduce((a, d) => a + habitCount(hb, d), 0);
 export const habitWeekDone = (hb, date) => weekDates(date).filter(d => habitDone(hb, d)).length;
 
+// ── спорт: тренировки и рекорды ─────────────────────────────────
+export const KINDS = [
+  { id: 'gym', name: 'Зал сама' }, { id: 'coach', name: 'Зал с тренером' },
+  { id: 'dance', name: 'Танцы' }, { id: 'stretch', name: 'Растяжка' },
+  { id: 'cardio', name: 'Кардио' }, { id: 'other', name: 'Другое' },
+];
+export const kindName = id => (KINDS.find(k => k.id === id) || KINDS[5]).name;
+
+export const workoutsOn = date => S.sport.workouts.filter(w => w.date === date);
+export const exerciseById = id => S.sport.exercises.find(e => e.id === id);
+
+/** Все результаты упражнения по датам — из подходов выполненных тренировок. */
+export function exerciseHistory(id) {
+  const out = [];
+  S.sport.workouts.filter(w => w.done).forEach(w => {
+    (w.sets || []).filter(x => x.exerciseId === id && x.value != null && x.value !== '').forEach(x => {
+      out.push({ date: w.date, value: Number(x.value), reps: Number(x.reps) || 1 });
+    });
+  });
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Рекорд и сдвиг за месяц. Направление важно: у шпагата меньше — лучше. */
+export function exerciseRecord(ex) {
+  const hist = exerciseHistory(ex.id);
+  if (!hist.length) return null;
+  const better = (a, b) => (ex.dir === 'down' ? a < b : a > b);
+  const best = hist.reduce((acc, x) => (better(x.value, acc.value) ? x : acc), hist[0]);
+  const last = hist[hist.length - 1];
+  const monthAgo = addDays(todayISO(), -30);
+  const older = hist.filter(x => x.date < monthAgo);
+  const was = older.length ? older[older.length - 1].value : null;
+  return {
+    best: best.value, bestDate: best.date, last: last.value, lastDate: last.date,
+    was, gain: was == null ? null : Number((last.value - was).toFixed(1)),
+    improved: was == null ? null : better(last.value, was),
+    count: hist.length,
+  };
+}
+
+/** Лучший результат за месяц — строка в годовом трекере. */
+export function exerciseMonthBest(ex, ym) {
+  const list = exerciseHistory(ex.id).filter(x => x.date.startsWith(ym)).map(x => x.value);
+  if (!list.length) return null;
+  return ex.dir === 'down' ? Math.min(...list) : Math.max(...list);
+}
+
+/** Тренировки за период — идут в статистику спорта и в потребность «Движение».
+ *  Замеры сюда не входят: измерить шпагат — не то же самое, что потренироваться. */
+export const workoutsIn = days => S.sport.workouts.filter(w => w.done && !w.measure && days.includes(w.date));
+
 // ── учёба: заведения, предметы, этапы ───────────────────────────
 /** Одна лестница стадий на всё: простой этап просто перепрыгивает середину. */
 export const STAGES = [
@@ -390,7 +441,9 @@ function questRate(sphereKeys, days, per) {
 /** Движение — это и спорт-квесты, и занятия с галочкой «считать в спорте». */
 function moveRate(days) {
   const n = days.reduce((acc, d) => acc + questsOn(d).filter(q => q.done && q.sphere === 'sport').length, 0)
-    + sportLessonSessions(days);
+    + sportLessonSessions(days)
+    // Тренировка, привязанная к занятию, уже посчитана занятием — не удваиваем.
+    + workoutsIn(days).filter(w => !w.lessonId).length;
   if (!n) return habitRate(/растяж|зал|бег|йог/i, days);
   return Math.min(100, Math.round((n / 3) * 100));
 }

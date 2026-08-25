@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth } from '../selectors.js';
+import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, exerciseMonthBest } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
 const cell = n => n >= 10000 ? Math.round(n / 1000) + 'к' : String(n);
@@ -74,6 +74,11 @@ export function buildRows(y) {
       name, dyn: true,
       cells: months.map(ym => ({ value: dynamic[name][ym] ?? null })),
     })),
+    // Упражнения — лучший результат месяца, поэтому за год тоже лучший, а не сумма.
+    ...S.sport.exercises.map(ex => ({
+      name: ex.name, best: true, dir: ex.dir, unit: ex.unit,
+      cells: monthsOf(y).map(ym => ({ value: exerciseMonthBest(ex, ym) })),
+    })),
     // Энергия — среднее за месяц, поэтому за год у неё тоже среднее, а не сумма.
     { name: 'Энергия', avg: true, unit: 'сред.', cells: months.map(ym => ({ value: energyMonth(ym) })) },
   ];
@@ -117,6 +122,8 @@ export function render() {
                 const vals = r.cells.map(c => c.value).filter(c => c != null);
                 const sum = r.avg
                   ? (vals.length ? Math.round(vals.reduce((a, c) => a + c, 0) / vals.length) : 0)
+                  : r.best
+                  ? (vals.length ? (r.dir === 'down' ? Math.min(...vals) : Math.max(...vals)) : 0)
                   : r.cells.reduce((a, c) => a + (c.value || 0), 0);
                 const mx = rowMax(r);
                 return raw(h`
@@ -125,6 +132,7 @@ export function render() {
                       r.own ? raw(h`<i class="tr-dyn">${r.unit || 'своя'}</i>`)
                       : r.lesson ? raw('<i class="tr-dyn">занятия</i>')
                       : r.avg ? raw('<i class="tr-dyn">сред.</i>')
+                      : r.best ? raw(h`<i class="tr-dyn">${r.unit}</i>`)
                       : r.dyn ? raw('<i class="tr-dyn">дин.</i>')
                       : r.target > 1 ? raw(h`<i class="tr-dyn">×${r.target}</i>`) : ''}</th>
                     ${r.cells.map((c, i) => raw(h`<td class="${months[i] === curM ? 'now' : ''} ${c.value ? 'has' : ''} ${r.own || r.habit || r.lesson ? 'edit' : ''} ${c.fixed ? 'fixed' : ''}"

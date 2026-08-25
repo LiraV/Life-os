@@ -4,9 +4,11 @@ import { S, update, updateQuiet, uid, XP, addXp, SPHERES, addDiary, tickHabit, t
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
+import { workoutSheet } from './sport.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
+  workoutsOn, kindName, exerciseById,
 } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -62,7 +64,9 @@ export function render() {
     </div>
 
     <div class="row between"><div class="caps">Квесты дня</div>
-      ${qs.length ? raw('<button class="q-edit" data-act="add">+ квест</button>') : ''}</div>
+      <span class="lab">${qs.length ? raw('<span data-act="add" style="cursor:pointer">+ квест</span> · ') : ''}<span data-act="wadd" style="cursor:pointer">+ тренировка</span></span></div>
+
+    ${workoutsOn(date).map(w => raw(workoutRow(w)))}
 
     ${qs.length ? qs.map(q => raw(questRow(q))) : raw(h`
       <div class="card dash"><div class="empty">На этот день пусто.<br>Одно дело — уже достаточно.</div>
@@ -86,6 +90,26 @@ function energyHistory(date) {
         style="${x.value != null ? `height:${Math.max(6, x.value)}%` : ''}" title="${x.date}"></i>`))}
     </div>
     <div class="lab">30 дней · в среднем ${avg} · отмечено ${marked.length}</div>`;
+}
+
+/** Тренировка на дне: план видно заранее, отметка засчитывает её и занятие. */
+function workoutRow(w) {
+  const sets = (w.sets || []).map(x => {
+    const ex = exerciseById(x.exerciseId);
+    return ex ? `${ex.name} ${x.reps > 1 ? x.reps + '×' : ''}${x.value}${ex.unit ? ' ' + ex.unit : ''}` : '';
+  }).filter(Boolean);
+  return h`
+    <div class="quest ${w.done ? 'done' : ''}">
+      <button class="check ${w.done ? 'on' : ''}" data-act="wdone" data-id="${w.id}" aria-label="Тренировка сделана">✓</button>
+      <div class="grow" data-act="wopen" data-id="${w.id}" style="cursor:pointer">
+        <div class="q-title">${w.title || kindName(w.kind)}</div>
+        <div class="q-meta">
+          <span class="tag">${kindName(w.kind)}</span>
+          ${sets.length ? raw(h`<span class="q-time">${sets.join(' · ')}</span>`) : raw('<span class="q-time">упражнения не заданы</span>')}
+        </div>
+      </div>
+      <button class="q-edit" data-act="wopen" data-id="${w.id}">настроить ›</button>
+    </div>`;
 }
 
 /** Ритм дня прямо на главном: норма, счёт и плюс в один тап. */
@@ -278,6 +302,29 @@ export const actions = {
   },
 
   habits: () => { location.hash = '#/habits'; },
+
+  wadd: () => workoutSheet(null, curDate()),
+  wopen: v => workoutSheet(S.sport.workouts.find(x => x.id === v.id)),
+  wdone: v => {
+    let name = '';
+    update(s => {
+      const w = s.sport.workouts.find(x => x.id === v.id);
+      if (!w) return;
+      w.done = !w.done;
+      name = w.title || kindName(w.kind);
+      if (w.done) {
+        addXp(XP.quest);
+        if (w.lessonId) { const l = s.lessons.find(x => x.id === w.lessonId); if (l) l.log[w.date] = 1; }
+      } else {
+        addXp(-XP.quest);
+        if (w.lessonId) { const l = s.lessons.find(x => x.id === w.lessonId); if (l) delete l.log[w.date]; }
+      }
+      touchTracker(s);
+    });
+    const w = S.sport.workouts.find(x => x.id === v.id);
+    if (w?.done) toast(`${name} · засчитана`);
+    if (w?.done && w.kind !== 'other') setTimeout(() => reflectionSheet({ title: name, sphere: 'sport' }), 350);
+  },
 
   /** Плюс добавляет шаг, галочка на закрытой норме обнуляет день. */
   hab: v => {
