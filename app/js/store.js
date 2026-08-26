@@ -150,9 +150,13 @@ function migrate(s) {
     tags: (Array.isArray(sp.tags) ? sp.tags : []).map(t => ({ id: t.id, name: t.name })),
   };
 
+  // Заготовку «Растяжка» переименовали в «Шпагат»: у неё та же роль, но так
+  // понятнее, что именно отмечается. Свои названия не трогаем.
+  merged.sport.tags.forEach(t => { if (t.name === 'Растяжка') t.name = 'Шпагат'; });
+
   // Первый запуск: несколько привычных пилюль, чтобы было с чего начать.
   if (!merged.sport.tags.length && !merged.sport.workouts.some(w => w.tags?.length)) {
-    merged.sport.tags = ['Пресс', 'Руки', 'Ягодицы', 'Ноги', 'Спина', 'Кардио', 'Растяжка', 'Зал с тренером']
+    merged.sport.tags = ['Пресс', 'Руки', 'Ягодицы', 'Ноги', 'Спина', 'Кардио', 'Шпагат', 'Зал с тренером']
       .map(name => ({ id: uid(), name }));
   }
 

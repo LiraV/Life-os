@@ -58,7 +58,8 @@ function tplView() {
     <div class="card">
       <div class="row between"><div class="caps">Пилюли</div>
         <button class="q-edit" data-act="tagadd">+ пилюля</button></div>
-      <div class="lab">Именно они считаются в трекере года: тренировка со временем меняется, а «пресс» остаётся.</div>
+      <div class="lab">Именно они считаются в трекере года: тренировка со временем меняется, а «пресс» остаётся.
+        Тап по пилюле — переименовать или убрать.</div>
       ${sportTags().length ? raw(h`<div class="chips">${sportTags().map(t => {
         const n = tagMonthCount(t.id, monthKey(todayISO()));
         return raw(h`<button class="chip" data-act="tagedit" data-id="${t.id}">${t.name}${n ? ` · ${n}` : ''}</button>`);
