@@ -94,6 +94,8 @@ function migrate(s) {
   // оно приходит после онбординга, а тем, кто уже пользуется, — при запуске.
   if (!['ask', 'on', 'off'].includes(merged.ui.tips)) merged.ui.tips = 'ask';
   merged.ui.tipsSeen = merged.ui.tipsSeen && typeof merged.ui.tipsSeen === 'object' ? merged.ui.tipsSeen : {};
+  // Разговор мог оборваться на середине запроса — «думаю…» не должно залипать.
+  merged.ui.chatBusy = false;
 
   // v1 → v2: раньше хранились только даты начала цикла. Переносим их
   // в отмеченные дни как есть — придумывать длительность за пользователя нельзя.

@@ -169,6 +169,10 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
     color:#ffeee2; font-size:13.5px; line-height:1.45; box-shadow:0 10px 22px rgba(142,43,50,.3); flex:none}
 .me{background:var(--card); border-radius:20px 20px 6px 20px; padding:11px 15px; color:var(--ink); font-size:13.5px;
     align-self:flex-end; max-width:82%; box-shadow:var(--shadow); flex:none}
+.ai{max-width:88%; align-self:flex-start; white-space:pre-wrap}
+.ai.typing{opacity:.7}
+.chat-box textarea{min-height:52px}
+.chat-box .btn{width:auto; padding:10px 20px}
 
 /* ── сетки ──────────────────────────────────────────────────── */
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}

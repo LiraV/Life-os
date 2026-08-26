@@ -2,7 +2,7 @@
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
 import { S, SPHERES, level, levelFloor } from './store.js';
-import { effects, hasTrait } from './traits.js';
+import { effects, hasTrait, byId as traitById } from './traits.js';
 import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
@@ -757,3 +757,39 @@ export function scheduleLabel(sc) {
 export function scheduleMonthCount(sc, ym) {
   return monthDates(ym).filter(d => scheduleOccursOn(sc, d)).length;
 }
+
+// ── беседа с Летописцем ─────────────────────────────────────────
+/**
+ * Выжимка данных для разговора: коротко и по делу. Отправляется наружу,
+ * поэтому здесь ровно то, что перечислено в интерфейсе, — без дневника,
+ * цикла и КБЖУ.
+ */
+export function chatDigest() {
+  const t = todayISO();
+  const qs = questsOn(t);
+  const w = weekStats(t);
+  const e7 = energyRecent(7).filter(x => x.value != null);
+  const goals = liveGoals().filter(g => ['month', 'year'].includes(g.horizon)).slice(0, 6);
+  const hb = liveHabits().slice(0, 6);
+  const late = (S.care?.items || []).filter(it => careDue(it) < 0).slice(0, 6);
+  const lines = [
+    `Сегодня ${t}, ${dayShort(t)}.`,
+    `Хронотип ${S.user.chronotype}, пик энергии ${peakLabel()}. Уровень ${level(S.user.xp)}.`,
+    S.user.traits?.length ? `Черты: ${S.user.traits.map(id => (traitById(id) || {}).name || id).join(', ')}.` : '',
+    `Энергия сегодня: ${S.energy[t] ?? 'не отмечена'}${e7.length ? `, в среднем за неделю ${Math.round(e7.reduce((a, x) => a + x.value, 0) / e7.length)}` : ''}.`,
+    `Квесты сегодня: ${qs.length ? qs.map(x => `${x.title}${x.done ? ' (сделано)' : ''}`).join(', ') : 'нет'}.`,
+    `За неделю закрыто ${w.done} из ${w.total}.`,
+    goals.length ? `Цели: ${goals.map(g => `${g.title} — ${goalProgress(g)}%${g.struck ? ', вычеркнута' : ''}`).join('; ')}.` : 'Целей на месяц и год пока нет.',
+    hb.length ? `Привычки за неделю: ${hb.map(x => `${x.name} ${habitWeekDone(x, t)}/7`).join(', ')}.` : '',
+    `Потребности: ${needs().filter(n => n.value != null).map(n => `${n.name} ${n.value}%`).join(', ') || 'нет данных'}.`,
+    roles().filter(r => r.low).length ? `Роли без дела: ${roles().filter(r => r.low).map(r => r.name).join(', ')}.` : '',
+    late.length ? `Просрочено в заботе: ${late.map(it => it.name).join(', ')}.` : '',
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+
+/** Последние записи дневника — только если пользовательница сама разрешила. */
+export const diaryDigest = (n = 5) => (S.diary || [])
+  .slice(-n)
+  .map(d => `${dayShort(d.date)}: ${String(d.text || '').slice(0, 300)}`)
+  .join('\n');

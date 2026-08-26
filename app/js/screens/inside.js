@@ -4,9 +4,9 @@
 import { S, update, uid, XP, addXp, addDiary } from '../store.js';
 import { todayISO, addDays, dayShort } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
-import { weekStats, needs, roles, questsOn, peakLabel } from '../selectors.js';
+import { weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest } from '../selectors.js';
 import { questSheet } from './day.js';
-import { hasKey, askChronicler } from '../ai.js';
+import { hasKey, chatChronicler } from '../ai.js';
 import { byId } from '../traits.js';
 
 const TABS = [['chat', 'Чат'], ['tests', 'Тесты'], ['diary', 'Дневник']];
@@ -32,31 +32,60 @@ const QUICK = [
 
 function chatView() {
   const log = S.chat.length ? S.chat : [{ who: 'ai', text: greeting() }];
+  const busy = !!S.ui.chatBusy;
+  const online = hasKey();
   return h`
-    ${log.slice(-14).map(m => raw(m.who === 'ai' ? h`<div class="ai">${m.text}</div>` : h`<div class="me">${m.text}</div>`))}
+    ${log.slice(-40).map(m => raw(m.who === 'ai' ? h`<div class="ai">${m.text}</div>` : h`<div class="me">${m.text}</div>`))}
+    ${busy ? raw('<div class="ai typing">думаю…</div>') : ''}
+
     ${S.ui.offerMove ? raw(h`
       <div class="pills" style="margin-top:4px">
         <button class="pill on" data-act="move">Да, перенеси вечер</button>
         <button class="pill" data-act="nomove">Нет, оставь</button>
       </div>`) : raw(h`
       <div class="pills" style="margin-top:4px">
-        ${QUICK.map(q => raw(h`<button class="pill" data-act="say" data-v="${q.id}">${q.label}</button>`))}
+        ${(online ? OPENERS : QUICK).map(q => raw(h`<button class="pill" data-act="${online ? 'starter' : 'say'}" data-v="${q.id}">${q.label}</button>`))}
       </div>`)}
-    ${hasKey() ? raw(h`
-      <div class="card">
+
+    ${online ? raw(h`
+      <div class="card chat-box">
         <div class="fld">
-          <span>Спросить своими словами</span>
-          <input type="text" data-field="ask" data-act-enter="ask" placeholder="например, «с чего начать сегодня?»">
+          <textarea rows="2" data-field="ask"
+            placeholder="что на душе? можно просто рассказать, как есть"></textarea>
         </div>
-        <button class="add" data-act="ask">Спросить Летописца</button>
-        <div class="lab">Уйдёт в OpenAI: вопрос и короткая выжимка — квесты дня, энергия, потребности. Дневник и цикл не отправляются.</div>
+        <div class="row between">
+          <button class="pill" data-act="clear">очистить беседу</button>
+          <button class="btn" data-act="ask" ${busy ? 'disabled' : ''}>${busy ? 'Думаю…' : 'Отправить'}</button>
+        </div>
+        <label class="row tight" style="font-size:12.5px">
+          <input type="checkbox" data-change="withdiary" ${S.ui.chatDiary ? 'checked' : ''}>
+          Показывать последние записи дневника
+        </label>
+        <div class="lab">Уйдёт в OpenAI: твои сообщения, нить беседы и выжимка — квесты, энергия, цели, привычки,
+          потребности, просроченная забота${S.ui.chatDiary ? ', последние пять записей дневника' : ''}.
+          Цикл, КБЖУ и бюджет не отправляются${S.ui.chatDiary ? '' : ', дневник тоже'}.</div>
       </div>`)
     : raw(h`
       <div class="card mute">
-        <div class="lab">Сейчас Летописец работает офлайн: это правила поверх твоих отметок. Чтобы задавать
-        вопросы своими словами, добавь ключ OpenAI в Настройках.</div>
+        <div class="lab">Сейчас Летописец работает офлайн: это правила поверх твоих отметок. Чтобы разговаривать
+        своими словами — про день, усталость, планы и что угодно, — добавь ключ OpenAI в Настройках.</div>
       </div>`)}`;
 }
+
+/** С чего можно начать разговор, когда не знаешь, с чего начать. */
+const OPENERS = [
+  { id: 'day', label: 'Как мой день?' },
+  { id: 'tired', label: 'Я вымоталась' },
+  { id: 'stuck', label: 'Застряла' },
+  { id: 'think', label: 'Помоги подумать' },
+];
+
+const OPENER_TEXT = {
+  day: 'Посмотри на мой день и скажи, что видишь.',
+  tired: 'Я вымоталась. Не знаю, за что хвататься.',
+  stuck: 'Я застряла с одним делом и хожу вокруг него кругами.',
+  think: 'Хочу подумать вслух — задавай вопросы.',
+};
 
 function greeting() {
   const name = S.user.name || 'привет';
@@ -201,38 +230,22 @@ function diaryView() {
 export const actions = {
   tab: v => { update(s => { s.ui.insideTab = v.v; }); location.hash = '#/inside/' + v.v; },
 
-  /** Свободный вопрос: контекст собираем короткий и говорим об этом прямо в интерфейсе. */
+  /** Беседа: отправляем нить целиком, поэтому разговор помнит себя. */
   ask: async (v, el) => {
-    const q = (v.value || el?.value || document.querySelector('#scr [data-field="ask"]')?.value || '').trim();
-    if (!q) return toast('Напиши вопрос');
-    push('me', q);
-    const input = document.querySelector('#scr [data-field="ask"]');
-    if (input) input.value = '';
-    push('ai', '…');
-    try {
-      const t = todayISO();
-      const qs = questsOn(t);
-      const w = weekStats(t);
-      const context = [
-        `Сегодня ${t}. Хронотип: ${S.user.chronotype}, пик энергии ${peakLabel()}.`,
-        `Энергия: ${S.energy[t] ?? 'не отмечена'}.`,
-        `Квесты сегодня: ${qs.length ? qs.map(x => `${x.title}${x.done ? ' (сделано)' : ''}`).join(', ') : 'нет'}.`,
-        `За неделю закрыто ${w.done} из ${w.total}.`,
-        `Потребности: ${needs().filter(n => n.value != null).map(n => `${n.name} ${n.value}%`).join(', ') || 'нет данных'}.`,
-        `Роли без дела: ${roles().filter(r => r.low).map(r => r.name).join(', ') || 'нет'}.`,
-      ].join('\n');
-      const answer = await askChronicler(q, context);
-      update(s => {
-        const last = s.chat[s.chat.length - 1];
-        if (last && last.text === '…') last.text = answer || 'Не нашлось, что ответить.';
-      });
-    } catch (e) {
-      update(s => {
-        const last = s.chat[s.chat.length - 1];
-        if (last && last.text === '…') last.text = 'Не получилось спросить: ' + String(e.message || e).slice(0, 90);
-      });
-    }
+    if (S.ui.chatBusy) return;
+    const box = document.querySelector('#scr [data-field="ask"]');
+    const q = (v.value || el?.value || box?.value || '').trim();
+    if (!q) return toast('Напиши, о чём поговорим');
+    if (box) box.value = '';
+    await talk(q);
   },
+
+  /** Начало разговора одной кнопкой — дальше обычная беседа. */
+  starter: v => talk(OPENER_TEXT[v.v] || v.v),
+
+  withdiary: v => update(s => { s.ui.chatDiary = !!v.checked; }),
+
+  clear: () => update(s => { s.chat = []; s.ui.chatBusy = false; }),
 
   say: v => {
     const q = QUICK.find(x => x.id === v.v);
@@ -305,3 +318,23 @@ export const actions = {
   }),
   del: v => update(s => { s.diary = s.diary.filter(x => x.id !== v.id); }),
 };
+
+/** Один ход беседы: показать вопрос, сходить к модели, показать ответ. */
+async function talk(text) {
+  push('me', text);
+  update(s => { s.ui.chatBusy = true; });
+  try {
+    const extra = S.ui.chatDiary ? diaryDigest(5) : '';
+    const answer = await chatChronicler(S.chat, chatDigest(), extra);
+    update(s => {
+      s.ui.chatBusy = false;
+      s.chat.push({ id: uid(), who: 'ai', text: answer || 'Не нашлось, что ответить.', ts: Date.now() });
+      s.chat = s.chat.slice(-60);
+    });
+  } catch (e) {
+    update(s => {
+      s.ui.chatBusy = false;
+      s.chat.push({ id: uid(), who: 'ai', text: 'Не получилось ответить: ' + String(e.message || e).slice(0, 120), ts: Date.now() });
+    });
+  }
+}
