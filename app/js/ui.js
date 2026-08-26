@@ -46,7 +46,7 @@ function onEsc(e) { if (e.key === 'Escape') closeSheet(); }
  * Нижняя шторка с формой. body — HTML с полями (см. field.*).
  * onSave получает объект значений по name и функцию закрытия.
  */
-export function openSheet({ title, sub, body = '', primary = 'Сохранить', onSave, secondary, onSecondary, danger, onDanger }) {
+export function openSheet({ title, sub, body = '', primary = 'Сохранить', onSave, secondary, onSecondary, danger, onDanger, onAct }) {
   closeSheet();
   const wrap = document.createElement('div');
   wrap.className = 'overlay';
@@ -86,6 +86,10 @@ export function openSheet({ title, sub, body = '', primary = 'Сохранить
       group.dispatchEvent(new CustomEvent('opt', { detail: pill.dataset.value, bubbles: true }));
       return;
     }
+    // Своя кнопка внутри шторки: экранные действия сюда не долетают,
+    // поэтому шторка отдаёт их тому, кто её открыл.
+    const own = e.target.closest('[data-act]');
+    if (own && onAct) { onAct(own.dataset.act, { ...own.dataset }, closeSheet); return; }
     const act = e.target.closest('[data-sheet]');
     if (!act) return;
     const kind = act.dataset.sheet;

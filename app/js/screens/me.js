@@ -31,7 +31,6 @@ export function render() {
       <button class="q-edit" data-act="edit">изменить ›</button>
     </div>
 
-    ${S.ui.avatarOpen ? raw(avatarGrid()) : ''}
 
     <div class="card">
       <div class="row between"><div class="caps">${titleFor(li.lv)}</div>
@@ -158,17 +157,35 @@ function energyCard() {
 }
 
 export const actions = {
-  avatar: () => update(s => { s.ui.avatarOpen = !s.ui.avatarOpen; }),
-  pick: v => update(s => { s.user.avatar = v.v; s.ui.avatarOpen = false; }),
+  avatar: () => avatarSheet(),
   traits: () => update(s => { s.ui.traitsOpen = !s.ui.traitsOpen; }),
   chat: () => { location.hash = '#/inside/chat'; },
-  edit: () => openSheet({
+  edit: () => profileSheet(),
+};
+
+/** «Персонаж»: имя, хронотип, сон и строка аватара. */
+function profileSheet() {
+  openSheet({
     title: 'Персонаж',
     body: [
+      h`<button class="row between av-row" data-act="avatar">
+          <span class="lab grow" style="text-align:left">Аватар</span>
+          ${raw(avatarHtml(S.user, 34))}
+          <span class="lab">сменить ›</span>
+        </button>`,
       field.text('name', 'Имя', S.user.name),
       field.opts('chronotype', 'Хронотип', ['жаворонок', 'сова', 'плавает'], S.user.chronotype),
       field.range('sleep', 'Нужно спать', S.user.sleep, { min: 6, max: 11, step: 0.5, suffix: ' ч' }),
     ].join(''),
+    // Кнопка аватара живёт внутри шторки, поэтому её ловит сама шторка.
+    onAct: (name, _data, close) => {
+      if (name !== 'avatar') return;
+      // Введённое имя не теряем: подхватим его при возврате.
+      const typed = document.querySelector('.sheet input[name="name"]')?.value;
+      if (typed != null) update(s => { s.user.name = typed.trim() || s.user.name; });
+      close();
+      avatarSheet(profileSheet);
+    },
     onSave: (v, close) => {
       update(s => {
         s.user.name = (v.name || '').trim() || s.user.name;
@@ -178,26 +195,33 @@ export const actions = {
       close();
       toast('Сохранено');
     },
-  }),
-};
+  });
+}
 
-/** Выбор аватара прямо на экране: пять портретов и буква имени как было. */
-function avatarGrid() {
+/** Мини-окно выбора: буква имени и полсотни портретов. */
+function avatarSheet(back) {
   const cur = S.user.avatar || '';
-  return h`
-    <div class="card">
-      <div class="row between"><div class="caps">Аватар</div>
-        <button class="q-edit" data-act="avatar">свернуть</button></div>
+  openSheet({
+    title: 'Аватар',
+    sub: 'выбери, кто смотрит на тебя с экрана',
+    body: h`
       <div class="av-grid">
-        <button class="av-pick ${cur === '' ? 'on' : ''}" data-act="pick" data-v="">
-          ${raw(avatarHtml({ ...S.user, avatar: '' }, 62))}
-          <span class="lab">Буква</span>
+        <button class="av-pick ${cur === '' ? 'on' : ''}" data-act="pick" data-v="" aria-label="Буква имени">
+          ${raw(avatarHtml({ ...S.user, avatar: '' }, 58))}
         </button>
-        ${AVATARS.map(a => raw(h`
-          <button class="av-pick ${cur === a.id ? 'on' : ''}" data-act="pick" data-v="${a.id}">
-            <img src="${avatarSrc(a.id)}" alt="${a.name}" loading="lazy">
-            <span class="lab">${a.name}</span>
+        ${AVATARS.map((id, i) => raw(h`
+          <button class="av-pick ${cur === id ? 'on' : ''}" data-act="pick" data-v="${id}" aria-label="Аватар ${i + 1}">
+            <img src="${avatarSrc(id)}" alt="" loading="lazy">
           </button>`))}
-      </div>
-    </div>`;
+      </div>`,
+    onAct: (name, data, close) => {
+      if (name !== 'pick') return;
+      update(s => { s.user.avatar = data.v; });
+      close();
+      if (back) back();
+    },
+    onSave: null,
+    secondary: back ? 'Назад' : 'Закрыть',
+    onSecondary: (_v, close) => { close(); if (back) back(); },
+  });
 }

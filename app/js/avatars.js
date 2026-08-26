@@ -1,20 +1,12 @@
 // Аватар профиля. Картинки лежат в assets/avatars, в состоянии — только
-// короткий ключ: так экспорт остаётся лёгким и не тащит в себе изображение.
+// короткий ключ вроде a12: так экспорт остаётся лёгким и не тащит в себе
+// изображение. Подписей у портретов нет намеренно — с полусотней вариантов
+// они превращают выбор в стену текста.
 
-export const AVATARS = [
-  { id: 'a1', name: 'Рыжая' },
-  { id: 'a2', name: 'Солнечная' },
-  { id: 'a3', name: 'Книжный' },
-  { id: 'a4', name: 'Спортивная' },
-  { id: 'a5', name: 'В пальто' },
-  { id: 'a6', name: 'С косой' },
-  { id: 'a7', name: 'В худи' },
-  { id: 'a8', name: 'Джинсовка' },
-  { id: 'a9', name: 'Пикси' },
-  { id: 'a10', name: 'Каре' },
-];
-
-export const avatarSrc = id => (AVATARS.some(a => a.id === id) ? `assets/avatars/${id}.webp` : '');
+const COUNT = 50;
+export const AVATARS = Array.from({ length: COUNT }, (_, i) => `a${i + 1}`);
+export const hasAvatar = id => AVATARS.includes(id);
+export const avatarSrc = id => (hasAvatar(id) ? `assets/avatars/${id}.webp` : '');
 
 /** Кружок профиля: картинка, если выбрана, иначе первая буква имени. */
 export const avatarHtml = (user, size = 42, cls = '') => {
