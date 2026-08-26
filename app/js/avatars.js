@@ -7,6 +7,11 @@ export const AVATARS = [
   { id: 'a3', name: 'Книжный' },
   { id: 'a4', name: 'Спортивная' },
   { id: 'a5', name: 'В пальто' },
+  { id: 'a6', name: 'С косой' },
+  { id: 'a7', name: 'В худи' },
+  { id: 'a8', name: 'Джинсовка' },
+  { id: 'a9', name: 'Пикси' },
+  { id: 'a10', name: 'Каре' },
 ];
 
 export const avatarSrc = id => (AVATARS.some(a => a.id === id) ? `assets/avatars/${id}.webp` : '');
