@@ -11,7 +11,7 @@ import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { scheduleBlock, scheduleActions } from '../schedule.js';
 import {
   templates, templateById, templateName, exerciseById, exerciseHistory, exerciseRecord,
-  liveLessons, liveGoals, isCounter,
+  liveLessons, liveGoals, isCounter, sportTags, tagMonthCount,
 } from '../selectors.js';
 
 const TABS = [['tpl', 'Шаблоны'], ['ex', 'Упражнения']];
@@ -54,6 +54,17 @@ function tplView() {
       </div>`))}
     ${!list.length ? raw(h`<div class="card dash"><div class="empty">Шаблонов пока нет.<br>Шаблон — это состав тренировки без даты.</div></div>`) : ''}
     <button class="add" data-act="tpladd">+ Шаблон</button>
+
+    <div class="card">
+      <div class="row between"><div class="caps">Пилюли</div>
+        <button class="q-edit" data-act="tagadd">+ пилюля</button></div>
+      <div class="lab">Именно они считаются в трекере года: тренировка со временем меняется, а «пресс» остаётся.</div>
+      ${sportTags().length ? raw(h`<div class="chips">${sportTags().map(t => {
+        const n = tagMonthCount(t.id, monthKey(todayISO()));
+        return raw(h`<button class="chip" data-act="tagedit" data-id="${t.id}">${t.name}${n ? ` · ${n}` : ''}</button>`);
+      })}</div>`) : raw('<div class="lab">Пока пусто.</div>')}
+    </div>
+
     <div class="card mute"><div class="lab">Сами тренировки живут на своих днях: заводятся на экране «День»,
       где шаблон подставляет состав. Здесь только заготовки.</div></div>`;
 }
@@ -103,6 +114,37 @@ function historyBlock(ex) {
 }
 
 // ── шторки ──────────────────────────────────────────────────────
+/**
+ * Пилюли тренировки: «пресс», «руки», «зал с тренером». Именно они считаются
+ * в трекере года — программа меняется, а пилюля остаётся.
+ */
+function tagPicks(chosen = []) {
+  const list = sportTags();
+  return [
+    list.length ? h`
+      <div class="fld"><span>Что качаем</span>
+        <div class="picks">
+          ${list.map(t => raw(h`
+            <label class="pick-box"><input type="checkbox" name="tag_${t.id}" ${raw(chosen.includes(t.id) ? 'checked' : '')}><span>${t.name}</span></label>`))}
+        </div>
+      </div>` : '',
+    field.text('newtag', 'Новая пилюля', '', 'если нужной нет — впиши'),
+    field.note('В трекере года считаются именно пилюли: сколько раз за месяц был пресс или зал с тренером.'),
+  ].join('');
+}
+
+/** Собрать выбранные пилюли из полей шторки и завести новую, если вписали. */
+function tagsFrom(v, s) {
+  const picked = sportTags().filter(t => v['tag_' + t.id]).map(t => t.id);
+  const name = (v.newtag || '').trim();
+  if (!name) return picked;
+  const exist = s.sport.tags.find(t => t.name.toLowerCase() === name.toLowerCase());
+  if (exist) return [...new Set([...picked, exist.id])];
+  const fresh = { id: uid(), name };
+  s.sport.tags.push(fresh);
+  return [...picked, fresh.id];
+}
+
 export function workoutSheet(workout, date) {
   const isNew = !workout;
   const w = workout || { id: uid(), date: date || todayISO(), title: '', templateId: '', lessonId: '', goalId: '', done: false, sets: [], note: '' };
@@ -128,6 +170,7 @@ export function workoutSheet(workout, date) {
             ...goals.map(g => ({ value: g.id, label: isCounter(g) ? `${g.title} · ${counterLabel(g)}` : g.title }))], w.goalId || '')
         : '',
       goals.length ? field.note('Это только подпись, к чему тренировка относится: счётчик цели остаётся за тобой.') : '',
+      tagPicks(w.tags || []),
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="done" ${w.done ? 'checked' : ''}> Уже сделала</label>`,
       field.area('note', 'Заметка', w.note || ''),
     ].join(''),
@@ -139,12 +182,14 @@ export function workoutSheet(workout, date) {
           ...w, title: (v.title || '').trim() || templateName(v.templateId) || 'Тренировка',
           templateId: v.templateId || w.templateId || '',
           date: v.date || w.date, lessonId: v.lessonId || '', goalId: v.goalId || '',
-          note: (v.note || '').trim(), done: !!v.done,
+          note: (v.note || '').trim(), done: !!v.done, tags: tagsFrom(v, s),
         };
         // Шаблон подставляет состав один раз, при создании.
-        if (!prev && !next.sets.length && v.templateId) {
+        if (!prev && v.templateId) {
           const t = s.sport.templates.find(x => x.id === v.templateId);
-          next.sets = (t?.sets || []).map(x => ({ ...x, id: uid(), done: false }));
+          if (!next.sets.length) next.sets = (t?.sets || []).map(x => ({ ...x, id: uid(), done: false }));
+          // Пилюли шаблона подставляются, если руками ничего не выбрано.
+          if (!next.tags.length) next.tags = [...(t?.tags || [])];
         }
         const i = s.sport.workouts.findIndex(x => x.id === w.id);
         if (i >= 0) s.sport.workouts[i] = next; else s.sport.workouts.push(next);
@@ -280,6 +325,7 @@ function tplSheet(tpl) {
     sub: 'например, «Зал А · ноги» или «Пилатес»',
     body: [
       field.text('name', 'Название', k.name, 'как называешь про себя'),
+      tagPicks(k.tags || []),
       isNew ? field.note('Состав добавишь на карточке — он будет подставляться в новые тренировки на дне.') : '',
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
@@ -287,8 +333,10 @@ function tplSheet(tpl) {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
       update(s => {
+        const tags = tagsFrom(v, s);
         const i = s.sport.templates.findIndex(x => x.id === k.id);
-        if (i >= 0) s.sport.templates[i].name = name; else s.sport.templates.push({ ...k, name });
+        if (i >= 0) { s.sport.templates[i].name = name; s.sport.templates[i].tags = tags; }
+        else s.sport.templates.push({ ...k, name, tags });
       });
       close();
     },
@@ -339,6 +387,8 @@ function exSheet(ex) {
 
 export const actions = {
   ...scheduleActions,
+  tagadd: () => tagSheet(null),
+  tagedit: v => tagSheet(sportTags().find(t => t.id === v.id)),
   back: () => { location.hash = '#/spheres'; },
   tab: v => update(s => { s.ui.sportTab = v.v; }),
 
@@ -384,3 +434,40 @@ export const actions = {
     });
   },
 };
+
+/** Пилюля: имя и удаление. Удаление снимает её с тренировок, но их не трогает. */
+function tagSheet(tag) {
+  const isNew = !tag;
+  const t = tag || { id: uid(), name: '' };
+  const used = S.sport.workouts.filter(w => (w.tags || []).includes(t.id)).length;
+  openSheet({
+    title: isNew ? 'Пилюля' : t.name,
+    sub: isNew ? 'например, «Пресс» или «Зал с тренером»' : `тренировок с ней: ${used}`,
+    body: [
+      field.text('name', 'Название', t.name, 'что качаем'),
+      field.note('Пилюлями считается трекер года. Одна тренировка может нести несколько сразу.'),
+    ].join(''),
+    primary: isNew ? 'Добавить' : 'Сохранить',
+    onSave: (v, close) => {
+      const name = (v.name || '').trim();
+      if (!name) return toast('Нужно название');
+      update(s => {
+        const i = s.sport.tags.findIndex(x => x.id === t.id);
+        if (i >= 0) s.sport.tags[i].name = name; else s.sport.tags.push({ ...t, name });
+      });
+      close();
+    },
+    danger: isNew ? null : 'Удалить пилюлю',
+    onDanger: (_v, close) => {
+      update(s => {
+        s.sport.tags = s.sport.tags.filter(x => x.id !== t.id);
+        s.sport.workouts.forEach(w => { w.tags = (w.tags || []).filter(x => x !== t.id); });
+        s.sport.templates.forEach(x => { x.tags = (x.tags || []).filter(y => y !== t.id); });
+        delete s.tracker.tagValues[t.id];
+        touchTracker(s);
+      });
+      close();
+      toast('Убрала — тренировки остались');
+    },
+  });
+}

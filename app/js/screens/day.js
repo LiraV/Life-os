@@ -9,7 +9,7 @@ import { scheduleMark, occurrenceSheet } from '../schedule.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
-  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn,
+  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName,
 } from '../selectors.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -145,6 +145,7 @@ function workoutRow(w) {
         <div class="q-title">${w.title || 'Тренировка'}</div>
         <div class="q-meta">
           <span class="tag">тренировка</span>
+          ${(w.tags || []).map(id => tagName(id)).filter(Boolean).map(n => raw(h`<span class="tag">${n}</span>`))}
           ${w.goalId && goalTitleOf(w.goalId) ? raw(h`<span class="tag">→ ${goalTitleOf(w.goalId)}</span>`) : ''}
           <span class="q-time">${sets.length
             ? `${sets.length} упр.${done ? ` · сделано ${done}` : ''}`

@@ -164,6 +164,22 @@ export const templateById = id => templates().find(t => t.id === id);
 export const templateName = id => (templateById(id) || {}).name || '';
 
 export const workoutsOn = date => S.sport.workouts.filter(w => w.date === date);
+
+// ── пилюли тренировок ───────────────────────────────────────────
+// Тренировка со временем меняется, а «пресс» остаётся прессом: считаем
+// именно пилюли, поэтому статистика переживает смену программы.
+export const sportTags = () => S.sport.tags || [];
+export const tagById = id => sportTags().find(t => t.id === id);
+export const tagName = id => (tagById(id) || {}).name || '';
+
+/** Сколько раз за месяц была отмечена тренировка с этой пилюлей. */
+export const tagMonthCount = (tagId, ym) => S.sport.workouts
+  .filter(w => w.done && !w.measure && w.date.slice(0, 7) === ym && (w.tags || []).includes(tagId))
+  .length;
+
+/** Пилюля попадает в трекер, если в этом году она хоть раз встречалась. */
+export const tagUsedIn = (tagId, year) => S.sport.workouts
+  .some(w => w.done && !w.measure && w.date.slice(0, 4) === String(year) && (w.tags || []).includes(tagId));
 export const exerciseById = id => S.sport.exercises.find(e => e.id === id);
 
 /** Все результаты упражнения по датам — из подходов выполненных тренировок. */

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 23;
+const VERSION = 24;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -35,7 +35,7 @@ function blank() {
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
-    tracker: { rows: [], values: {}, habitValues: {}, lessonValues: {}, exerciseValues: {} },  // свои строки и ручные правки
+    tracker: { rows: [], values: {}, habitValues: {}, lessonValues: {}, exerciseValues: {}, tagValues: {} },  // свои строки и ручные правки
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
@@ -43,10 +43,11 @@ function blank() {
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
     lessons: [],                                         // полка обучения: курсы и практики
     sport: {                                             // спорт: тренировки и упражнения с рекордами
-      workouts: [],                                      // { id, date, title, templateId, lessonId, goalId, done, sets: [], note }
+      workouts: [],                                      // { id, date, title, templateId, lessonId, goalId, done, sets: [], tags: [], note }
                                                          // подход: { id, exerciseId, value, reps, done }
       exercises: [],                                     // { id, name, unit, dir: 'up'|'down'|'both' }
-      templates: [],                                     // шаблоны тренировок: { id, name, sets: [] } — без дат
+      templates: [],                                     // шаблоны тренировок: { id, name, sets: [], tags: [] } — без дат
+      tags: [],                                          // пилюли: { id, name } — пресс, руки, зал с тренером
     },
     schedules: [],                                       // расписание — дело по дням недели:
                                                          // { id, kind, refId, days: [], time, dur, every, from, to, place, note, off,
@@ -140,11 +141,20 @@ function migrate(s) {
       title: (w.title || '').trim() || kindName(w.kind) || 'Тренировка',
       templateId: w.templateId || (templates.some(t => t.id === w.kind) ? w.kind : ''),
       sets: (Array.isArray(w.sets) ? w.sets : []).map(x => ({ ...x, done: typeof x.done === 'boolean' ? x.done : !!w.done })),
+      // v23 → v24: пилюли тренировки — «пресс», «руки», «зал с тренером».
+      tags: Array.isArray(w.tags) ? w.tags : [],
       kind: undefined,
     })),
     exercises: (Array.isArray(sp.exercises) ? sp.exercises : []).map(e => ({ ...e, dir: ['up', 'down', 'both'].includes(e.dir) ? e.dir : 'up' })),
-    templates: templates.map(t => ({ ...t, sets: Array.isArray(t.sets) ? t.sets : [] })),
+    templates: templates.map(t => ({ ...t, sets: Array.isArray(t.sets) ? t.sets : [], tags: Array.isArray(t.tags) ? t.tags : [] })),
+    tags: (Array.isArray(sp.tags) ? sp.tags : []).map(t => ({ id: t.id, name: t.name })),
   };
+
+  // Первый запуск: несколько привычных пилюль, чтобы было с чего начать.
+  if (!merged.sport.tags.length && !merged.sport.workouts.some(w => w.tags?.length)) {
+    merged.sport.tags = ['Пресс', 'Руки', 'Ягодицы', 'Ноги', 'Спина', 'Кардио', 'Растяжка', 'Зал с тренером']
+      .map(name => ({ id: uid(), name }));
+  }
 
   // Автоматическое закрытие целей убрано: цели отмечаются вручную,
   // связь с тренировкой осталась только подписью.
@@ -307,6 +317,8 @@ function migrate(s) {
     habitValues: tr.habitValues && typeof tr.habitValues === 'object' ? tr.habitValues : {},
     lessonValues: tr.lessonValues && typeof tr.lessonValues === 'object' ? tr.lessonValues : {},
     exerciseValues: tr.exerciseValues && typeof tr.exerciseValues === 'object' ? tr.exerciseValues : {},
+    // Ручные правки строк-пилюль: { пилюля: { 'YYYY-MM': число } }
+    tagValues: tr.tagValues && typeof tr.tagValues === 'object' ? tr.tagValues : {},
   };
 
   // v6 → v7: трекер считает только полные дни, поэтому ручная правка стала
