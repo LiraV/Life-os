@@ -227,6 +227,9 @@ function diaryView() {
 }
 
 // ── действия ────────────────────────────────────────────────────
+/** Чат открывается снизу — как любая переписка. */
+export const stickBottom = params => tab(params) === 'chat';
+
 export const actions = {
   tab: v => { update(s => { s.ui.insideTab = v.v; }); location.hash = '#/inside/' + v.v; },
 

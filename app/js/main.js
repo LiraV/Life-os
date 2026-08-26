@@ -132,7 +132,13 @@ export function render() {
   const key = name + '/' + params.join('/');
   const keep = key === lastKey ? scr.scrollTop : 0;
   scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
-  scr.scrollTop = keep;
+  // Переписка открывается снизу: видно поле ввода и последние сообщения.
+  if (SCREENS[name].stickBottom?.(params)) {
+    scr.scrollTop = scr.scrollHeight;
+    requestAnimationFrame(() => { scr.scrollTop = scr.scrollHeight; });
+  } else {
+    scr.scrollTop = keep;
+  }
   lastKey = key;
   renderNav();
   renderDrawer();
