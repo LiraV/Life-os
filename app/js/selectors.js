@@ -1426,10 +1426,10 @@ export const workOver = (from, to) => Math.round(daysOf(from, to)
  * Число отрезвляющее — переработка его снижает, и это видно.
  */
 export function workRate(ym) {
-  const j = workJob();
+  const salary = currentSalary();
   const m = workMonth(ym);
-  if (!Number(j.salary) || !m.hours) return null;
-  return { rate: Math.round(Number(j.salary) / m.hours), hours: m.hours, salary: Number(j.salary) };
+  if (!salary || !m.hours) return null;
+  return { rate: Math.round(salary / m.hours), hours: m.hours, salary };
 }
 
 /** Отпуск за год: сколько использовано из положенного. */
@@ -1457,3 +1457,90 @@ export const workDue = (within = 7) => workTasks()
 
 export const workWins = () => [...S.work.wins].sort((a, b) => (a.date < b.date ? 1 : -1));
 export const winsIn = (from, to) => S.work.wins.filter(x => x.date >= from && x.date <= to);
+
+// ── карьерный путь ──────────────────────────────────────────────
+// Треков может быть несколько: наём и своё дело идут параллельно, и
+// складывать их стаж в одно число было бы враньём. Поэтому итог считается
+// по каждому треку отдельно, а пересекающиеся периоды внутри трека
+// объединяются — две должности в одной компании не удваивают стаж.
+
+export const careerTracks = () => S.work.tracks.filter(t => !t.archived);
+export const trackById = id => S.work.tracks.find(t => t.id === id) || null;
+export const trackName = id => trackById(id)?.name || 'Без трека';
+
+/** Должности трека, новые сверху. Без трека — тоже трек, просто безымянный. */
+export const careerIn = trackId => S.work.career
+  .filter(x => (x.trackId || '') === trackId)
+  .sort((a, b) => (a.start < b.start ? 1 : -1));
+
+/** Текущие — те, у кого нет даты окончания. Их может быть несколько. */
+export const careerCurrent = () => S.work.career.filter(x => !x.end)
+  .sort((a, b) => (a.start < b.start ? 1 : -1));
+
+/** Треки, в которых что-то есть, — включая безымянный. */
+export const careerTrackIds = () => {
+  const used = [...new Set(S.work.career.map(x => x.trackId || ''))];
+  const known = careerTracks().map(t => t.id);
+  return [...new Set([...known, ...used])];
+};
+
+/** Сколько месяцев прошло от одного месяца до другого. */
+const monthsBetween = (a, b) => {
+  const [y1, m1] = a.split('-').map(Number);
+  const [y2, m2] = b.split('-').map(Number);
+  return Math.max(0, (y2 - y1) * 12 + (m2 - m1));
+};
+
+/**
+ * Длительность в месяцах, считая обе границы: «июнь — декабрь» это семь
+ * месяцев, а не шесть, — декабрь отработан целиком. Так же считают в резюме.
+ */
+const monthSpan = (a, b) => monthsBetween(a, b) + 1;
+
+/** Длительность должности в месяцах. Незакрытая считается по сегодня. */
+export const careerSpan = x => monthSpan(x.start.slice(0, 7), (x.end || todayISO()).slice(0, 7));
+
+/** «1 год 2 месяца» — длительность словами. */
+export function spanLabel(months) {
+  const y = Math.floor(months / 12), m = months % 12;
+  const yl = y ? `${y} ${plural(y, 'год', 'года', 'лет')}` : '';
+  const ml = m ? `${m} ${plural(m, 'месяц', 'месяца', 'месяцев')}` : '';
+  return [yl, ml].filter(Boolean).join(' ') || 'меньше месяца';
+}
+
+/**
+ * Стаж по треку: пересекающиеся периоды объединяются, поэтому две должности
+ * в одной компании подряд не считаются дважды.
+ */
+export function trackTotal(trackId) {
+  const list = careerIn(trackId)
+    .map(x => [x.start.slice(0, 7), (x.end || todayISO()).slice(0, 7)])
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  if (!list.length) return 0;
+  const merged = [list[0]];
+  list.slice(1).forEach(([from, to]) => {
+    const last = merged[merged.length - 1];
+    if (from <= last[1]) last[1] = to > last[1] ? to : last[1];
+    else merged.push([from, to]);
+  });
+  return merged.reduce((a, [from, to]) => a + monthSpan(from, to), 0);
+}
+
+/** Перерыв между двумя соседними должностями трека — если он был. */
+export function careerGap(trackId, index) {
+  const list = careerIn(trackId);
+  const newer = list[index], older = list[index + 1];
+  if (!newer || !older || !older.end) return 0;
+  // Месяц, в котором работа закончилась, отработан — в перерыв он не идёт.
+  return Math.max(0, monthsBetween(older.end.slice(0, 7), newer.start.slice(0, 7)) - 1);
+}
+
+/**
+ * Оклад для расчёта часа. Он живёт у текущей должности — там, где ему место.
+ * Поле в графике осталось только как запас для тех, кто вписал его до того,
+ * как появился «Путь»: терять уже введённое из-за переезда поля нельзя.
+ */
+export function currentSalary() {
+  const paid = careerCurrent().find(x => Number(x.salary) > 0);
+  return paid ? Number(paid.salary) : Math.max(0, Number(workJob().salary) || 0);
+}

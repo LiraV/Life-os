@@ -7,17 +7,19 @@
 // График задаётся один раз, и из него берётся норма дня. Поэтому отметить
 // день — это один тап: часы подставляются, а не вводятся каждый раз.
 
-import { S, update, uid, XP, addXp, WORK_STAGES, touchTracker } from '../store.js';
+import { S, update, uid, XP, addXp, WORK_STAGES, WORK_KINDS, touchTracker } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, addMonths, monthTitle, yearOf, MONTHS, weekDates, DOW, dowIndex, diffDays, relativeDay } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import {
   workJob, workDayNorm, workWeekNorm, workDay, workWeek, workMonth, workStreak, workOver,
   workRate, workVacation, isWorkday, workProjects, workProjectName, workTasks, tasksInStage,
   workDue, workDoneIn, workWins, winsIn, officeDays,
+  careerTracks, trackName, careerIn, careerCurrent, careerTrackIds,
+  careerSpan, spanLabel, trackTotal, careerGap, trackById,
 } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 
-const TABS = [['now', 'Сейчас'], ['board', 'Доска'], ['year', 'Год']];
+const TABS = [['now', 'Сейчас'], ['board', 'Доска'], ['road', 'Путь'], ['year', 'Год']];
 const tab = () => (TABS.some(([k]) => k === S.ui.workTab) ? S.ui.workTab : 'now');
 const proj = () => S.ui.workProj ?? null;          // null — все, '' — без проекта
 const ym = () => S.ui.workMonth || monthKey(todayISO());
@@ -39,7 +41,7 @@ export function render() {
     </div>
     <div class="title">Работа</div>
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
-    ${raw({ now: nowView, board: boardView, year: yearView }[tab()]())}
+    ${raw({ now: nowView, board: boardView, road: roadView, year: yearView }[tab()]())}
     <div style="height:4px"></div>`;
 }
 
@@ -207,7 +209,7 @@ function yearView() {
           Число падает от переработок — в этом и смысл, что оно видно.</div>
       </div>`) : raw(h`
       <div class="card mute">
-        <div class="lab">Впиши оклад в графике — покажу, сколько на самом деле стоит час.</div>
+        <div class="lab">Добавь текущую должность на вкладке «Путь» и впиши оклад — покажу, сколько на самом деле стоит час.</div>
       </div>`)}
 
     <div class="card">
@@ -410,10 +412,9 @@ function jobSheet() {
       field.time('start', 'Начало', j.start),
       field.time('end', 'Конец', j.end),
       field.number('lunch', 'Обед', j.lunch, { min: 0, max: 240, suffix: 'мин' }),
-      field.number('salary', 'Оклад до налогов', j.salary || '', { min: 0, suffix: '₽' }),
       field.number('officeNorm', 'Сколько дней в офисе нужно за месяц', j.officeNorm || '', { min: 0 }),
       field.number('vacationDays', 'Дней отпуска в году', j.vacationDays, { min: 0 }),
-      field.note('Из графика считается норма дня и недели. Оклад нужен только для одного: показать, сколько на самом деле стоит час. Ноль в «днях в офисе» — значит, не следим.'),
+      field.note('Из графика считается норма дня и недели. Ноль в «днях в офисе» — значит, не следим. Оклад живёт не здесь, а у текущей должности на вкладке «Путь»: он относится к должности, а не к расписанию.'),
     ].join(''),
     primary: 'Сохранить',
     onSave: (v, close) => {
@@ -424,7 +425,6 @@ function jobSheet() {
           start: v.start || s.work.job.start,
           end: v.end || s.work.job.end,
           lunch: Math.max(0, Number(v.lunch) || 0),
-          salary: Math.max(0, Number(v.salary) || 0),
           officeNorm: Math.max(0, Number(v.officeNorm) || 0),
           vacationDays: Math.max(0, Number(v.vacationDays) || 0),
         };
@@ -471,6 +471,161 @@ export const actions = {
   winadd: () => winSheet(null),
   win: v => winSheet(v.id),
 
+  posadd: () => positionSheet(null),
+  pos: v => positionSheet(v.id),
+  trackadd: () => trackSheet(null),
+  trackedit: v => trackSheet(v.id),
+
   spheregoal: () => sphereGoalSheet('work'),
   togoal: () => { location.hash = '#/plans'; },
 };
+
+// ── путь ────────────────────────────────────────────────────────
+/**
+ * Карьерный путь: места и должности во времени. Треков может быть несколько —
+ * наём и своё дело идут параллельно, и складывать их стаж в одно число было бы
+ * враньём. Поэтому итог считается по каждому треку отдельно.
+ */
+function roadView() {
+  const ids = careerTrackIds();
+  const cur = careerCurrent();
+  return h`
+    ${cur.length ? raw(h`
+      <div class="card">
+        <div class="caps">Сейчас</div>
+        ${cur.map(x => raw(h`
+          <button class="row between care-name" data-act="pos" data-id="${x.id}">
+            <span class="grow">
+              <span class="ink">${x.title}</span>
+              <span class="lab"> · ${x.company}</span>
+            </span>
+            <span class="lab">${spanLabel(careerSpan(x))} ›</span>
+          </button>`))}
+      </div>`) : ''}
+
+    ${ids.length ? ids.map(id => raw(trackCard(id))) : raw(h`
+      <div class="card dash">
+        <div class="empty">Путь пока пуст.<br>Первая должность — это уже путь.</div>
+        <button class="add" data-act="posadd">+ Должность</button>
+      </div>`)}
+
+    ${ids.length ? raw(h`
+      <button class="add" data-act="posadd">+ Должность</button>
+      <button class="btn-ghost" data-act="trackadd">+ Карьерный трек</button>
+      <div class="card mute"><div class="lab">Трек — отдельная линия: наём и своё дело можно вести параллельно.
+        Стаж считается по каждому отдельно, а пересекающиеся периоды внутри трека не удваиваются.</div></div>`) : ''}`;
+}
+
+function trackCard(trackId) {
+  const list = careerIn(trackId);
+  if (!list.length) return '';
+  const total = trackTotal(trackId);
+  return h`
+    <div class="card">
+      <div class="row between">
+        <div class="caps">${trackId ? trackName(trackId) : 'Без трека'}</div>
+        <span class="lab">${spanLabel(total)}${trackId ? '' : ''}</span>
+      </div>
+      ${trackId ? raw(h`<button class="q-edit" data-act="trackedit" data-id="${trackId}">изменить трек ›</button>`) : ''}
+      <div class="road">
+        ${list.map((x, i) => {
+          const gap = careerGap(trackId, i);
+          return raw(h`
+            ${gap > 0 ? raw(h`<div class="road-gap">перерыв ${spanLabel(gap)}</div>`) : ''}
+            <button class="road-item ${x.end ? '' : 'now'}" data-act="pos" data-id="${x.id}">
+              <span class="road-dot"></span>
+              <span class="grow" style="text-align:left">
+                <span class="ink">${x.title}</span>
+                <span class="lab"> · ${x.company}</span>
+                <span class="lab" style="display:block">${period(x)} · ${spanLabel(careerSpan(x))} · ${WORK_KINDS.find(k => k.key === x.kind)?.name || ''}</span>
+                ${x.note ? raw(h`<span class="lab" style="display:block">${x.note}</span>`) : ''}
+              </span>
+            </button>`);
+        })}
+      </div>
+      <div class="lab">Начало — ${period({ start: list[list.length - 1].start })}.</div>
+    </div>`;
+}
+
+const ymLabel = ym => `${MONTHS[Number(ym.slice(5, 7)) - 1].toLowerCase()} ${ym.slice(0, 4)}`;
+const period = x => (x.end ? `${ymLabel(x.start)} — ${ymLabel(x.end)}` : `с ${ymLabel(x.start)}`);
+
+/** Должность: место, название, вид, период и оклад. */
+function positionSheet(id) {
+  const x = S.work.career.find(y => y.id === id);
+  const it = x || {
+    id: uid(), trackId: careerTracks()[0]?.id || '', company: '', title: '',
+    kind: 'job', start: todayISO().slice(0, 7) + '-01', end: '', salary: 0, note: '',
+  };
+  const tracks = careerTracks();
+  openSheet({
+    title: x ? x.title : 'Должность',
+    sub: x ? x.company : 'место, должность и период',
+    body: [
+      field.text('company', 'Где', it.company, 'название компании или своё дело'),
+      field.text('title', 'Кем', it.title, 'например, «специалист по рекламе»'),
+      field.opts('kind', 'Что это', WORK_KINDS.map(k => ({ value: k.key, label: k.name })), it.kind),
+      tracks.length ? field.select('trackId', 'Карьерный трек',
+        [{ value: '', label: 'без трека' }, ...tracks.map(t => ({ value: t.id, label: t.name }))], it.trackId || '') : '',
+      field.date('start', 'С какого дня', it.start),
+      field.date('end', 'По какой — пусто, если это сейчас', it.end || ''),
+      field.number('salary', 'Оклад до налогов', it.salary || '', { min: 0, suffix: '₽' }),
+      field.area('note', 'Чем занималась', it.note || ''),
+      field.note('Пустая дата окончания означает «работаю сейчас». Оклад текущей должности используется для расчёта стоимости часа.'),
+    ].join(''),
+    primary: x ? 'Сохранить' : 'Добавить',
+    onSave: (v, close) => {
+      const company = (v.company || '').trim();
+      const title = (v.title || '').trim();
+      if (!company || !title) return toast('Нужны место и должность');
+      if (v.end && v.end < (v.start || it.start)) return toast('Конец раньше начала');
+      update(s => {
+        const next = {
+          ...it, company, title, kind: WORK_KINDS.some(k => k.key === v.kind) ? v.kind : 'job',
+          trackId: v.trackId ?? it.trackId, start: v.start || it.start, end: v.end || '',
+          salary: Math.max(0, Number(v.salary) || 0), note: (v.note || '').trim(),
+        };
+        const i = s.work.career.findIndex(y => y.id === it.id);
+        if (i >= 0) s.work.career[i] = next; else { s.work.career.push(next); addXp(XP.step); }
+      });
+      close();
+    },
+    danger: x ? 'Убрать должность' : null,
+    onDanger: (_v, close) => {
+      close();
+      confirmSheet(`Убрать «${it.title}»?`, 'Запись уйдёт из пути. Часы, задачи и опыт останутся.', 'Убрать',
+        () => update(s => { s.work.career = s.work.career.filter(y => y.id !== it.id); }));
+    },
+  });
+}
+
+/** Трек: отдельная линия карьеры. */
+function trackSheet(id) {
+  const t = id ? trackById(id) : null;
+  const it = t || { id: uid(), name: '', archived: false };
+  openSheet({
+    title: t ? t.name : 'Карьерный трек',
+    sub: 'отдельная линия — например, наём и своё дело',
+    body: [
+      field.text('name', 'Название', it.name, 'например, «Маркетинг»'),
+      t ? field.note(`Должностей в треке: ${careerIn(it.id).length}. Убранный трек уходит из выбора, а его должности остаются на пути.`) : '',
+    ].join(''),
+    primary: t ? 'Сохранить' : 'Добавить',
+    onSave: (v, close) => {
+      const name = (v.name || '').trim();
+      if (!name) return toast('Нужно название');
+      update(s => {
+        const i = s.work.tracks.findIndex(y => y.id === it.id);
+        if (i >= 0) s.work.tracks[i] = { ...s.work.tracks[i], name };
+        else s.work.tracks.push({ ...it, name });
+      });
+      close();
+    },
+    danger: t ? 'Убрать трек' : null,
+    onDanger: (_v, close) => {
+      update(s => { const y = s.work.tracks.find(z => z.id === it.id); if (y) y.archived = true; });
+      close();
+      toast('Убрала — должности остались');
+    },
+  });
+}

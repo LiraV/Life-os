@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 32;
+const VERSION = 33;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -46,6 +46,15 @@ export const WORK_STAGES = [
   { key: 'done', name: 'Готово' },
 ];
 
+/** Чем была работа. Список короткий намеренно: это подпись, а не анкета. */
+export const WORK_KINDS = [
+  { key: 'job', name: 'Наём' },
+  { key: 'freelance', name: 'Фриланс' },
+  { key: 'own', name: 'Своё дело' },
+  { key: 'intern', name: 'Стажировка' },
+  { key: 'volunteer', name: 'Волонтёрство' },
+];
+
 export const XP = { quest: 10, boss: 40, habit: 3, step: 15, measure: 5, reflection: 8, test: 25 };
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -74,6 +83,9 @@ function blank() {
       days: {},          // { 'YYYY-MM-DD': { type, hours, where, note } }
                          // type: 'work' | 'vacation' | 'sick' | 'off'; where: 'office' | 'home'
       wins: [],          // опыт и победы: { id, date, title, note }
+      tracks: [],        // карьерные треки: { id, name, archived } — линий может быть несколько
+      career: [],        // должности: { id, trackId, company, title, kind, start, end, salary, note }
+                         // без end — значит, текущая
       // График нужен, чтобы не спрашивать часы каждый день: норма считается из него.
       // Дни недели нумеруются как везде в приложении: 0 — понедельник.
       job: { start: '11:00', end: '18:00', lunch: 60, days: [0, 1, 2, 3, 4],
@@ -391,6 +403,11 @@ function migrate(s) {
     })),
     days: w.days && typeof w.days === 'object' ? w.days : {},
     wins: Array.isArray(w.wins) ? w.wins : [],
+    tracks: Array.isArray(w.tracks) ? w.tracks : [],
+    career: (Array.isArray(w.career) ? w.career : []).map(x => ({
+      ...x, trackId: x.trackId || '', kind: WORK_KINDS.some(k => k.key === x.kind) ? x.kind : 'job',
+      salary: Math.max(0, Number(x.salary) || 0),
+    })),
     job: { ...base.work.job, ...(w.job && typeof w.job === 'object' ? w.job : {}) },
   };
 
