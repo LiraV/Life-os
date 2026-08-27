@@ -74,3 +74,18 @@ export function relativeDay(s) {
 }
 
 export const diffDays = (a, b) => Math.round((parseISO(a) - parseISO(b)) / 86400000);
+
+/**
+ * «сегодня в 13:26», «вчера в 9:05», «24 августа, 13:26» — отметка времени
+ * последней правки. Одна на все разделы: трекер и бюджет пишут одинаково.
+ */
+export function stampLabel(iso) {
+  const d = new Date(iso);
+  if (!iso || Number.isNaN(d.getTime())) return '';
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const time = `${d.getHours()}:${pad(d.getMinutes())}`;
+  const t = todayISO();
+  if (date === t) return `сегодня в ${time}`;
+  if (date === addDays(t, -1)) return `вчера в ${time}`;
+  return `${dayShort(date)}, ${time}`;
+}

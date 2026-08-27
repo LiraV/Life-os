@@ -4,8 +4,8 @@
 // Единственный источник правды — список операций. Балансы и итоги считаются
 // из него, чтобы нигде не разошлись две копии одной суммы.
 
-import { S, update, uid } from '../store.js';
-import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort } from '../dates.js';
+import { S, update, uid, touchBudget } from '../store.js';
+import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
 
@@ -41,6 +41,10 @@ export const vaultBalance = v =>
 
 const TABS = [['month', 'Месяц'], ['ops', 'Операции'], ['vaults', 'Копилки']];
 
+/** Правка данных бюджета: то же update, но со штампом времени.
+ *  Переключение вкладок и месяцев идёт обычным update — это не заполнение. */
+const upd = fn => update(s => { fn(s); touchBudget(s); });
+
 export function render() {
   return h`
     <div class="row between">
@@ -48,6 +52,7 @@ export function render() {
       <span class="tag">казна</span>
     </div>
     <div class="title">Бюджет</div>
+    ${B().updatedAt ? raw(h`<div class="lab">заполняли ${stampLabel(B().updatedAt)}</div>`) : raw('<div class="lab">ещё ничего не записано</div>')}
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
     ${raw({ month: monthView, ops: opsView, vaults: vaultsView }[tab()]())}
     <div style="height:4px"></div>`;
@@ -226,7 +231,7 @@ function opSheet(op, kind) {
       const sum = num(v.sum);
       if (!sum) return toast('Введи сумму');
       if (k === 'save' && !v.vaultId) return toast('Нужна копилка');
-      update(s => {
+      upd(s => {
         const next = { ...o, kind: k, sum, note: (v.note || '').trim(), date: v.date || todayISO(), catId: v.catId || o.catId, vaultId: v.vaultId || o.vaultId };
         const i = s.budget.ops.findIndex(x => x.id === o.id);
         if (i >= 0) s.budget.ops[i] = next; else s.budget.ops.push(next);
@@ -236,7 +241,7 @@ function opSheet(op, kind) {
       toast('Записала');
     },
     danger: isNew ? null : 'Удалить',
-    onDanger: (_v, close) => { update(s => { s.budget.ops = s.budget.ops.filter(x => x.id !== o.id); }); close(); },
+    onDanger: (_v, close) => { upd(s => { s.budget.ops = s.budget.ops.filter(x => x.id !== o.id); }); close(); },
   });
 }
 
@@ -278,7 +283,7 @@ export const actions = {
     onSave: (val, close) => {
       const name = (val.name || '').trim();
       if (!name) return toast('Нужно название');
-      update(s => s.budget.cats[v.k].push({ id: uid(), name }));
+      upd(s => s.budget.cats[v.k].push({ id: uid(), name }));
       close();
     },
   }),
@@ -297,7 +302,7 @@ export const actions = {
       ].join(''),
       onSave: (val, close) => {
         const name = (val.name || '').trim();
-        update(s => {
+        upd(s => {
           const c = s.budget.cats[v.k].find(x => x.id === cat.id);
           if (c && name) c.name = name;
           const plan = num(val.plan);
@@ -311,7 +316,7 @@ export const actions = {
       danger: 'Удалить статью',
       onDanger: (_val, close) => {
         const used = B().ops.some(o => o.catId === cat.id);
-        update(s => { s.budget.cats[v.k] = s.budget.cats[v.k].filter(x => x.id !== cat.id); });
+        upd(s => { s.budget.cats[v.k] = s.budget.cats[v.k].filter(x => x.id !== cat.id); });
         close();
         toast(used ? 'Убрала статью, операции остались' : 'Убрала');
       },
@@ -322,7 +327,7 @@ export const actions = {
     title: 'Стартовая сумма',
     sub: 'сколько было на руках, когда начался учёт',
     body: field.number('n', 'Сумма', B().start || 0, { min: 0 }),
-    onSave: (v, close) => { update(s => { s.budget.start = num(v.n); }); close(); toast('Сохранено'); },
+    onSave: (v, close) => { upd(s => { s.budget.start = num(v.n); }); close(); toast('Сохранено'); },
   }),
 
   vaultnew: () => openSheet({
@@ -336,7 +341,7 @@ export const actions = {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
-      update(s => s.budget.vaults.push({ id: uid(), name, start: num(v.start) }));
+      upd(s => s.budget.vaults.push({ id: uid(), name, start: num(v.start) }));
       close();
     },
   }),
@@ -352,7 +357,7 @@ export const actions = {
         field.note('Сколько уже лежало в копилке до того, как начался учёт. Пополнения и снятия прибавляются к ней сверху.'),
       ].join(''),
       onSave: (val, close) => {
-        update(s => {
+        upd(s => {
           const x = s.budget.vaults.find(y => y.id === vault.id);
           if (x) { x.name = (val.name || '').trim() || x.name; x.start = num(val.start); }
         });
@@ -360,7 +365,7 @@ export const actions = {
       },
       danger: 'Удалить копилку',
       onDanger: (_val, close) => {
-        update(s => {
+        upd(s => {
           s.budget.vaults = s.budget.vaults.filter(x => x.id !== vault.id);
           s.budget.ops = s.budget.ops.filter(o => !(o.kind === 'save' && o.vaultId === vault.id));
         });
@@ -379,7 +384,7 @@ export const actions = {
       const n = num(val.n);
       if (!n) return toast('Введи сумму');
       // Снятие — то же пополнение с минусом: копилка уменьшается, остаток растёт.
-      update(s => s.budget.ops.push({ id: uid(), kind: 'save', vaultId: v.id, sum: -n, date: todayISO(), note: 'снятие' }));
+      upd(s => s.budget.ops.push({ id: uid(), kind: 'save', vaultId: v.id, sum: -n, date: todayISO(), note: 'снятие' }));
       close();
       toast('Вернула на остаток');
     },
@@ -393,11 +398,11 @@ export const actions = {
     onSave: (v, close) => {
       const lines = (v.text || '').split('\n').map(x => x.replace(/^[-–—•\s]+/, '').trim()).filter(Boolean);
       if (!lines.length) return toast('Пусто');
-      update(s => s.budget.rules.push(...lines));
+      upd(s => s.budget.rules.push(...lines));
       close();
     },
   }),
-  ruledel: v => update(s => { s.budget.rules.splice(Number(v.i), 1); }),
+  ruledel: v => upd(s => { s.budget.rules.splice(Number(v.i), 1); }),
 
   /** Выгрузка задаёт и формат загрузки: тот же файл можно поправить и вернуть. */
   export: async () => {
@@ -443,7 +448,7 @@ export const actions = {
 
     const report = [];
     try {
-      update(s => {
+      upd(s => {
         const bud = s.budget;
         const catId = (kind, name) => {
           const n = String(name || '').trim();

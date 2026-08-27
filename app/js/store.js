@@ -77,6 +77,7 @@ function blank() {
       vaults: [],                                        // { id, name, start }
       rules: [],
       start: 0,                                          // баланс, с которого начинается учёт
+      updatedAt: '',                                     // когда бюджет заполняли в последний раз
     },
     food: {                                              // дневник питания: КБЖУ и вода по дням
       targets: { kcal: 2000, prot: 90, fat: 70, carb: 220, water: 2000 },
@@ -299,6 +300,7 @@ function migrate(s) {
     vaults: Array.isArray(b.vaults) ? b.vaults : [],
     rules: Array.isArray(b.rules) ? b.rules : [],
     start: Number(b.start) || 0,
+    updatedAt: typeof b.updatedAt === 'string' ? b.updatedAt : '',
   };
 
   // Первый запуск бюджета: заводим статьи и правила, чтобы не начинать с пустоты.
@@ -448,6 +450,11 @@ export const habitNorm = hb => Math.max(1, Number(hb?.target) || 1);
 /** Пометить, что данные трекера трогали: подпись «последнее обновление» берётся отсюда. */
 export function touchTracker(s) {
   s.tracker.updatedAt = new Date().toISOString();
+}
+
+/** Отметка времени у бюджета: когда его в последний раз заполняли. */
+export function touchBudget(s) {
+  s.budget.updatedAt = new Date().toISOString();
 }
 
 export function tickHabit(s, id, date) {

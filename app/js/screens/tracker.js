@@ -2,7 +2,7 @@
 // привычек и из динамичных целей месяца — руками сюда ничего не вводится.
 
 import { S, update, uid, touchTracker } from '../store.js';
-import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort } from '../dates.js';
+import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
 import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth,
@@ -12,18 +12,6 @@ import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter
 const cell = n => n >= 10000 ? Math.round(n / 1000) + 'к' : String(n);
 const full = n => Number(n).toLocaleString('ru-RU');
 
-/** «сегодня в 13:26» или «24 августа, 13:26» — как в бумажном трекере. */
-function updatedLabel(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-  const t = todayISO();
-  if (date === t) return `сегодня в ${time}`;
-  const yest = new Date(); yest.setDate(yest.getDate() - 1);
-  if (d.toDateString() === yest.toDateString()) return `вчера в ${time}`;
-  return `${dayShort(date)}, ${time}`;
-}
 
 const year = () => S.ui.trackYear || yearOf(todayISO());
 
@@ -114,7 +102,7 @@ export function render() {
       <div style="text-align:center">
         <div class="title" style="font-size:21px">Трекер ${y}</div>
         <div class="lab">полных дней по месяцам</div>
-        ${S.tracker.updatedAt ? raw(h`<div class="lab">обновлён ${updatedLabel(S.tracker.updatedAt)}</div>`) : ''}
+        ${S.tracker.updatedAt ? raw(h`<div class="lab">обновлён ${stampLabel(S.tracker.updatedAt)}</div>`) : ''}
       </div>
       <button class="arrow" data-act="next" aria-label="Следующий год">›</button>
     </div>
