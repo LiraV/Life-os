@@ -1,14 +1,16 @@
 // Производные значения. Ничего не хранят — считают из состояния,
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
-import { S, SPHERES, level, levelFloor, isWater } from './store.js';
+import { S, SPHERES, allSpheres, level, levelFloor, isWater } from './store.js';
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
 import { COUNTRIES, countryBy, REGIONS } from './countries.js';
 import { isMale } from './gender.js';
 import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
-export const sphereOf = key => SPHERES.find(s => s.key === key);
+// По всем сферам, а не только встроенным: иначе своя сфера открывалась бы
+// экраном «такой сферы нет».
+export const sphereOf = key => allSpheres().find(s => s.key === key);
 
 /** Кривая энергии по хронотипу: 6 блоков от утра к ночи. */
 export const ENERGY_BLOCKS = ['7–10', '10–13', '13–16', '16–19', '19–22', '22–01'];
@@ -131,6 +133,13 @@ export const goalYears = () => [...new Set(liveGoals().map(g => g.period.slice(0
 
 // ── сферы ───────────────────────────────────────────────────────
 export const sphereItems = key => (S.spheres[key] || {}).items || [];
+/** Журнал сферы: { дата: число }. Механика «отметки по дням» у своих сфер. */
+export const sphereLog = key => (S.spheres[key] || {}).log || {};
+export const sphereLogOn = (key, date) => Math.max(0, Number(sphereLog(key)[date]) || 0);
+export const sphereLogMonth = (key, ym) => monthDates(ym).filter(d => sphereLogOn(key, d) > 0).length;
+export const sphereLogTotal = (key, ym) => monthDates(ym).reduce((a, d) => a + sphereLogOn(key, d), 0);
+export const sphereLogYear = (key, y) => Object.keys(sphereLog(key))
+  .filter(d => d.startsWith(String(y)) && sphereLogOn(key, d) > 0).length;
 
 export function sphereProgress(key) {
   const items = sphereItems(key);
@@ -556,45 +565,71 @@ export function needs() {
  * Считаются только события с датой. Этап сферы без отметки времени в окно не
  * попадёт — лучше не показать, чем показать выдуманное.
  */
-const ROLES = [
-  {
-    name: 'Учёная', keys: ['edu', 'study', 'books'],
-    parts: days => [
-      { label: 'квесты', n: questsDone(['edu', 'study', 'books'], days) },
-      { label: 'занятия', n: liveLessons().reduce((a, l) => a + lessonDates(l).filter(d => days.includes(d)).length, 0) },
-      { label: 'пары', n: Object.values(S.study.attend || {})
-        .reduce((a, byDate) => a + Object.keys(byDate || {}).filter(d => byDate[d] && days.includes(d)).length, 0) },
-      { label: 'книги', n: booksBy('done').filter(b => days.includes(b.finished)).length },
-    ],
-  },
-  { name: 'Атлет', keys: ['sport'], parts: sportParts },
-  {
-    name: 'Артистка', keys: ['blog'],
-    parts: days => [
-      { label: 'квесты', n: questsDone(['blog'], days) },
-      { label: 'посты', n: sphereItems('blog').filter(i => i.done && days.includes((i.doneAt || '').slice(0, 10))).length },
-    ],
-  },
-  {
-    name: 'Хранительница', keys: ['money', 'food'],
-    parts: days => [
-      { label: 'квесты', n: questsDone(['money', 'food'], days) },
-      { label: 'операции', n: (S.budget.ops || []).filter(o => days.includes(o.date)).length },
-      { label: 'дни питания', n: days.filter(d => (S.food.days[d]?.entries || []).length).length },
-    ],
-  },
+/**
+ * Что оставляет след в каждой сфере. Роль потом просто складывает следы своих
+ * сфер — поэтому новая сфера попадает в круг ролей сама, без правки ролей.
+ */
+export function sphereParts(key, days) {
+  const quests = { label: 'квесты', n: questsDone([key], days) };
+  if (key === 'sport') return [...sportParts(days).slice(1), quests];
+  if (key === 'edu') return [quests,
+    { label: 'занятия', n: liveLessons().reduce((a, l) => a + lessonDates(l).filter(d => days.includes(d)).length, 0) }];
+  if (key === 'study') return [quests,
+    { label: 'пары', n: Object.values(S.study.attend || {})
+      .reduce((a, byDate) => a + Object.keys(byDate || {}).filter(d => byDate[d] && days.includes(d)).length, 0) }];
+  if (key === 'books') return [quests,
+    { label: 'книги', n: booksBy('done').filter(b => days.includes(b.finished)).length }];
+  if (key === 'money') return [quests,
+    { label: 'операции', n: (S.budget.ops || []).filter(o => days.includes(o.date)).length }];
+  if (key === 'food') return [quests,
+    { label: 'дни питания', n: days.filter(d => (S.food.days[d]?.entries || []).length).length }];
+  // «Страны» отмечаются годом, а не датой, поэтому в двухнедельное окно им
+  // попасть нечем: считаем только квесты, а не выдумываем поездке день.
+  // Своя сфера приносит закрытые этапы с датой и отметки журнала.
+  // У блога закрытый этап — это опубликованный пост, так его и называем.
+  return [quests,
+    { label: key === 'blog' ? 'посты' : 'этапы',
+      n: sphereItems(key).filter(i => i.done && days.includes((i.doneAt || '').slice(0, 10))).length },
+    { label: 'отметки', n: days.filter(d => Number(sphereLog(key)[d]) > 0).length }];
+}
+
+/**
+ * Роли. Набор фиксирован — это характеры, а не пользовательские папки, — но
+ * какая сфера к какой роли относится, лежит в состоянии и правится руками.
+ * Поэтому своя сфера встаёт в круг наравне со встроенными.
+ *
+ * Считаются только события с датой: без неё событие в окно не попадёт, а
+ * выдумывать ему день нельзя.
+ */
+export const ROLES = [
+  { id: 'scholar', name: 'Учёная' },
+  { id: 'reader', name: 'Читательница' },
+  { id: 'athlete', name: 'Атлет' },
+  { id: 'healer', name: 'Целительница' },
+  { id: 'artist', name: 'Артистка' },
+  { id: 'master', name: 'Мастерица' },
+  { id: 'keeper', name: 'Хранительница' },
+  { id: 'wanderer', name: 'Странница' },
 ];
 
-/** Роль «скучает», если по её делам две недели нет ни одной отметки. */
+export const roleById = id => ROLES.find(r => r.id === id);
+/** Сферы этой роли — по карте привязок, а не по списку в коде. */
+export const spheresOfRole = id => allSpheres().filter(sp => S.roleOf[sp.key] === id);
+export const roleOfSphere = key => S.roleOf[key] || '';
+
+/** Роль «скучает», если по её сферам две недели нет ни одной отметки. */
 export function roles(window = 14) {
   const days = lastDays(window);
   return ROLES.map(r => {
-    const parts = r.parts(days).filter(p => p.n > 0);
+    const keys = spheresOfRole(r.id).map(sp => sp.key);
+    const merged = {};
+    keys.forEach(k => sphereParts(k, days).forEach(pt => { merged[pt.label] = (merged[pt.label] || 0) + pt.n; }));
+    const parts = Object.entries(merged).map(([label, n]) => ({ label, n })).filter(p => p.n > 0);
     const n = sum(parts);
     const state = n === 0 ? 'скучает' : n < 3 ? 'ровно' : 'довольна';
     // Имя роли берётся в роде профиля на каждом расчёте, а не при загрузке:
     // иначе смена пола в настройках не долетала бы до круга без перезапуска.
-    return { name: nameOf(r.name), keys: r.keys, parts, n, state, low: n === 0, window };
+    return { id: r.id, name: nameOf(r.name), keys, parts, n, state, low: n === 0, window };
   });
 }
 
@@ -1161,6 +1196,23 @@ export const SOURCES = {
     count: (ref, r) => liveLessons().filter(l => !ref || l.id === ref)
       .reduce((a, l) => a + lessonDates(l).filter(d => inRange(d, r)).length, 0),
   },
+  // Свои сферы. Источник один на все — конкретную выбирают в шторке цели,
+  // как пилюлю в спорте: заводить по паре источников на каждую новую сферу
+  // значило бы дописывать код на каждую сферу, чего мы и уходим.
+  sphereLog: {
+    sphere: '*', name: 'Отметок в журнале', unit: 'дней', horizons: ['year', 'quarter', 'month'],
+    ref: () => (S.customSpheres || []).filter(sp => !sp.archived && (sp.kinds || []).includes('log'))
+      .map(sp => ({ value: sp.key, label: sp.name })),
+    refName: key => (S.customSpheres || []).find(sp => sp.key === key)?.name || '',
+    count: (ref, r) => Object.keys(sphereLog(ref)).filter(d => inRange(d, r) && sphereLogOn(ref, d) > 0).length,
+  },
+  sphereSteps: {
+    sphere: '*', name: 'Закрытых этапов', unit: 'этапов', horizons: ['year', 'quarter', 'month'],
+    ref: () => (S.customSpheres || []).filter(sp => !sp.archived && (sp.kinds || []).includes('steps'))
+      .map(sp => ({ value: sp.key, label: sp.name })),
+    refName: key => (S.customSpheres || []).find(sp => sp.key === key)?.name || '',
+    count: (ref, r) => sphereItems(ref).filter(i => i.done && inRange((i.doneAt || '').slice(0, 10), r)).length,
+  },
   vault: {
     sphere: 'money', name: 'Накоплено в копилке', unit: '₽', horizons: ['year', 'quarter', 'month'], lifetime: true,
     ref: () => (S.budget.vaults || []).map(v => ({ value: v.id, label: v.name })),
@@ -1170,9 +1222,17 @@ export const SOURCES = {
 };
 
 /** Источники, которые эта сфера умеет считать. */
+/**
+ * Источники этой сферы. Звёздочка — источник своих сфер: он показывается
+ * только той сфере, которая эту механику ведёт, и только ей одной, а не
+ * всему списку своих сфер сразу.
+ */
 export const sourcesOf = sphere => Object.entries(SOURCES)
-  .filter(([, s]) => s.sphere === sphere)
-  .map(([key, s]) => ({ key, ...s }));
+  .filter(([, s]) => (s.sphere === '*' ? (s.ref() || []).some(o => o.value === sphere) : s.sphere === sphere))
+  .map(([key, s]) => ({
+    key, ...s,
+    ...(s.sphere === '*' ? { ref: null, fixedRef: sphere } : {}),
+  }));
 
 /** Текущее значение автосчётчика. null — у цели нет источника. */
 export function autoCount(goal) {

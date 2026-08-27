@@ -1,7 +1,7 @@
 // «Планы»: неделя, месяц, год — реальные периоды с навигацией в обе стороны.
 // Цепочка «задача → цель месяца → квартал → тема года» строится из данных.
 
-import { S, update, uid, XP, addXp, SPHERES, touchTracker } from '../store.js';
+import { S, update, uid, XP, addXp, allSpheres, touchTracker } from '../store.js';
 import {
   todayISO, addDays, addMonths, weekKey, weekDates, isoWeek,
   monthKey, monthTitle, dayShort, yearOf, quarterKey, quarterMonths, MONTHS,
@@ -441,7 +441,7 @@ function goalSheet(goal, preset) {
       field.opts('horizon', 'Горизонт', Object.entries(HORIZONS).map(([value, label]) => ({ value, label })), horizon0),
       field.select('period', 'Период', periodOptions(horizon0, period0), period0),
       field.select('parentId', 'Ведёт к', parentOptions(horizon0, g.id), g.parentId || ''),
-      field.opts('sphere', 'Сфера', [{ value: '', label: 'без сферы' }, ...SPHERES.map(x => ({ value: x.key, label: x.name }))], g.sphere || ''),
+      field.opts('sphere', 'Сфера', [{ value: '', label: 'без сферы' }, ...allSpheres().map(x => ({ value: x.key, label: x.name }))], g.sphere || ''),
       field.date('deadline', 'Срок — если он есть', g.deadline || ''),
       field.number('target', 'Счётчик — сколько всего', g.target ?? '', { min: 0 }),
       g.src ? field.note(`Набранное считается само: ${autoLabel(g)}. Вписывать его руками не нужно — и нельзя, иначе получилось бы два числа про одно.`)

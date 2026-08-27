@@ -384,3 +384,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .chk-row.done span{text-decoration:line-through; opacity:.6}
 
 @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+
+/* Своя сфера: значок вместо иллюстрации — картинку не храним, только эмодзи. */
+.tile-emoji{font-size:40px; line-height:1; margin:6px 0 2px}
+.hero-emoji{font-size:64px; line-height:1; text-align:center; margin:6px 0 10px}

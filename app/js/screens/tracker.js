@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth,
+import { liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth,
   sportTags, tagById, tagMonthCount, tagUsedIn, booksDoneIn, booksDoneYear } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
@@ -38,6 +38,10 @@ export function habitCell(hb, ym) {
   return { value: habitMonthCount(hb, ym), fixed: false };
 }
 
+/** Свои сферы, которые ведут журнал: их месяц — готовая строка трекера. */
+const customLogSpheres = () => (S.customSpheres || [])
+  .filter(sp => !sp.archived && (sp.kinds || []).includes('log'));
+
 /** Строки таблицы — одни и те же для экрана и для выгрузки. */
 export function buildRows(y) {
   const months = monthsOf(y);
@@ -60,6 +64,11 @@ export function buildRows(y) {
       target: habitTarget(hb),
       unit: 'дн.',
       cells: months.map(ym => habitCell(hb, ym)),
+    })),
+    // Свои сферы с журналом: считаются так же, как занятия, — сами.
+    ...customLogSpheres().map(sp => ({
+      id: sp.key, name: sp.name, unit: 'дн.',
+      cells: months.map(ym => ({ value: sphereLogMonth(sp.key, ym) })),
     })),
     // Занятия с полки обучения считаются сами — вручную их заводить не нужно.
     ...liveLessons().filter(l => l.kind === 'practice').map(l => ({

@@ -1,6 +1,6 @@
 // «День»: реальные даты, энергия дня, квесты с полным редактированием.
 
-import { S, update, updateQuiet, uid, XP, addXp, SPHERES, addDiary, tickHabit, touchTracker } from '../store.js';
+import { S, update, updateQuiet, uid, XP, addXp, allSpheres, addDiary, tickHabit, touchTracker } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
@@ -231,7 +231,9 @@ function questRow(q) {
 }
 
 // ── редактор квеста ─────────────────────────────────────────────
-const SPHERE_OPTS = [{ value: '', label: 'без сферы' }, ...SPHERES.map(s => ({ value: s.key, label: s.name }))];
+// Функция, а не константа: своя сфера, заведённая сейчас, должна появиться
+// в выборе сразу, а не после перезапуска приложения.
+const sphereOpts = () => [{ value: '', label: 'без сферы' }, ...allSpheres().map(s => ({ value: s.key, label: s.name }))];
 
 export function questSheet(quest, date, onDone) {
   const isNew = !quest;
@@ -246,7 +248,7 @@ export function questSheet(quest, date, onDone) {
       field.text('title', 'Что делаем', q.title, 'например, «Черновик главы 2»'),
       field.time('time', 'Когда', q.time),
       field.opts('minutes', 'Длина', [{ value: '45', label: '45 мин' }, { value: '90', label: '90 мин' }, { value: '120', label: '120 мин' }], String(q.minutes || 45)),
-      field.opts('sphere', 'Сфера', SPHERE_OPTS, q.sphere || ''),
+      field.opts('sphere', 'Сфера', sphereOpts(), q.sphere || ''),
       lessons.length
         ? field.select('lessonId', 'Занятие с полки', [{ value: '', label: 'не связано' }, ...lessons.map(l => ({ value: l.id, label: l.name }))], q.lessonId || '')
         : '',

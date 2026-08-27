@@ -58,7 +58,8 @@ export function sphereGoalSheet(sphere) {
       if (!target) return toast('Нужно число');
       const horizon = src.horizons.includes(v.horizon) ? v.horizon : src.horizons[0];
       const period = periodFor(horizon);
-      const ref = src.ref ? (v.ref ?? '') : '';
+      // У источника своей сферы уточнение не спрашивают: сфера и есть уточнение.
+      const ref = src.ref ? (v.ref ?? '') : (src.fixedRef || '');
       const goal = {
         id: uid(), title: '', horizon, period, parentId: '', sphere,
         deadline: '', target, unit: src.unit, current: 0, steps: [], slots: [],
@@ -85,6 +86,8 @@ function defaultTitle(goal, src, target, horizon, period) {
   const when = horizon === 'year' ? `за ${period}`
     : horizon === 'quarter' ? `за ${period.slice(5)} ${period.slice(0, 4)}`
     : `за ${MONTHS[Number(period.slice(5, 7)) - 1].toLowerCase()}`;
+  // Название своей сферы в заголовок не подставляем: цель и так живёт в ней,
+  // и «Отметок в журнале (Музыка)» внутри «Музыки» читалось бы дважды.
   const what = src.ref && goal.src.ref && src.refName ? ` (${src.refName(goal.src.ref)})` : '';
   return `${src.name}${what}: ${target} ${when}`;
 }

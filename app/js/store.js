@@ -5,7 +5,13 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 28;
+const VERSION = 29;
+
+/** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
+export const ROLE_SEED = {
+  edu: 'scholar', study: 'scholar', books: 'reader', sport: 'athlete',
+  food: 'healer', blog: 'artist', work: 'master', money: 'keeper', trips: 'wanderer',
+};
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -18,6 +24,14 @@ export const SPHERES = [
   { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png' },
   { key: 'trips', name: 'Страны',   mech: 'карта',      img: 'assets/illustration_01.png' },
 ];
+
+/** Все сферы: встроенные из кода плюс свои из состояния. Архивные не в счёт. */
+export const allSpheres = () => [...SPHERES, ...(S.customSpheres || []).filter(sp => !sp.archived)];
+/** Те, что показываем плитками: скрытые остаются в данных, но не мозолят глаза. */
+export const visibleSpheres = () => allSpheres().filter(sp => !(S.spheresHidden || []).includes(sp.key));
+export const isCustomSphere = key => (S.customSpheres || []).some(sp => sp.key === key);
+/** Механики сферы: у встроенных они зашиты, у своих выбираются при создании. */
+export const sphereKinds = key => (S.customSpheres || []).find(sp => sp.key === key)?.kinds || [];
 
 export const XP = { quest: 10, boss: 40, habit: 3, step: 15, measure: 5, reflection: 8, test: 25 };
 
@@ -45,7 +59,11 @@ function blank() {
     tracker: { rows: [], values: {}, habitValues: {}, lessonValues: {}, exerciseValues: {}, tagValues: {} },  // свои строки и ручные правки
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
-    spheres: {},         // { key: { items: [], note } }
+    spheres: {},         // { key: { items: [], note, log: { 'YYYY-MM-DD': число } } }
+    customSpheres: [],   // свои сферы: { key: 'c…', name, icon, mech, kinds: [], unit, archived }
+                         // kinds — механики сферы: 'steps' — этапы, 'log' — журнал отметок
+    spheresHidden: [],   // ключи сфер, убранных с глаз: данные остаются, плитки нет
+    roleOf: {},          // { ключ сферы: id роли } — к какой роли она относится
     habits: [],          // [{ id, name, target, step, unit, log: { date: количество }, link }]
                          // link: '' — своя запись, 'water' — число берётся из «Питания»
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
@@ -334,6 +352,28 @@ function migrate(s) {
         .filter(([, v]) => v > 0),
     ),
   }));
+
+  // v28 → v29: свои сферы. Набор сфер перестал быть константой: встроенные
+  // лежат в коде, свои — в состоянии. Роли остаются набором в коде, но какая
+  // сфера к какой роли относится — уже данные, и это можно менять.
+  const sph = merged.spheres && typeof merged.spheres === 'object' ? merged.spheres : {};
+  merged.spheres = Object.fromEntries(Object.entries(sph).map(([k, r]) => [k, {
+    items: Array.isArray(r?.items) ? r.items : [],
+    note: r?.note || '',
+    vault: r?.vault ?? null,
+    log: r?.log && typeof r.log === 'object' ? r.log : {},
+  }]));
+  merged.customSpheres = (Array.isArray(merged.customSpheres) ? merged.customSpheres : []).map(sp => ({
+    key: sp.key, name: sp.name || 'Сфера', icon: sp.icon || '✦', mech: sp.mech || 'своя',
+    kinds: Array.isArray(sp.kinds) && sp.kinds.length ? sp.kinds : ['steps'],
+    unit: sp.unit || 'раз', archived: !!sp.archived,
+  })).filter(sp => typeof sp.key === 'string' && sp.key.startsWith('c'));
+  merged.spheresHidden = (Array.isArray(merged.spheresHidden) ? merged.spheresHidden : []).filter(x => typeof x === 'string');
+  merged.roleOf = merged.roleOf && typeof merged.roleOf === 'object' ? merged.roleOf : {};
+  // Раскладка по ролям была зашита в код — теперь это данные. Заполняем только
+  // незаданное: «??=» не трогает уже выбранное, включая пустое «без роли»,
+  // поэтому снятая привязка не восстановится при следующей загрузке.
+  Object.entries(ROLE_SEED).forEach(([sphere, role]) => { merged.roleOf[sphere] ??= role; });
 
   // v27 → v28: вода как привычка и вода в «Питании» были двумя числами про одно.
   // Привычку про воду связываем с «Питанием»; её журнал не трогаем — он остаётся
