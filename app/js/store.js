@@ -347,11 +347,17 @@ function migrate(s) {
       : /(^|[^\p{L}])вод[аыу]/iu.test(hb.name || '') ? 'water' : '';
     return { ...hb, link };
   });
-  merged.habits.filter(hb => hb.link === 'water' && Number(hb.target) >= 100).forEach(hb => {
-    Object.keys(hb.log || {}).forEach(d => {
-      const day = (merged.food.days[d] ||= { water: 0, entries: [] });
-      if (!day.water) day.water = Math.max(0, Number(hb.log[d]) || 0);
-    });
+  // Переезд делается один раз и запоминается флагом. Без него он повторялся бы
+  // при каждой загрузке — и день, у которого воду обнулили руками, восстанавливался
+  // бы из журнала привычки: удалить запись было бы невозможно.
+  merged.habits.filter(hb => hb.link === 'water' && !hb.waterMoved).forEach(hb => {
+    if (Number(hb.target) >= 100) {
+      Object.keys(hb.log || {}).forEach(d => {
+        const day = (merged.food.days[d] ||= { water: 0, entries: [] });
+        if (!day.water) day.water = Math.max(0, Number(hb.log[d]) || 0);
+      });
+    }
+    hb.waterMoved = true;
   });
 
   // v2 → v3: раньше цель была только месячной и хранила поле month.
