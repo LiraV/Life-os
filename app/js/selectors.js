@@ -3,6 +3,7 @@
 
 import { S, SPHERES, level, levelFloor } from './store.js';
 import { effects, hasTrait, byId as traitById } from './traits.js';
+import { COUNTRIES, countryBy, REGIONS } from './countries.js';
 import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
@@ -848,3 +849,31 @@ export function ratingAvg(year) {
   if (!rated.length) return null;
   return Math.round((rated.reduce((a, b) => a + b.rating, 0) / rated.length) * 10) / 10;
 }
+
+// ── страны ──────────────────────────────────────────────────────
+export const visits = () => S.travel.visits;
+
+/** Уникальные страны за всю жизнь, отсортированные по названию. */
+export function countriesEver() {
+  const map = new Map();
+  visits().forEach(v => {
+    const c = countryBy(v.code);
+    if (!c) return;
+    const cur = map.get(v.code) || { ...c, years: [] };
+    if (!cur.years.includes(v.year)) cur.years.push(v.year);
+    map.set(v.code, cur);
+  });
+  return [...map.values()]
+    .map(c => ({ ...c, years: c.years.sort((a, b) => a - b) }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+export const countriesInYear = year => countriesEver().filter(c => c.years.includes(Number(year)));
+
+/** Сколько регионов задето: «была на четырёх континентах» честнее процента. */
+export const regionsEver = () => REGIONS.filter(r => countriesEver().some(c => c.region === r));
+
+/** Годы, в которые вообще были поездки, — от свежих к старым. */
+export const travelYears = () => [...new Set(visits().map(v => v.year))].sort((a, b) => b - a);
+
+export const COUNTRY_TOTAL = COUNTRIES.length;

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 26;
+const VERSION = 27;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -16,6 +16,7 @@ export const SPHERES = [
   { key: 'food',  name: 'Питание',  mech: 'зелья',      img: 'assets/illustration_04.png' },
   { key: 'money', name: 'Бюджет',   mech: 'казна',      img: 'assets/illustration_10.png' },
   { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png' },
+  { key: 'trips', name: 'Страны',   mech: 'карта',      img: 'assets/illustration_01.png' },
 ];
 
 export const XP = { quest: 10, boss: 40, habit: 3, step: 15, measure: 5, reflection: 8, test: 25 };
@@ -53,6 +54,9 @@ function blank() {
     schedules: [],                                       // расписание — дело по дням недели:
                                                          // { id, kind, refId, days: [], time, dur, every, from, to, place, note, off,
                                                          //   moves: { 'дата по правилу': 'новая дата' | '' — отменено } }
+    travel: {                                            // страны: где была и когда
+      visits: [],                                        // { id, code, year, note }
+    },
     library: {                                           // библиотека: полка книг
       books: [],                                         // { id, title, author, kind, pages, page, status, rating, started, finished, note }
     },
@@ -179,6 +183,16 @@ function migrate(s) {
   }
 
   // v18 → v19: забота — повторяющиеся дела с периодичностью и профиль питомца.
+  // v26 → v27: страны. Одна поездка — одна запись, поэтому в одну страну
+  // можно съездить хоть трижды, а «за жизнь» всё равно считается по разу.
+  const tv = merged.travel && typeof merged.travel === 'object' ? merged.travel : {};
+  merged.travel = {
+    visits: (Array.isArray(tv.visits) ? tv.visits : []).map(v => ({
+      id: v.id, code: String(v.code || '').toUpperCase(),
+      year: Number(v.year) || yearOf(todayISO()), note: v.note || '',
+    })).filter(v => v.code),
+  };
+
   // v25 → v26: библиотека — книги со статусом и прогрессом по страницам.
   const lib = merged.library && typeof merged.library === 'object' ? merged.library : {};
   merged.library = {

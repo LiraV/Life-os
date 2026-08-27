@@ -142,7 +142,7 @@ const curKey = () => location.hash.replace(/^#\/?/, '').split('/')[1];
 
 export const actions = {
   // У питания свой экран: календарь КБЖУ не влезает в общую механику этапов.
-  open: v => { location.hash = { food: '#/food', money: '#/budget', edu: '#/edu', study: '#/study', sport: '#/sport', books: '#/library' }[v.v] || '#/spheres/' + v.v; },
+  open: v => { location.hash = { food: '#/food', money: '#/budget', edu: '#/edu', study: '#/study', sport: '#/sport', books: '#/library', trips: '#/trips' }[v.v] || '#/spheres/' + v.v; },
   back: () => { location.hash = '#/spheres'; },
 
   itemadd: () => {
