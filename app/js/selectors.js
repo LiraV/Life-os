@@ -296,10 +296,21 @@ export const lessonLast = l => lessonDates(l).filter(d => d <= todayISO()).pop()
 /** Сколько дней назад было последнее занятие; null — если ни одного. */
 export const lessonAgo = l => { const d = lessonLast(l); return d ? diffDays(todayISO(), d) : null; };
 
+/** Модуль без уроков считается сам за себя, с уроками — по своим урокам. */
+export const moduleUnits = m => (m.lessons || []).length || 1;
+export const moduleDone = m => ((m.lessons || []).length
+  ? (m.lessons || []).filter(x => x.done).length
+  : (m.done ? 1 : 0));
+export const moduleFull = m => ((m.lessons || []).length
+  ? (m.lessons || []).every(x => x.done)
+  : !!m.done);
+
 export const courseProgress = l => {
-  const items = l.items || [];
-  if (!items.length) return null;
-  return Math.round((items.filter(i => i.done).length / items.length) * 100);
+  const mods = l.items || [];
+  if (!mods.length) return null;
+  const total = mods.reduce((a, m) => a + moduleUnits(m), 0);
+  const done = mods.reduce((a, m) => a + moduleDone(m), 0);
+  return Math.round((done / total) * 100);
 };
 
 /** Занятия, которые пользователь просил считать ещё и спортом. */

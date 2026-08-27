@@ -258,6 +258,11 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .sched-row{display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--track)}
 .sched-row:first-of-type{border-top:0}
 
+/* уроки внутри модуля курса */
+.mod-body{display:flex; flex-direction:column; gap:4px; margin:2px 0 8px 30px}
+.mod-body .chk-row{padding:2px 0}
+.mod-body .pill{align-self:flex-start; font-size:12px; padding:4px 11px}
+
 /* ── забота ─────────────────────────────────────────────────── */
 .care-row{display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--track)}
 .care-row:first-of-type{border-top:0}

@@ -5,7 +5,7 @@
 import { S, update, uid, XP, addXp, addDiary, touchTracker } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, dayShort, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
-import { liveLessons, lessonMonth, lessonLast, lessonAgo, courseProgress } from '../selectors.js';
+import { liveLessons, lessonMonth, lessonLast, lessonAgo, courseProgress, moduleDone, moduleFull } from '../selectors.js';
 import { scheduleBlock, scheduleActions } from '../schedule.js';
 
 const cal = () => S.ui.eduMonth || monthKey(todayISO());
@@ -111,19 +111,39 @@ function courseCard(l) {
         <button class="q-edit" data-act="edit" data-id="${l.id}">изменить ›</button>
       </div>
       ${pct != null ? raw(h`<div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>`)
-        : raw('<div class="lab">Добавь уроки — из них и посчитается прогресс.</div>')}
+        : raw('<div class="lab">Добавь модули — из них и посчитается прогресс.</div>')}
       ${open ? raw(h`
         <div class="list">
-          ${items.map(i => raw(h`
-            <div class="chk-row ${i.done ? 'done' : ''}">
-              <button class="check ${i.done ? 'on' : ''}" data-act="item" data-id="${l.id}" data-i="${i.id}">✓</button>
-              <span class="grow">${i.title}</span>
-              <button class="q-edit" data-act="itemdel" data-id="${l.id}" data-i="${i.id}">×</button>
-            </div>`))}
+          ${items.map(m => raw(moduleRow(l, m)))}
         </div>
-        <button class="add" data-act="itemadd" data-id="${l.id}">+ Урок</button>
+        <button class="add" data-act="itemadd" data-id="${l.id}">+ Модуль</button>
         ${raw(scheduleBlock('lesson', l.id))}
         <button class="btn-ghost" data-act="pause" data-id="${l.id}">поставить на паузу</button>`) : ''}
+    </div>`;
+}
+
+/**
+ * Модуль курса и его уроки. У модуля без уроков галочка своя; если уроки есть,
+ * она считается по ним — и одним тапом закрывает или открывает весь модуль.
+ */
+function moduleRow(l, m) {
+  const lessons = m.lessons || [];
+  const full = moduleFull(m);
+  return h`
+    <div class="chk-row ${full ? 'done' : ''}">
+      <button class="check ${full ? 'on' : ''}" data-act="item" data-id="${l.id}" data-i="${m.id}"
+        aria-label="Модуль пройден">✓</button>
+      <span class="grow"><b>${m.title}</b>${lessons.length ? raw(h`<span class="lab"> · ${moduleDone(m)} из ${lessons.length}</span>`) : ''}</span>
+      <button class="q-edit" data-act="itemdel" data-id="${l.id}" data-i="${m.id}">×</button>
+    </div>
+    <div class="mod-body">
+      ${lessons.map(x => raw(h`
+        <div class="chk-row ${x.done ? 'done' : ''}">
+          <button class="check sm ${x.done ? 'on' : ''}" data-act="sub" data-id="${l.id}" data-i="${m.id}" data-s="${x.id}">✓</button>
+          <span class="grow lab">${x.title}</span>
+          <button class="q-edit" data-act="subdel" data-id="${l.id}" data-i="${m.id}" data-s="${x.id}">×</button>
+        </div>`))}
+      <button class="pill" data-act="subadd" data-id="${l.id}" data-i="${m.id}">+ урок</button>
     </div>`;
 }
 
@@ -237,34 +257,88 @@ export const actions = {
   resume: v => { update(s => { const l = s.lessons.find(x => x.id === v.id); if (l) l.paused = false; }); toast('Вернула на полку'); },
 
   itemadd: v => openSheet({
-    title: 'Урок или модуль',
-    body: field.text('title', 'Название', '', 'например, «Модуль 3 · воронки»'),
+    title: 'Модуль курса',
+    body: [
+      field.text('title', 'Название', '', 'например, «Модуль 3 · воронки»'),
+      field.note('Внутрь модуля потом добавляются уроки. Если уроков нет, модуль считается одной ступенью.'),
+    ].join(''),
     primary: 'Добавить',
     onSave: (val, close) => {
       const t = (val.title || '').trim();
       if (!t) return toast('Нужно название');
       update(s => {
         const l = s.lessons.find(x => x.id === v.id);
-        if (l) (l.items ||= []).push({ id: uid(), title: t, done: false });
+        if (l) (l.items ||= []).push({ id: uid(), title: t, done: false, lessons: [] });
         s.ui.openLesson = v.id;
       });
       close();
     },
   }),
 
+  /** Галочка модуля: без уроков — своя, с уроками — закрывает или открывает все. */
   item: v => {
     let all = false, name = '';
     update(s => {
       const l = s.lessons.find(x => x.id === v.id);
-      const it = l?.items.find(x => x.id === v.i);
-      if (!it) return;
-      it.done = !it.done;
-      addXp(it.done ? XP.step : -XP.step);
-      all = l.items.every(x => x.done);
+      const m = l?.items.find(x => x.id === v.i);
+      if (!m) return;
+      const lessons = m.lessons || [];
+      if (lessons.length) {
+        const to = !lessons.every(x => x.done);
+        lessons.forEach(x => { x.done = to; });
+        m.done = to;
+        addXp(to ? XP.step : -XP.step);
+      } else {
+        m.done = !m.done;
+        addXp(m.done ? XP.step : -XP.step);
+      }
+      all = l.items.every(x => (x.lessons || []).length ? x.lessons.every(y => y.done) : x.done);
       name = l.name;
     });
     if (all) toast(`«${name}» — курс пройден ✦`);
   },
+
+  /** Урок внутри модуля. */
+  sub: v => {
+    let full = false, mod = '';
+    update(s => {
+      const l = s.lessons.find(x => x.id === v.id);
+      const m = l?.items.find(x => x.id === v.i);
+      const x = m?.lessons?.find(y => y.id === v.s);
+      if (!x) return;
+      x.done = !x.done;
+      addXp(x.done ? XP.step : -XP.step);
+      m.done = m.lessons.every(y => y.done);
+      full = m.done; mod = m.title;
+    });
+    if (full) toast(`Модуль «${mod}» пройден ✦`);
+  },
+
+  subadd: v => openSheet({
+    title: 'Урок в модуль',
+    body: field.text('title', 'Название', '', 'например, «Урок 3 · заголовки»'),
+    primary: 'Добавить',
+    onSave: (val, close) => {
+      const t = (val.title || '').trim();
+      if (!t) return toast('Нужно название');
+      update(s => {
+        const m = s.lessons.find(x => x.id === v.id)?.items.find(x => x.id === v.i);
+        if (!m) return;
+        (m.lessons ||= []).push({ id: uid(), title: t, done: false });
+        // Модуль перестаёт быть «сделанным» сам по себе: теперь его меряют уроки.
+        m.done = m.lessons.every(x => x.done);
+        s.ui.openLesson = v.id;
+      });
+      close();
+    },
+  }),
+
+  subdel: v => update(s => {
+    const m = s.lessons.find(x => x.id === v.id)?.items.find(x => x.id === v.i);
+    if (!m) return;
+    m.lessons = (m.lessons || []).filter(x => x.id !== v.s);
+    if (m.lessons.length) m.done = m.lessons.every(x => x.done);
+  }),
 
   itemdel: v => update(s => {
     const l = s.lessons.find(x => x.id === v.id);

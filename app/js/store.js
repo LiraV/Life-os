@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 24;
+const VERSION = 25;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -249,7 +249,12 @@ function migrate(s) {
     alsoSport: !!l.alsoSport,
     paused: !!l.paused,
     log: l.log && typeof l.log === 'object' ? l.log : {},
-    items: Array.isArray(l.items) ? l.items : [],
+    // v24 → v25: то, что было уроками курса, стало модулями, а уроки живут
+    // внутри модуля. Прежние записи становятся модулями без уроков — отметки целы.
+    items: (Array.isArray(l.items) ? l.items : []).map(m => ({
+      ...m,
+      lessons: (Array.isArray(m.lessons) ? m.lessons : []).map(x => ({ id: x.id, title: x.title, done: !!x.done })),
+    })),
   }));
 
   const b = merged.budget && typeof merged.budget === 'object' ? merged.budget : {};
