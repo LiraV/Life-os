@@ -5,20 +5,29 @@
 import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
-import { cycleInfo, periodBlocks, measureDeltas } from '../selectors.js';
+import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint } from '../selectors.js';
 
 const sign = n => n == null ? '' : n > 0 ? `+${n}` : `${n}`;
 const fmt = (v, unit) => v == null || v === '' ? '—' : `${v} ${unit}`;
 const calMonth = () => S.ui.calMonth || monthKey(todayISO());
 
+const TABS = [['now', 'Сейчас'], ['form', 'Форма']];
+const tab = () => (TABS.some(([k]) => k === S.ui.bodyTab) ? S.ui.bodyTab : 'now');
+
 export function render() {
+  return h`
+    <div class="title">Тело</div>
+    <div class="sub">Дом, а не проект. Отмечай как есть — задним числом тоже можно.</div>
+    <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
+    ${raw(tab() === 'form' ? formView() : nowView())}`;
+}
+
+function nowView() {
   const c = cycleInfo();
   const m = measureDeltas();
   const cur = m.cur;
 
   return h`
-    <div class="title">Тело</div>
-    <div class="sub">Дом, а не проект. Отмечай как есть — задним числом тоже можно.</div>
 
     <div class="card">
       <div class="row between">
@@ -206,7 +215,65 @@ function rangeSheet(block) {
   });
 }
 
+/**
+ * «Форма»: тело, еда и спорт за один период. Три раздела ведутся порознь,
+ * но смотреть на них порознь бессмысленно — здесь они лежат рядом.
+ *
+ * Причин и следствий тут нет намеренно: приложение не знает, отчего
+ * изменился вес, и выдумывать объяснение не будет.
+ */
+function formView() {
+  const days = S.ui.formDays === 90 ? 90 : 30;
+  const f = formSummary(days);
+  const p = proteinHint();
+  const sign = n => (n > 0 ? `+${n}` : `${n}`);
+  return h`
+    <div class="pills">
+      ${[30, 90].map(d => raw(h`<button class="pill ${days === d ? 'on' : ''}" data-act="span" data-v="${d}">${d} дней</button>`))}
+    </div>
+
+    <div class="card">
+      <div class="caps">Тело</div>
+      ${f.body.count >= 2 ? raw(h`
+        <div class="ink">${f.body.weight ? `Вес ${sign(f.body.weight)} кг` : f.body.weight === 0 ? 'Вес не изменился' : 'Вес в этих замерах не указан'}</div>
+        <div class="lab">${[
+          f.body.waist ? `талия ${sign(f.body.waist)} см` : '',
+          f.body.hips ? `бёдра ${sign(f.body.hips)} см` : '',
+        ].filter(Boolean).join(' · ') || 'другие мерки не менялись'}</div>
+        <div class="lab">${f.body.count} ${plural(f.body.count, 'замер', 'замера', 'замеров')} за период: ${dayShort(f.body.first.date)} → ${dayShort(f.body.last.date)}.</div>`)
+        : raw(h`<div class="lab">${f.body.count === 1
+          ? 'За период один замер — сравнивать пока не с чем. Второй даст разницу.'
+          : 'Замеров за период нет. Они пишутся во вкладке «Сейчас».'}</div>`)}
+    </div>
+
+    <div class="card">
+      <div class="caps">Еда</div>
+      ${f.food.filled ? raw(h`
+        <div class="ink">${f.food.kcal} ккал<span class="lab"> в среднем за день</span></div>
+        <div class="lab">белок ${f.food.prot} г · жиры ${f.food.fat} г · углеводы ${f.food.carb} г${f.food.water ? ` · вода ${f.food.water} мл` : ''}</div>
+        <div class="lab">Считаю по ${f.food.filled} ${plural(f.food.filled, 'заполненному дню', 'заполненным дням', 'заполненным дням')} из ${days} — пустые дни в среднее не идут, иначе оно занижается.</div>`)
+        : raw('<div class="lab">За период ничего не записано в питании.</div>')}
+      ${p ? raw(h`<div class="lab">Ориентир по белку от веса ${p.kg} кг — ${p.low}–${p.high} г в день. Это прикидка, а не предписание.</div>`) : ''}
+    </div>
+
+    <div class="card">
+      <div class="caps">Спорт</div>
+      ${f.sport.count ? raw(h`
+        <div class="ink">${f.sport.count} ${plural(f.sport.count, 'тренировка', 'тренировки', 'тренировок')}<span class="lab"> · ${f.sport.perWeek} в неделю</span></div>
+        ${f.sport.tags.length ? raw(h`<div class="chips">${f.sport.tags.map(t => raw(h`<span class="chip">${t.name} · ${t.n}</span>`))}</div>`)
+          : raw('<div class="lab">Пилюли не проставлены — по чему качалась, не видно.</div>')}`)
+        : raw('<div class="lab">Отмеченных тренировок за период нет.</div>')}
+    </div>
+
+    <div class="card mute">
+      <div class="lab">Это три разных ряда рядом, а не причина и следствие. Что из чего вышло —
+        знаешь только ты; приложение показывает факты и молчит про выводы.</div>
+    </div>`;
+}
+
 export const actions = {
+  tab: v => update(s => { s.ui.bodyTab = v.v; }),
+  span: v => update(s => { s.ui.formDays = Number(v.v); }),
   noticeoff: () => update(s => { delete s.health.startsOnlyNotice; }),
   cprev: () => update(s => { s.ui.calMonth = addMonths(calMonth(), -1); }),
   cnext: () => update(s => { s.ui.calMonth = addMonths(calMonth(), 1); }),

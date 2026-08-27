@@ -877,3 +877,60 @@ export const regionsEver = () => REGIONS.filter(r => countriesEver().some(c => c
 export const travelYears = () => [...new Set(visits().map(v => v.year))].sort((a, b) => b - a);
 
 export const COUNTRY_TOTAL = COUNTRIES.length;
+
+// ── форма: тело, еда и спорт на одном отрезке ───────────────────
+// Три раздела ведутся по отдельности, но вопрос у них общий: что вообще
+// происходит. Здесь они просто кладутся рядом за один период — без выводов
+// о причинах: приложение не знает, отчего изменился вес, и врать не будет.
+
+/** Суммы КБЖУ за день — та же логика, что на экране питания. */
+export const foodSums = date => ((S.food.days[date] || {}).entries || []).reduce(
+  (a, e) => ({ kcal: a.kcal + (e.kcal || 0), prot: a.prot + (e.prot || 0), fat: a.fat + (e.fat || 0), carb: a.carb + (e.carb || 0) }),
+  { kcal: 0, prot: 0, fat: 0, carb: 0 },
+);
+
+/** Дни периода, в которые вообще что-то записано в еде. */
+const filledFoodDays = days => days.filter(d => foodSums(d).kcal > 0);
+
+export function formSummary(days = 30) {
+  const from = addDays(todayISO(), -(days - 1));
+  const range = Array.from({ length: days }, (_, i) => addDays(from, i));
+
+  // Тело: первый и последний замеры внутри периода.
+  const inRange = [...S.health.measures].filter(m => m.date >= from).sort((a, b) => a.date.localeCompare(b.date));
+  const first = inRange[0], last = inRange[inRange.length - 1];
+  const delta = f => (first && last && first !== last && first[f] != null && last[f] != null
+    ? +(last[f] - first[f]).toFixed(1) : null);
+
+  // Еда: среднее только по заполненным дням, и честно сколько их было.
+  const filled = filledFoodDays(range);
+  const avg = f => (filled.length
+    ? Math.round(filled.reduce((a, d) => a + foodSums(d)[f], 0) / filled.length) : null);
+
+  // Спорт: отмеченные тренировки периода и по каким пилюлям.
+  const done = S.sport.workouts.filter(w => w.done && !w.measure && w.date >= from);
+  const byTag = {};
+  done.forEach(w => (w.tags || []).forEach(id => { byTag[id] = (byTag[id] || 0) + 1; }));
+  const tags = Object.entries(byTag)
+    .map(([id, n]) => ({ name: tagName(id), n }))
+    .filter(x => x.name)
+    .sort((a, b) => b.n - a.n);
+
+  const waterAvg = filled.length
+    ? Math.round(range.reduce((a, d) => a + ((S.food.days[d] || {}).water || 0), 0) / filled.length) : null;
+
+  return {
+    days, from,
+    body: { first, last, count: inRange.length, weight: delta('weight'), waist: delta('waist'), hips: delta('hips') },
+    food: { filled: filled.length, kcal: avg('kcal'), prot: avg('prot'), fat: avg('fat'), carb: avg('carb'), water: waterAvg },
+    sport: { count: done.length, perWeek: Math.round((done.length / days) * 7 * 10) / 10, tags },
+  };
+}
+
+/** Норма белка от последнего веса: ориентир, а не предписание. */
+export function proteinHint() {
+  const cur = measureDeltas().cur;
+  const kg = cur && cur.weight != null ? Number(cur.weight) : null;
+  if (!kg) return null;
+  return { kg, low: Math.round(kg * 1.2), high: Math.round(kg * 1.6), date: cur.date };
+}

@@ -5,6 +5,7 @@ import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
+import { proteinHint } from '../selectors.js';
 
 const cal = () => S.ui.foodMonth || monthKey(S.ui.foodDate || todayISO());
 const sel = () => S.ui.foodDate || todayISO();
@@ -216,15 +217,27 @@ export const actions = {
 
   goals: () => {
     const t = targets();
+    const p = proteinHint();
     openSheet({
       title: 'Дневные нормы',
       body: [
         field.number('kcal', 'Калории', t.kcal, { min: 0 }),
         field.number('prot', 'Белки, г', t.prot, { min: 0 }),
+        // Связка с замерами: белок обычно считают от веса, а вес уже есть
+        // в «Теле». Кнопка ставит середину диапазона — решение всё равно твоё.
+        p ? h`<button class="pill" data-act="fromweight">взять от веса: ${Math.round((p.low + p.high) / 2)} г</button>` : '',
+        p ? field.note(`Вес ${p.kg} кг от ${dayShort(p.date)} · ориентир 1,2–1,6 г на кг, это ${p.low}–${p.high} г.`) : '',
         field.number('fat', 'Жиры, г', t.fat, { min: 0 }),
         field.number('carb', 'Углеводы, г', t.carb, { min: 0 }),
         field.number('water', 'Вода, мл', t.water, { min: 0 }),
       ].join(''),
+      onAct: (name, _d, close) => {
+        if (name !== 'fromweight' || !p) return;
+        const prot = Math.round((p.low + p.high) / 2);
+        update(s => { s.food.targets = { ...s.food.targets, prot }; });
+        close();
+        toast(`Норма белка: ${prot} г`);
+      },
       onSave: (v, close) => {
         const n = (x, d) => Math.max(0, Math.round(Number(x) || d));
         update(s => {
