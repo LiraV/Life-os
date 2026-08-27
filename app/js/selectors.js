@@ -633,6 +633,10 @@ export function sphereParts(key, days) {
     { label: 'книги', n: booksBy('done').filter(b => days.includes(b.finished)).length }];
   if (key === 'money') return [quests,
     { label: 'операции', n: (S.budget.ops || []).filter(o => days.includes(o.date)).length }];
+  if (key === 'work') return [quests,
+    { label: 'рабочие дни', n: days.filter(d => S.work.days[d]?.type === 'work').length },
+    { label: 'задачи', n: workDoneIn(days[days.length - 1], days[0]).length },
+    { label: 'опыт', n: winsIn(days[days.length - 1], days[0]).length }];
   if (key === 'food') return [quests,
     { label: 'дни питания', n: days.filter(d => (S.food.days[d]?.entries || []).length).length }];
   // «Страны» отмечаются годом, а не датой, поэтому в двухнедельное окно им
@@ -1274,6 +1278,22 @@ export const SOURCES = {
     refName: key => customName(key),
     count: (ref, r) => sphereItems(ref).filter(i => i.done && inRange((i.doneAt || '').slice(0, 10), r)).length,
   },
+  workHours: {
+    sphere: 'work', name: 'Отработано часов', unit: 'ч', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => Math.round(workHours(r.from, r.to)),
+  },
+  workTasks: {
+    sphere: 'work', name: 'Задач доведено до конца', unit: 'задач', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => workDoneIn(r.from, r.to).length,
+  },
+  workWins: {
+    sphere: 'work', name: 'Записано в опыт', unit: 'записей', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => winsIn(r.from, r.to).length,
+  },
+  workOffice: {
+    sphere: 'work', name: 'Дней в офисе', unit: 'дней', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => officeDays(r.from, r.to),
+  },
   sphereShelf: {
     sphere: '*', name: 'Закрыто на полке', unit: 'штук', horizons: ['year', 'quarter', 'month'], kind: 'shelf',
     ref: () => customWith('shelf'),
@@ -1328,3 +1348,112 @@ export function autoLabel(goal) {
   return [src.name, ref].filter(Boolean).join(' · ')
     + (src.lifetime ? ' · за всё время' : '');
 }
+
+// ── работа: наём ────────────────────────────────────────────────
+// График задаётся один раз, и из него считается норма дня. Поэтому отметить
+// день — это один тап, а не анкета: часы подставляются, а не вводятся.
+//
+// Экран считает нагрузку и границы, а не производительность: сколько часов,
+// сколько дней подряд, сколько в офисе. «Мало сделала» тут не считается.
+
+export const W = () => S.work;
+export const workJob = () => S.work.job;
+
+/** Норма рабочего дня в часах: от начала до конца минус обед. */
+export function workDayNorm() {
+  const j = workJob();
+  const mins = toMin(j.end) - toMin(j.start) - (Number(j.lunch) || 0);
+  return Math.max(0, Math.round((mins / 60) * 100) / 100);
+}
+const toMin = t => { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+
+/** Норма недели: рабочих дней по графику × норма дня. */
+export const workWeekNorm = () => (workJob().days || []).length * workDayNorm();
+
+export const workDay = date => S.work.days[date] || null;
+export const workDays = () => S.work.days;
+/** Рабочий ли это день по графику — чтобы не спрашивать про воскресенье. */
+export const isWorkday = date => (workJob().days || []).includes(dowIndex(date));
+
+const daysOf = (from, to) => Object.keys(S.work.days).filter(d => d >= from && d <= to).sort();
+const monthRange = ym => [`${ym}-01`, `${ym}-31`];
+
+/** Отработанные часы за отрезок. Отпуск и больничный часов не дают. */
+export const workHours = (from, to) => daysOf(from, to)
+  .reduce((a, d) => a + (S.work.days[d].type === 'work' ? Number(S.work.days[d].hours) || 0 : 0), 0);
+export const workedDays = (from, to) => daysOf(from, to).filter(d => S.work.days[d].type === 'work').length;
+export const officeDays = (from, to) => daysOf(from, to)
+  .filter(d => S.work.days[d].type === 'work' && S.work.days[d].where === 'office').length;
+export const daysOfType = (from, to, type) => daysOf(from, to).filter(d => S.work.days[d].type === type).length;
+
+export const workMonth = ym => {
+  const [from, to] = monthRange(ym);
+  return {
+    hours: Math.round(workHours(from, to) * 10) / 10,
+    days: workedDays(from, to),
+    office: officeDays(from, to),
+    vacation: daysOfType(from, to, 'vacation'),
+    sick: daysOfType(from, to, 'sick'),
+  };
+};
+
+export const workWeek = date => {
+  const days = weekDates(date);
+  const from = days[0], to = days[days.length - 1];
+  return { hours: Math.round(workHours(from, to) * 10) / 10, days: workedDays(from, to), office: officeDays(from, to) };
+};
+
+/** Сколько дней подряд работала без единого выходного — считаем назад от сегодня. */
+export function workStreak(from = todayISO()) {
+  let n = 0;
+  for (let i = 0; i < 60; i++) {
+    const d = addDays(from, -i);
+    const rec = S.work.days[d];
+    if (rec && rec.type === 'work') n++;
+    else if (i === 0) continue;      // сегодня могли ещё не отметить
+    else break;
+  }
+  return n;
+}
+
+/** Переработка за отрезок: всё, что сверх нормы дня. */
+export const workOver = (from, to) => Math.round(daysOf(from, to)
+  .reduce((a, d) => a + (S.work.days[d].type === 'work'
+    ? Math.max(0, (Number(S.work.days[d].hours) || 0) - workDayNorm()) : 0), 0) * 10) / 10;
+
+/**
+ * Фактическая ставка за час: оклад делённый на реально отработанные часы.
+ * Число отрезвляющее — переработка его снижает, и это видно.
+ */
+export function workRate(ym) {
+  const j = workJob();
+  const m = workMonth(ym);
+  if (!Number(j.salary) || !m.hours) return null;
+  return { rate: Math.round(Number(j.salary) / m.hours), hours: m.hours, salary: Number(j.salary) };
+}
+
+/** Отпуск за год: сколько использовано из положенного. */
+export function workVacation(year = todayISO().slice(0, 4)) {
+  const used = daysOfType(`${year}-01-01`, `${year}-12-31`, 'vacation');
+  const total = Math.max(0, Number(workJob().vacationDays) || 0);
+  return { used, total, left: Math.max(0, total - used) };
+}
+
+// ── проекты, задачи, победы ─────────────────────────────────────
+export const workProjects = () => S.work.projects.filter(p => !p.archived);
+export const workProject = id => S.work.projects.find(p => p.id === id) || null;
+export const workProjectName = id => workProject(id)?.name || 'без проекта';
+
+export const workTasks = () => S.work.tasks;
+export const tasksInStage = (stage, projectId = null) => workTasks()
+  .filter(t => t.stage === stage && (projectId === null || (t.projectId || '') === projectId));
+export const tasksOfProject = id => workTasks().filter(t => (t.projectId || '') === id);
+export const workDoneIn = (from, to) => workTasks()
+  .filter(t => t.stage === 'done' && t.stageAt && t.stageAt >= from && t.stageAt <= to);
+/** Задачи со сроком, который уже прошёл или подходит. Без красного — просто список. */
+export const workDue = (within = 7) => workTasks()
+  .filter(t => t.stage !== 'done' && t.due && diffDays(t.due, todayISO()) <= within)
+  .sort((a, b) => (a.due < b.due ? -1 : 1));
+
+export const workWins = () => [...S.work.wins].sort((a, b) => (a.date < b.date ? 1 : -1));
+export const winsIn = (from, to) => S.work.wins.filter(x => x.date >= from && x.date <= to);

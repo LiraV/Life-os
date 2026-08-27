@@ -11,6 +11,7 @@ import * as day from './screens/day.js';
 import * as plans from './screens/plans.js';
 import * as spheres from './screens/spheres.js';
 import * as inbox from './screens/inbox.js';
+import * as work from './screens/work.js';
 import * as habits from './screens/habits.js';
 import * as health from './screens/health.js';
 import * as inside from './screens/inside.js';
@@ -28,7 +29,7 @@ import * as trips from './screens/trips.js';
 import { tipCard, tipActions, offerTips } from './tips.js';
 import { avatarHtml } from './avatars.js';
 
-const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport, care, library, trips, inbox };
+const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport, care, library, trips, inbox, work };
 
 const NAV = [
   { key: 'more', label: '☰ Ещё' },
@@ -41,6 +42,7 @@ const NAV = [
 const DRAWER = [
   { key: 'inbox', label: 'Инбокс' },
   { key: 'spheres', label: 'Сферы' },
+  { key: 'work', label: 'Работа' },
   { key: 'habits', label: 'Привычки' },
   { key: 'tracker', label: 'Трекер года' },
   { key: 'health', label: 'Тело' },
@@ -76,7 +78,7 @@ function renderStatus() {
 
 function renderNav() {
   const cur = activeScreen();
-  const drawerScreens = ['inbox', 'spheres', 'food', 'budget', 'edu', 'study', 'sport', 'habits', 'tracker', 'health', 'care', 'library', 'trips', 'settings'];
+  const drawerScreens = ['inbox', 'spheres', 'work', 'food', 'budget', 'edu', 'study', 'sport', 'habits', 'tracker', 'health', 'care', 'library', 'trips', 'settings'];
   nav.hidden = !S.onboarded;
   nav.innerHTML = NAV.map(n => {
     const on = n.key === 'more' ? drawerScreens.includes(cur) : n.key === cur;

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 31;
+const VERSION = 32;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -37,6 +37,15 @@ export const isCustomSphere = key => (S.customSpheres || []).some(sp => sp.key =
 /** Механики сферы: у встроенных они зашиты, у своих выбираются при создании. */
 export const sphereKinds = key => (S.customSpheres || []).find(sp => sp.key === key)?.kinds || [];
 
+/** Канбан работы. «На проверке» — про согласование, без него доска врёт:
+ *  сделанное и ждущее ответа — разные состояния. */
+export const WORK_STAGES = [
+  { key: 'queue', name: 'Очередь' },
+  { key: 'doing', name: 'В работе' },
+  { key: 'review', name: 'На проверке' },
+  { key: 'done', name: 'Готово' },
+];
+
 export const XP = { quest: 10, boss: 40, habit: 3, step: 15, measure: 5, reflection: 8, test: 25 };
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -59,6 +68,17 @@ function blank() {
     quests: {},          // { 'YYYY-MM-DD': [quest] }
     inbox: [],           // входящее без даты: { id, text, note, sphere, createdAt }
                          // ничего отсюда не уходит само — переносит человек
+    work: {              // сфера «Работа»: наём — один график, свои проекты и доска
+      projects: [],      // { id, name, archived } — задача может быть и без проекта
+      tasks: [],         // { id, title, projectId, stage, stageAt, due, note, createdAt }
+      days: {},          // { 'YYYY-MM-DD': { type, hours, where, note } }
+                         // type: 'work' | 'vacation' | 'sick' | 'off'; where: 'office' | 'home'
+      wins: [],          // опыт и победы: { id, date, title, note }
+      // График нужен, чтобы не спрашивать часы каждый день: норма считается из него.
+      // Дни недели нумеруются как везде в приложении: 0 — понедельник.
+      job: { start: '11:00', end: '18:00', lunch: 60, days: [0, 1, 2, 3, 4],
+             salary: 0, catId: '', officeNorm: 0, vacationDays: 28 },
+    },
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
@@ -360,6 +380,19 @@ function migrate(s) {
         .filter(([, v]) => v > 0),
     ),
   }));
+
+  // v31 → v32: сфера «Работа» — наём. График задаётся один раз, из него
+  // считается норма дня, поэтому отметка дня — это один тап, а не анкета.
+  const w = merged.work && typeof merged.work === 'object' ? merged.work : {};
+  merged.work = {
+    projects: Array.isArray(w.projects) ? w.projects : [],
+    tasks: (Array.isArray(w.tasks) ? w.tasks : []).map(t => ({
+      ...t, projectId: t.projectId || '', stage: WORK_STAGES.some(x => x.key === t.stage) ? t.stage : 'queue',
+    })),
+    days: w.days && typeof w.days === 'object' ? w.days : {},
+    wins: Array.isArray(w.wins) ? w.wins : [],
+    job: { ...base.work.job, ...(w.job && typeof w.job === 'object' ? w.job : {}) },
+  };
 
   // v30 → v31: инбокс. Место, куда мысль кладут, не решая сразу, когда её делать:
   // без даты, без сферы, без обязательств. В планер она уходит только руками.
