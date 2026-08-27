@@ -1,11 +1,11 @@
 // «Питание»: календарь по месяцу, КБЖУ и вода на каждый день,
 // плюс оценка приёма пищи по фотографии.
 
-import { S, update, uid, XP, addXp } from '../store.js';
+import { S, update, uid, XP, addXp, isWater } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
-import { proteinHint, energyNeed } from '../selectors.js';
+import { proteinHint, energyNeed, liveHabits } from '../selectors.js';
 
 const plural = (n, a, b, c) => {
   const m = n % 100, d = n % 10;
@@ -27,6 +27,7 @@ export function render() {
   const day = dayOf(date);
   const s = sums(date);
   const t = targets();
+  const linked = liveHabits().filter(isWater);
   const pct = t.kcal ? Math.round((s.kcal / t.kcal) * 100) : 0;
 
   return h`
@@ -58,6 +59,7 @@ export function render() {
         <span class="lab">${day.water || 0} / ${t.water} мл</span>
       </div>
       ${raw(bar(t.water ? Math.round(((day.water || 0) / t.water) * 100) : 0))}
+      ${linked.length ? raw(h`<div class="lab">То же число — привычка «${linked[0].name}» в «Ритме».</div>`) : ''}
       <div class="pills">
         <button class="pill" data-act="water" data-v="250">+250</button>
         <button class="pill" data-act="water" data-v="500">+500</button>

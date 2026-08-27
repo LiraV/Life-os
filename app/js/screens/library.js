@@ -12,6 +12,7 @@ import {
   booksDoneIn, booksDoneYear, pagesInYear, ratingAvg,
 } from '../selectors.js';
 import { gv } from '../gender.js';
+import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
 const TABS = [['now', 'Сейчас'], ['shelf', 'Полка'], ['year', 'Год']];
 const tab = () => (TABS.some(([k]) => k === S.ui.bookTab) ? S.ui.bookTab : 'now');
@@ -28,6 +29,8 @@ export function render() {
     <div class="title">Библиотека</div>
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
     ${raw(tab() === 'shelf' ? shelfView() : tab() === 'year' ? yearView() : nowView())}
+    ${raw(sphereGoalsCard('books'))}
+    ${raw(sphereGoalButton('books'))}
     <div style="height:4px"></div>`;
 }
 
@@ -245,6 +248,7 @@ function finishSheet(b) {
 }
 
 export const actions = {
+  ...sphereGoalActions('books'),
   back: () => { location.hash = '#/spheres'; },
   tab: v => update(s => { s.ui.bookTab = v.v; }),
   add: () => bookSheet(null),

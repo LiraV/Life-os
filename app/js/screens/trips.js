@@ -9,6 +9,7 @@ import { todayISO, yearOf } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { COUNTRIES, flagOf, countryName, searchCountries, REGIONS } from '../countries.js';
 import { visits, countriesEver, countriesInYear, regionsEver, travelYears, COUNTRY_TOTAL } from '../selectors.js';
+import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
 const TABS = [['life', 'За жизнь'], ['year', 'По годам'], ['add', 'Отметить']];
 const tab = () => (TABS.some(([k]) => k === S.ui.tripTab) ? S.ui.tripTab : 'life');
@@ -23,6 +24,8 @@ export function render() {
     <div class="title">Страны</div>
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
     ${raw(tab() === 'year' ? yearView() : tab() === 'add' ? addView() : lifeView())}
+    ${raw(sphereGoalsCard('trips'))}
+    ${raw(sphereGoalButton('trips'))}
     <div style="height:4px"></div>`;
 }
 
@@ -186,6 +189,7 @@ function addVisit(code, y, note = '') {
 }
 
 export const actions = {
+  ...sphereGoalActions('trips'),
   back: () => { location.hash = '#/spheres'; },
   tab: v => update(s => { s.ui.tripTab = v.v; }),
   search: v => update(s => { s.ui.tripSearch = v.value; }),

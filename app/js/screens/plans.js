@@ -10,7 +10,7 @@ import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
   quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
-  goalSlots, goalsPlannedIn, monthGoals, isCounter, counterOf,
+  goalSlots, goalsPlannedIn, monthGoals, isCounter, counterOf, autoLabel,
 } from '../selectors.js';
 
 const TABS = [['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']];
@@ -216,34 +216,35 @@ const num = n => Number(n).toLocaleString('ru-RU');
 /** Счётчик: «7 из 12 книг» и кнопки прибавления.
  *  Для мелких величин удобны шаги по единице, для крупных — только сумма. */
 function counterRow(g) {
-  const { current, target, unit } = counterOf(g);
+  const { current, target, unit, auto } = counterOf(g);
   const small = target <= 200;
   const reached = current >= target;
   return h`
     <div class="cnt-row">
       <div class="grow ink"><b>${num(current)}</b> из ${num(target)}${unit ? ' ' + unit : ''}${reached ? ' ✦' : ''}</div>
       <div class="row tight" style="flex:none">
-        ${small
-          ? raw(h`<button class="pill" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус один">−1</button>
-                  <button class="pill" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс один">+1</button>`)
-          : ''}
-        <button class="pill" data-act="cntadd" data-id="${g.id}">${small ? '+ ещё' : '+ добавить'}</button>
+        ${auto ? '' : raw(h`
+          ${raw(small ? h`<button class="pill" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус один">−1</button>
+                  <button class="pill" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс один">+1</button>` : '')}
+          <button class="pill" data-act="cntadd" data-id="${g.id}">${small ? '+ ещё' : '+ добавить'}</button>`)}
       </div>
-    </div>`;
+    </div>
+    ${auto ? raw(h`<div class="lab">Считается само: ${autoLabel(g)}. Отдельно отмечать не нужно.</div>`) : ''}`;
 }
 
 /** Динамичная цель — одна строка: набрано, норма и плюс в один тап. */
 function dynRow(g) {
-  const { current, target, unit } = counterOf(g);
+  const { current, target, unit, auto } = counterOf(g);
   const full = current >= target;
   return h`
     <div class="dyn-row ${full ? 'done' : ''}">
       <div class="grow" data-act="goaledit" data-id="${g.id}" style="cursor:pointer">
         <div class="ink">${g.title}</div>
-        <div class="lab">${current} / ${target}${unit ? ' ' + unit : ''}${full ? ' ✦' : ''}</div>
+        <div class="lab">${current} / ${target}${unit ? ' ' + unit : ''}${full ? ' ✦' : ''}${auto ? ' · сама' : ''}</div>
       </div>
-      ${current ? raw(h`<button class="hab-plus" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус">−</button>`) : ''}
-      <button class="hab-plus ${full ? 'on' : ''}" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс">+</button>
+      ${auto ? '' : raw(h`
+        ${raw(current ? h`<button class="hab-plus" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус">−</button>` : '')}
+        <button class="hab-plus ${full ? 'on' : ''}" data-act="cnt" data-id="${g.id}" data-d="1" aria-label="Плюс">+</button>`)}
     </div>`;
 }
 
@@ -443,7 +444,8 @@ function goalSheet(goal, preset) {
       field.opts('sphere', 'Сфера', [{ value: '', label: 'без сферы' }, ...SPHERES.map(x => ({ value: x.key, label: x.name }))], g.sphere || ''),
       field.date('deadline', 'Срок — если он есть', g.deadline || ''),
       field.number('target', 'Счётчик — сколько всего', g.target ?? '', { min: 0 }),
-      field.text('unit', 'В чём считаем', g.unit || '', 'книг, ₽, км — необязательно'),
+      g.src ? field.note(`Набранное считается само: ${autoLabel(g)}. Вписывать его руками не нужно — и нельзя, иначе получилось бы два числа про одно.`)
+            : field.text('unit', 'В чём считаем', g.unit || '', 'книг, ₽, км — необязательно'),
       field.note('Со счётчиком прогресс считается от набранного. Без него — по этапам, которые добавляются в самой цели.'),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
@@ -470,7 +472,9 @@ function goalSheet(goal, preset) {
         const next = {
           ...g, title, horizon, period, parentId: v.parentId || '',
           sphere: v.sphere || '', deadline: v.deadline || '',
-          target, unit: (v.unit || '').trim(),
+          target,
+          // У цели с источником единица его, а поля для неё на экране нет.
+          unit: g.src ? g.unit : (v.unit || '').trim(),
           current: target ? (Number(g.current) || 0) : 0,
         };
         const i = s.goals.findIndex(x => x.id === g.id);

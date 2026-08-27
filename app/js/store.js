@@ -46,7 +46,8 @@ function blank() {
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
     spheres: {},         // { key: { items: [], note } }
-    habits: [],          // [{ id, name, target, step, unit, log: { date: количество } }]
+    habits: [],          // [{ id, name, target, step, unit, log: { date: количество }, link }]
+                         // link: '' — своя запись, 'water' — число берётся из «Питания»
     health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
     lessons: [],                                         // полка обучения: курсы и практики
     sport: {                                             // спорт: тренировки и упражнения с рекордами
@@ -236,34 +237,11 @@ function migrate(s) {
       weights: Array.isArray(cr.pet?.weights) ? cr.pet.weights : [] },
   };
 
-  // Первый запуск: список из «Системы поддержки» — периодичность выведена
-  // из месяцев, а «когда в последний раз» остаётся пустым: за неё не придумываем.
-  if (!merged.care.items.length) {
-    const SEED = [
-      ['Маникюр', 'beauty', 1, 1], ['Педикюр', 'beauty', 1, 1],
-      ['Психиатр', 'health', 3, 1], ['Эпиляция', 'beauty', 3, 2],
-      ['Замеры тела', 'health', 3, 2], ['Кровь на литий', 'health', 3, 3],
-      ['Массаж', 'health', 3, 3], ['Расхламление подписок', 'home', 6, 2],
-      ['Чистка лица', 'beauty', 6, 4], ['Расхламление одежды', 'home', 6, 5],
-      ['Расхламление телефона', 'home', 6, 6], ['Бусик от глистов', 'pet', 6, 3],
-      ['ТО машины', 'home', 12, 1], ['Проверка документов', 'home', 12, 1],
-      ['Общий анализ мочи', 'health', 12, 1], ['Терапевт', 'health', 12, 2],
-      ['ЭКГ + УЗИ сердца', 'health', 12, 3], ['Гинеколог', 'health', 12, 4],
-      ['Таблетки от глистов', 'health', 12, 4], ['Мануальный терапевт', 'health', 12, 5],
-      ['Парикмахер', 'beauty', 12, 6], ['Чек-ап Бусика', 'pet', 12, 8],
-      ['Химчистка', 'home', 12, 9], ['Починка одежды', 'home', 12, 9],
-      ['Общий анализ крови', 'health', 12, 9], ['Проф гигиена', 'health', 12, 9],
-      ['Вакцина Бусику', 'pet', 12, 10], ['Кровь на железо', 'health', 12, 10],
-      ['Кровь на D3', 'health', 12, 11], ['Страховка на машину', 'home', 12, 12],
-      ['Анализ крови биохим', 'health', 12, 12],
-    ];
-    merged.care.items = SEED.map(([name, group, every, anchor]) => ({
-      id: uid(), name, group, every, anchor, last: '', log: [], cost: 0, note: '',
-      // Замеры тела уже живут в «Теле»: отметка берётся оттуда, а не дублируется.
-      link: name === 'Замеры тела' ? 'measure' : '',
-    }));
-    if (!merged.care.pet.name) merged.care.pet = { ...merged.care.pet, name: 'Бусик' };
-  }
+  // Списка «по умолчанию» больше нет. Раньше сюда высыпался чужой личный
+  // список на 31 дело вместе с кличкой питомца — всем одинаково. Теперь
+  // «Забота» предлагает подходящее по профилю, а человек отмечает, что берёт:
+  // каталог лежит в carelib.js, выбор — на экране заботы. Уже заведённые дела
+  // не трогаем: у тех, кто пользовался прежней версией, список остаётся как был.
 
   // v19 → v20: расписание. Событие не хранится по датам — только правило,
   // поэтому расписание можно поменять задним числом и ничего не разъедется.
@@ -356,6 +334,25 @@ function migrate(s) {
         .filter(([, v]) => v > 0),
     ),
   }));
+
+  // v27 → v28: вода как привычка и вода в «Питании» были двумя числами про одно.
+  // Привычку про воду связываем с «Питанием»; её журнал не трогаем — он остаётся
+  // в хранилище и вернётся, если связь снять. Прошлые значения переносим только
+  // когда они и правда в миллилитрах (норма от 100) и день в «Питании» пуст:
+  // отметку-галочку «вода: да» в миллилитры не превратить, не выдумав их.
+  merged.habits = (Array.isArray(merged.habits) ? merged.habits : []).map(hb => {
+    const link = typeof hb.link === 'string' ? hb.link
+      // Границу слова пишем явно: \b в JS работает по латинице и с кириллицей
+      // не совпадает ни с чем — на этом связь и не срабатывала.
+      : /(^|[^\p{L}])вод[аыу]/iu.test(hb.name || '') ? 'water' : '';
+    return { ...hb, link };
+  });
+  merged.habits.filter(hb => hb.link === 'water' && Number(hb.target) >= 100).forEach(hb => {
+    Object.keys(hb.log || {}).forEach(d => {
+      const day = (merged.food.days[d] ||= { water: 0, entries: [] });
+      if (!day.water) day.water = Math.max(0, Number(hb.log[d]) || 0);
+    });
+  });
 
   // v2 → v3: раньше цель была только месячной и хранила поле month.
   // Переводим на горизонты, чтобы рядом жили цели квартала и года.
@@ -471,13 +468,20 @@ export function touchBudget(s) {
   s.budget.updatedAt = new Date().toISOString();
 }
 
+/** Вода живёт в «Питании». Привычка со связью читает и пишет туда же —
+ *  два числа не синхронизируются, потому что число одно. */
+export const isWater = hb => hb?.link === 'water';
+export const waterOf = (s, date) => Math.max(0, Number(s.food.days[date]?.water) || 0);
+export const waterNorm = s => Math.max(1, Number(s.food.targets.water) || 1);
+
 export function tickHabit(s, id, date) {
   const hb = s.habits.find(x => x.id === id);
   if (!hb) return null;
-  const target = habitNorm(hb);
-  const was = Math.max(0, Number(hb.log[date]) || 0);
+  const target = isWater(hb) ? waterNorm(s) : habitNorm(hb);
+  const was = isWater(hb) ? waterOf(s, date) : Math.max(0, Number(hb.log[date]) || 0);
   const next = was >= target ? 0 : Math.min(target, was + habitStep(hb));
-  if (next) hb.log[date] = next; else delete hb.log[date];
+  if (isWater(hb)) (s.food.days[date] ||= { water: 0, entries: [] }).water = next;
+  else if (next) hb.log[date] = next; else delete hb.log[date];
   if (next >= target && was < target) addXp(XP.habit);
   if (was >= target && next < target) addXp(-XP.habit);
   touchTracker(s);

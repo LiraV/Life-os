@@ -10,6 +10,7 @@ import {
   careDueNow, careSoon, careInGroup, careMonthCost, careYearPlan, petAge,
 } from '../selectors.js';
 import { gv } from '../gender.js';
+import { careSuggestions } from '../carelib.js';
 
 const TABS = [['now', 'Сейчас'], ['all', 'Списком'], ['year', 'Год']];
 const tab = () => (TABS.some(([k]) => k === S.ui.careTab) ? S.ui.careTab : 'now');
@@ -21,7 +22,7 @@ export function everyLabel(n) {
   if (n === 12) return 'раз в год';
   if (n === 6) return 'раз в полгода';
   if (n === 3) return 'раз в квартал';
-  if (n > 12 && n % 12 === 0) return `раз в ${n / 12} года`;
+  if (n > 12 && n % 12 === 0) return `раз в ${n / 12} ${plural(n / 12, 'год', 'года', 'лет')}`;
   return `раз в ${n} ${n > 1 && n < 5 ? 'месяца' : 'месяцев'}`;
 }
 
@@ -62,7 +63,18 @@ export function render() {
 // ── сейчас ──────────────────────────────────────────────────────
 function nowView(due, soon) {
   const cost = careMonthCost();
+  const empty = !careItems().length;
   return h`
+    ${empty ? raw(h`
+      <div class="card dash">
+        <div class="ink"><b>Собрать список</b></div>
+        <div class="lab">Покажу, что обычно повторяют — анализы и врачей, внешность, дом, питомца, —
+          и отмечу только то, что выберешь. Ничего не добавится само, и любое дело потом можно
+          переписать или удалить.</div>
+        <button class="add" data-act="suggest">Посмотреть предложения</button>
+        <button class="q-edit" data-act="add">или завести своё дело</button>
+      </div>`) : ''}
+
     <div class="card">
       <div class="row between"><div class="caps">Пора сейчас</div>
         <span class="lab">${due.length ? `${due.length} ${plural(due.length, 'дело', 'дела', 'дел')}` : 'ничего'}</span></div>
@@ -110,7 +122,8 @@ function listView() {
             : raw('<div class="lab">Пока пусто.</div>')}
         </div>`);
     })}
-    <button class="add" data-act="add">+ Дело</button>`;
+    <button class="add" data-act="add">+ Дело</button>
+    <button class="btn-ghost" data-act="suggest">Посмотреть предложения</button>`;
 }
 
 // ── год ─────────────────────────────────────────────────────────
@@ -175,6 +188,48 @@ const EVERY = [
   { value: '12', label: 'раз в год' },
   { value: '24', label: 'раз в 2 года' },
 ];
+
+/**
+ * Что можно добавить: подходящее по профилю и ещё не заведённое. Отмеченные
+ * заранее — это предложение, а не выбор за человека: снять можно любое, и
+ * пустой выбор шторка примет молча, ничего не добавив.
+ */
+function suggestSheet() {
+  const list = careSuggestions();
+  if (!list.length) {
+    return openSheet({
+      title: 'Предложить нечего',
+      sub: 'всё подходящее уже в списке',
+      body: field.note('Каталог предлагает дела по полу, возрасту и наличию питомца. Если заполнить дату рождения в «Я» или завести питомца, появятся новые.'),
+    });
+  }
+  const byGroup = CARE_GROUPS.map(g => [g, list.filter(x => x.group === g.key)]).filter(([, l]) => l.length);
+  openSheet({
+    title: 'Что добавить',
+    sub: `${list.length} ${plural(list.length, 'предложение', 'предложения', 'предложений')} · отмеченные — на мой взгляд`,
+    body: [
+      byGroup.map(([g, l]) => h`<div class="caps" style="margin-top:10px">${g.name}</div>` +
+        l.map(x => h`<label class="row tight" style="font-size:13px">
+            <input type="checkbox" name="c${x.i}" ${raw(x.rec ? 'checked' : '')}>
+            ${x.name} <i class="lab">· ${everyLabel(x.every)}</i>
+          </label>`).join('')).join(''),
+      field.note('Это не назначения: периодичность анализов и осмотров различается по странам, по врачам и по человеку. Здесь распространённые значения — их же можно поменять у каждого дела. Отметки ставишь ты, приложение само ничего не закрывает.'),
+    ].join(''),
+    primary: 'Добавить выбранное',
+    onSave: (v, close) => {
+      const picked = list.filter(x => v['c' + x.i]);
+      if (!picked.length) { close(); return toast('Ничего не добавила'); }
+      update(s => {
+        picked.forEach(x => s.care.items.push({
+          id: uid(), name: x.name, group: x.group, every: x.every,
+          anchor: 0, last: '', log: [], cost: 0, note: '', link: x.link || '',
+        }));
+      });
+      close();
+      toast(`Добавила ${picked.length} ${plural(picked.length, 'дело', 'дела', 'дел')}`);
+    },
+  });
+}
 
 function itemSheet(item, group) {
   const isNew = !item;
@@ -296,6 +351,7 @@ function weightSheet() {
 export const actions = {
   tab: v => update(s => { s.ui.careTab = v.v; }),
   add: v => itemSheet(null, v.g),
+  suggest: () => suggestSheet(),
   edit: v => itemSheet(careItems().find(x => x.id === v.id)),
   done: v => doneSheet(careItems().find(x => x.id === v.id)),
   tomeasure: () => { toast('Замеры записываются в разделе «Тело»'); location.hash = '#/health'; },

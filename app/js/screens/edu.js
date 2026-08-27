@@ -7,6 +7,7 @@ import { todayISO, monthKey, addMonths, monthTitle, dayShort, diffDays } from '.
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { liveLessons, lessonMonth, lessonLast, lessonAgo, courseProgress, moduleDone, moduleFull } from '../selectors.js';
 import { scheduleBlock, scheduleActions } from '../schedule.js';
+import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
 const cal = () => S.ui.eduMonth || monthKey(todayISO());
 const money = n => `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ₽`;
@@ -57,6 +58,8 @@ export function render() {
         </div>`))}
         <div class="lab">Пауза — нейтральное действие. Курс не пропал и ничего не отнимает.</div>
       </div>`) : ''}
+    ${raw(sphereGoalsCard('edu'))}
+    ${raw(sphereGoalButton('edu'))}
     <div style="height:4px"></div>`;
 }
 
@@ -201,6 +204,7 @@ function lessonSheet(lesson) {
 }
 
 export const actions = {
+  ...sphereGoalActions('edu'),
   ...scheduleActions,
   back: () => { location.hash = '#/spheres'; },
   prev: () => update(s => { s.ui.eduMonth = addMonths(cal(), -1); }),

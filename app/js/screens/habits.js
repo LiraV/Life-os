@@ -1,9 +1,9 @@
 // «Ритм»: привычки без стриков. Неделя — тап по дню, месяц — реальные итоги.
 
-import { S, update, uid, tickHabit, habitStep } from '../store.js';
+import { S, update, uid, tickHabit, habitStep, isWater } from '../store.js';
 import { todayISO, addDays, weekDates, monthKey, addMonths, monthTitle, daysInMonth, DOW, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
-import { habitMonthCount, habitTarget, habitCount, habitDone, liveHabits } from '../selectors.js';
+import { habitMonthCount, habitTarget, habitCount, habitDone, liveHabits, habitUnit } from '../selectors.js';
 
 const mode = () => S.ui.habMode || 'week';
 const anchor = () => S.ui.habitAnchor || todayISO();
@@ -43,7 +43,7 @@ function weekView(list) {
       return raw(h`
         <div class="card">
           <div class="row between"><div class="ink grow ellip">${hb.name}</div>
-            <span class="lab">${n} из 7${target > 1 ? ` · норма ${target}${hb.unit ? ' ' + hb.unit : ''}` : ''}</span>
+            <span class="lab">${n} из 7${target > 1 ? ` · норма ${target}${habitUnit(hb) ? ' ' + habitUnit(hb) : ''}` : ''}</span>
             <button class="q-edit" data-act="edit" data-id="${hb.id}">›</button></div>
           <div class="hab-grid">
             ${dates.map(d => {
@@ -93,12 +93,15 @@ function tip(list) {
 
 function habitSheet(hb) {
   const isNew = !hb;
+  const water = isWater(hb);
   openSheet({
     title: isNew ? 'Новая привычка' : 'Привычка',
     body: [
       field.text('name', 'Название', hb?.name || '', 'например, «Итальянский 15 минут»'),
-      field.number('target', 'Норма за день', hb ? habitTarget(hb) : 1, { min: 1 }),
-      field.text('unit', 'В чём считаем', hb?.unit || '', 'раз, мл, минут — необязательно'),
+      `<label class="row tight" style="font-size:13px"><input type="checkbox" name="water" ${water ? 'checked' : ''}> Это вода из «Питания»</label>`,
+      water ? field.note(`Норма и выпитое берутся из «Питания» — сейчас ${habitTarget(hb)} мл в день. Число одно: стакан, отмеченный здесь, виден там, и наоборот. Свой журнал привычки сохранён и вернётся, если снять галочку.`)
+            : field.number('target', 'Норма за день', hb ? habitTarget(hb) : 1, { min: 1 }),
+      water ? '' : field.text('unit', 'В чём считаем', hb?.unit || '', 'раз, мл, минут — необязательно'),
       field.number('step', 'Сколько добавляет один тап', hb ? habitStep(hb) : 1, { min: 1 }),
       field.note('Норма больше одного превращает привычку в счётчик: «таблетки 0/3». Для крупных величин задай шаг — «вода 2000 мл» с шагом 250 закрывается восемью тапами.'),
     ].join(''),
@@ -109,11 +112,16 @@ function habitSheet(hb) {
       const target = Math.max(1, Number(v.target) || 1);
       const step = Math.max(1, Math.min(target, Number(v.step) || 1));
       const unit = (v.unit || '').trim();
+      const link = v.water ? 'water' : '';
+      // В режиме воды поля нормы и единицы на экране нет, поэтому их нельзя
+      // перезаписывать тем, чего не спрашивали: своя норма привычки лежит
+      // нетронутой и возвращается вместе со снятой связью.
+      const asked = v.target !== undefined;
       update(s => {
-        if (isNew) s.habits.push({ id: uid(), name, target, step, unit, log: {}, createdAt: todayISO() });
+        if (isNew) s.habits.push({ id: uid(), name, target, step, unit, link, log: {}, createdAt: todayISO() });
         else {
           const x = s.habits.find(y => y.id === hb.id);
-          if (x) { x.name = name; x.target = target; x.step = step; x.unit = unit; }
+          if (x) { x.name = name; x.step = step; x.link = link; if (asked) { x.target = target; x.unit = unit; } }
         }
       });
       close();

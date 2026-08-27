@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth,
+import { liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth,
   sportTags, tagById, tagMonthCount, tagUsedIn, booksDoneIn, booksDoneYear } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
@@ -482,8 +482,10 @@ export const actions = {
 
     const daily = [['Дата', 'Привычка', 'Значение', 'Норма', 'Норма закрыта']];
     liveHabits().forEach(hb => {
-      Object.keys(hb.log || {}).filter(d => d.startsWith(String(y))).sort().forEach(d => {
-        const n = Number(hb.log[d]) || 0;
+      // Через habitDates, а не по журналу привычки: у воды журнала нет,
+      // её дни лежат в «Питании», и выгрузка должна их видеть.
+      habitDates(hb).filter(d => d.startsWith(String(y))).forEach(d => {
+        const n = habitCount(hb, d);
         daily.push([d, hb.name, n, habitTarget(hb), n >= habitTarget(hb) ? 'да' : 'нет']);
       });
     });

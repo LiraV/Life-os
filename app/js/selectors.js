@@ -1,7 +1,7 @@
 // Производные значения. Ничего не хранят — считают из состояния,
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
-import { S, SPHERES, level, levelFloor } from './store.js';
+import { S, SPHERES, level, levelFloor, isWater } from './store.js';
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
 import { COUNTRIES, countryBy, REGIONS } from './countries.js';
 import { isMale } from './gender.js';
@@ -56,7 +56,17 @@ export const isCounter = g => Number(g?.target) > 0;
  * Счётчик цели: набранное ставит сама пользовательница. Автоматики тут нет —
  * тренировка лишь подписывается, к какой цели относится.
  */
-export const counterOf = g => ({ current: Number(g.current) || 0, target: Number(g.target) || 0, unit: g.unit || '' });
+export const counterOf = g => {
+  // У цели с источником набранное не хранится, а считается: вписывать его
+  // руками было бы вторым числом про то же самое.
+  const auto = autoCount(g);
+  return {
+    current: auto != null ? auto : Number(g.current) || 0,
+    target: Number(g.target) || 0,
+    unit: g.unit || '',
+    auto: auto != null,
+  };
+};
 
 /** Прогресс: «выполнено» перебивает всё, дальше счётчик, этапы, вложенные цели, вручную. */
 export function goalProgress(goal, seen = new Set()) {
@@ -147,9 +157,24 @@ export function weekStats(date) {
 }
 
 // ── привычки ────────────────────────────────────────────────────
-export const habitTarget = hb => Math.max(1, Number(hb.target) || 1);
-export const habitCount = (hb, date) => Math.max(0, Number(hb.log?.[date]) || 0);
+// Привычка со связью 'water' не хранит своих чисел: и норма, и выпитое
+// берутся из «Питания». Поэтому один стакан виден сразу в обоих местах —
+// синхронизировать нечего, число одно.
+export const habitTarget = hb => (isWater(hb)
+  ? Math.max(1, Number(S.food.targets.water) || 1)
+  : Math.max(1, Number(hb.target) || 1));
+export const habitCount = (hb, date) => (isWater(hb)
+  ? Math.max(0, Number(S.food.days[date]?.water) || 0)
+  : Math.max(0, Number(hb.log?.[date]) || 0));
 export const habitDone = (hb, date) => habitCount(hb, date) >= habitTarget(hb);
+
+/** Дни, в которые у привычки есть значение, — с учётом связи. Для выгрузки. */
+export const habitDates = hb => (isWater(hb)
+  ? Object.keys(S.food.days).filter(d => Number(S.food.days[d]?.water) > 0)
+  : Object.keys(hb.log || {}).filter(d => Number(hb.log[d]) > 0)).sort();
+
+/** Единица измерения: у воды она своя и задана «Питанием». */
+export const habitUnit = hb => (isWater(hb) ? 'мл' : hb.unit || '');
 
 export const liveHabits = () => S.habits.filter(hb => !hb.archived);
 
@@ -1063,4 +1088,104 @@ export function waistRisk() {
   const [warn, high] = isMale() ? [94, 102] : [80, 88];
   const level = cm >= high ? 'high' : cm >= warn ? 'warn' : 'ok';
   return { cm, warn, high, level, date: cur.date };
+}
+
+
+// ── бюджет: остаток копилки ─────────────────────────────────────
+/** Стартовая сумма плюс все пополнения. Живёт здесь, а не в экране бюджета,
+ *  потому что то же число нужно целям «накопить столько-то». */
+export const vaultBalance = v =>
+  (Number(v?.start) || 0) + (S.budget.ops || [])
+    .filter(o => o.kind === 'save' && o.vaultId === v?.id)
+    .reduce((a, o) => a + (Number(o.sum) || 0), 0);
+
+// ── цели, которые считают себя сами ─────────────────────────────
+// Обычная цель со счётчиком ждёт, что число впишут руками; такая берёт его
+// из сферы: прочитанные книги, посещённые страны, отмеченные тренировки,
+// занятия, остаток копилки.
+//
+// Автоматика тут только в счёте. Саму цель никто не заводит за человека:
+// сфера предлагает, что она умеет считать, а взять это или нет — его выбор.
+
+/** Отрезок дат периода цели. ISO-даты сравниваются как строки. */
+export function periodRange(horizon, period) {
+  if (horizon === 'month') return { from: `${period}-01`, to: `${period}-${String(daysInMonth(period)).padStart(2, '0')}` };
+  if (horizon === 'quarter') {
+    const ms = quarterMonths(period);
+    return { from: `${ms[0]}-01`, to: `${ms[2]}-${String(daysInMonth(ms[2])).padStart(2, '0')}` };
+  }
+  return { from: `${period}-01-01`, to: `${period}-12-31` };
+}
+
+const inRange = (d, r) => !!d && d >= r.from && d <= r.to;
+const doneWorkouts = r => S.sport.workouts.filter(w => w.done && !w.measure && inRange(w.date, r));
+
+/**
+ * Что сферы умеют считать. У источника есть единица, разрешённые горизонты
+ * и — если нужно — выбор конкретной пилюли, занятия или копилки.
+ */
+export const SOURCES = {
+  books: {
+    sphere: 'books', name: 'Прочитано книг', unit: 'книг', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => booksBy('done').filter(b => inRange(b.finished, r)).length,
+  },
+  pages: {
+    sphere: 'books', name: 'Прочитано страниц', unit: 'страниц', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => booksBy('done').filter(b => inRange(b.finished, r))
+      .reduce((a, b) => a + (Number(b.pages) || 0), 0),
+  },
+  countriesYear: {
+    // У поездки есть только год, поэтому месяц и квартал считать нечем:
+    // такую цель просто не предлагаем, а не считаем криво.
+    sphere: 'trips', name: 'Стран за год', unit: 'стран', horizons: ['year'],
+    count: (_ref, _r, period) => countriesInYear(Number(period.slice(0, 4))).length,
+  },
+  countriesEver: {
+    sphere: 'trips', name: 'Стран за жизнь', unit: 'стран', horizons: ['year'], lifetime: true,
+    count: () => countriesEver().length,
+  },
+  workouts: {
+    sphere: 'sport', name: 'Тренировок', unit: 'тренировок', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => doneWorkouts(r).length,
+  },
+  tag: {
+    sphere: 'sport', name: 'Тренировок с пилюлей', unit: 'раз', horizons: ['year', 'quarter', 'month'],
+    ref: () => sportTags().map(t => ({ value: t.id, label: t.name })),
+    refName: id => tagById(id)?.name || '',
+    count: (ref, r) => doneWorkouts(r).filter(w => (w.tags || []).includes(ref)).length,
+  },
+  lessons: {
+    sphere: 'edu', name: 'Занятий с полки', unit: 'занятий', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'все занятия' }, ...liveLessons().map(l => ({ value: l.id, label: l.name }))],
+    refName: id => liveLessons().find(l => l.id === id)?.name || 'все занятия',
+    count: (ref, r) => liveLessons().filter(l => !ref || l.id === ref)
+      .reduce((a, l) => a + lessonDates(l).filter(d => inRange(d, r)).length, 0),
+  },
+  vault: {
+    sphere: 'money', name: 'Накоплено в копилке', unit: '₽', horizons: ['year', 'quarter', 'month'], lifetime: true,
+    ref: () => (S.budget.vaults || []).map(v => ({ value: v.id, label: v.name })),
+    refName: id => (S.budget.vaults || []).find(v => v.id === id)?.name || '',
+    count: ref => vaultBalance((S.budget.vaults || []).find(v => v.id === ref)),
+  },
+};
+
+/** Источники, которые эта сфера умеет считать. */
+export const sourcesOf = sphere => Object.entries(SOURCES)
+  .filter(([, s]) => s.sphere === sphere)
+  .map(([key, s]) => ({ key, ...s }));
+
+/** Текущее значение автосчётчика. null — у цели нет источника. */
+export function autoCount(goal) {
+  const src = SOURCES[goal?.src?.kind];
+  if (!src) return null;
+  return src.count(goal.src.ref || '', periodRange(goal.horizon, goal.period), goal.period);
+}
+
+/** Подпись «откуда число» — чтобы автоматика не выглядела магией. */
+export function autoLabel(goal) {
+  const src = SOURCES[goal?.src?.kind];
+  if (!src) return '';
+  const ref = goal.src.ref && src.refName ? src.refName(goal.src.ref) : '';
+  return [src.name, ref].filter(Boolean).join(' · ')
+    + (src.lifetime ? ' · за всё время' : '');
 }

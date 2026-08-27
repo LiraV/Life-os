@@ -14,6 +14,7 @@ import {
   liveLessons, liveGoals, isCounter, sportTags, tagMonthCount,
 } from '../selectors.js';
 import { gv } from '../gender.js';
+import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
 const TABS = [['tpl', 'Шаблоны'], ['ex', 'Упражнения']];
 const tab = () => (S.ui.sportTab === 'ex' ? 'ex' : 'tpl');
@@ -27,6 +28,8 @@ export function render() {
     <div class="title">Спорт</div>
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
     ${raw(tab() === 'ex' ? exView() : tplView())}
+    ${raw(sphereGoalsCard('sport'))}
+    ${raw(sphereGoalButton('sport'))}
     <div style="height:4px"></div>`;
 }
 
@@ -388,6 +391,7 @@ function exSheet(ex) {
 }
 
 export const actions = {
+  ...sphereGoalActions('sport'),
   ...scheduleActions,
   tagadd: () => tagSheet(null),
   tagedit: v => tagSheet(sportTags().find(t => t.id === v.id)),

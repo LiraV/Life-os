@@ -8,6 +8,10 @@ import { S, update, uid, touchBudget } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
+// Остаток копилки считается в selectors: то же число нужно целям «накопить».
+import { vaultBalance } from '../selectors.js';
+import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
+export { vaultBalance };
 
 const B = () => S.budget;
 const ym = () => S.ui.budMonth || monthKey(todayISO());
@@ -36,8 +40,7 @@ export function balanceAt(m) {
   }, B().start);
 }
 
-export const vaultBalance = v =>
-  (Number(v.start) || 0) + B().ops.filter(o => o.kind === 'save' && o.vaultId === v.id).reduce((a, o) => a + (Number(o.sum) || 0), 0);
+
 
 const TABS = [['month', 'Месяц'], ['ops', 'Операции'], ['vaults', 'Копилки']];
 
@@ -55,6 +58,8 @@ export function render() {
     ${B().updatedAt ? raw(h`<div class="lab">заполняли ${stampLabel(B().updatedAt)}</div>`) : raw('<div class="lab">ещё ничего не записано</div>')}
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
     ${raw({ month: monthView, ops: opsView, vaults: vaultsView }[tab()]())}
+    ${raw(sphereGoalsCard('money'))}
+    ${raw(sphereGoalButton('money'))}
     <div style="height:4px"></div>`;
 }
 
@@ -268,6 +273,7 @@ const numOf = v => {
 };
 
 export const actions = {
+  ...sphereGoalActions('money'),
   back: () => { location.hash = '#/spheres'; },
   tab: v => update(s => { s.ui.budTab = v.v; }),
   prev: () => update(s => { s.ui.budMonth = addMonths(ym(), -1); }),
