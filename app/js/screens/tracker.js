@@ -6,7 +6,7 @@ import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort } from '../da
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
 import { liveHabits, habitMonthCount, habitTarget, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth,
-  sportTags, tagById, tagMonthCount, tagUsedIn } from '../selectors.js';
+  sportTags, tagById, tagMonthCount, tagUsedIn, booksDoneIn, booksDoneYear } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
 const cell = n => n >= 10000 ? Math.round(n / 1000) + 'к' : String(n);
@@ -88,6 +88,12 @@ export function buildRows(y) {
       id: t.id, name: t.name, tag: true, unit: 'трен.',
       cells: months.map(ym => tagCell(t, ym)),
     })),
+    // Книги — сколько дочитано за месяц. Строка появляется, когда за год
+    // закрыта хотя бы одна: пустую строку на полке держать незачем.
+    ...(booksDoneYear(y).length ? [{
+      name: 'Книги', book: true, unit: 'шт.',
+      cells: months.map(ym => ({ value: booksDoneIn(ym).length || null })),
+    }] : []),
     // Энергия — среднее за месяц, поэтому за год у неё тоже среднее, а не сумма.
     { name: 'Энергия', avg: true, unit: 'сред.', cells: months.map(ym => ({ value: energyMonth(ym) })) },
   ];
@@ -142,6 +148,7 @@ export function render() {
                       : r.lesson ? raw('<i class="tr-dyn">занятия</i>')
                       : r.avg ? raw('<i class="tr-dyn">сред.</i>')
                       : r.tag ? raw('<i class="tr-dyn">трен.</i>')
+                      : r.book ? raw('<i class="tr-dyn">книг</i>')
                       : r.best ? raw(h`<i class="tr-dyn">${r.unit}</i>`)
                       : r.dyn ? raw('<i class="tr-dyn">дин.</i>')
                       : r.target > 1 ? raw(h`<i class="tr-dyn">×${r.target}</i>`) : ''}</th>

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 25;
+const VERSION = 26;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -15,6 +15,7 @@ export const SPHERES = [
   { key: 'sport', name: 'Спорт',    mech: 'статы',      img: 'assets/illustration_05.png' },
   { key: 'food',  name: 'Питание',  mech: 'зелья',      img: 'assets/illustration_04.png' },
   { key: 'money', name: 'Бюджет',   mech: 'казна',      img: 'assets/illustration_10.png' },
+  { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png' },
 ];
 
 export const XP = { quest: 10, boss: 40, habit: 3, step: 15, measure: 5, reflection: 8, test: 25 };
@@ -52,6 +53,9 @@ function blank() {
     schedules: [],                                       // расписание — дело по дням недели:
                                                          // { id, kind, refId, days: [], time, dur, every, from, to, place, note, off,
                                                          //   moves: { 'дата по правилу': 'новая дата' | '' — отменено } }
+    library: {                                           // библиотека: полка книг
+      books: [],                                         // { id, title, author, kind, pages, page, status, rating, started, finished, note }
+    },
     care: {                                              // забота: повторяющиеся дела с периодичностью
       items: [],                                         // { id, name, group, every, anchor, last, log: [], cost, note, link }
       pet: { name: '', kind: '', birth: '', note: '', weights: [] },  // weights: [{ id, date, kg }]
@@ -175,6 +179,19 @@ function migrate(s) {
   }
 
   // v18 → v19: забота — повторяющиеся дела с периодичностью и профиль питомца.
+  // v25 → v26: библиотека — книги со статусом и прогрессом по страницам.
+  const lib = merged.library && typeof merged.library === 'object' ? merged.library : {};
+  merged.library = {
+    books: (Array.isArray(lib.books) ? lib.books : []).map(b => ({
+      ...b,
+      kind: ['paper', 'ebook', 'audio'].includes(b.kind) ? b.kind : 'paper',
+      status: ['want', 'reading', 'done', 'dropped'].includes(b.status) ? b.status : 'want',
+      pages: Math.max(0, Number(b.pages) || 0),
+      page: Math.max(0, Number(b.page) || 0),
+      rating: Math.min(5, Math.max(0, Number(b.rating) || 0)),
+    })),
+  };
+
   const cr = merged.care && typeof merged.care === 'object' ? merged.care : {};
   merged.care = {
     items: (Array.isArray(cr.items) ? cr.items : []).map(it => ({

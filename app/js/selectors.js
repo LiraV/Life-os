@@ -820,3 +820,31 @@ export const diaryDigest = (n = 5) => (S.diary || [])
   .slice(-n)
   .map(d => `${dayShort(d.date)}: ${String(d.text || '').slice(0, 300)}`)
   .join('\n');
+
+// ── библиотека ──────────────────────────────────────────────────
+export const BOOK_STATUS = [
+  { key: 'reading', name: 'Читаю' },
+  { key: 'want', name: 'Хочу прочитать' },
+  { key: 'done', name: 'Прочитано' },
+  { key: 'dropped', name: 'Отложено' },
+];
+export const books = () => S.library.books;
+export const booksBy = status => books().filter(b => b.status === status);
+export const bookById = id => books().find(b => b.id === id);
+
+/** Процент прочитанного — только если известно, сколько всего страниц. */
+export const bookProgress = b => (b.pages > 0 ? Math.min(100, Math.round((b.page / b.pages) * 100)) : null);
+
+/** Дочитанные за месяц и за год — по дате, когда книга закрыта. */
+export const booksDoneIn = ym => booksBy('done').filter(b => (b.finished || '').slice(0, 7) === ym);
+export const booksDoneYear = year => booksBy('done').filter(b => (b.finished || '').slice(0, 4) === String(year));
+
+/** Сколько страниц прочитано за год — считаем только там, где объём известен. */
+export const pagesInYear = year => booksDoneYear(year).reduce((a, b) => a + (Number(b.pages) || 0), 0);
+
+/** Средняя оценка за год: книги без оценки в среднее не идут. */
+export function ratingAvg(year) {
+  const rated = booksDoneYear(year).filter(b => b.rating > 0);
+  if (!rated.length) return null;
+  return Math.round((rated.reduce((a, b) => a + b.rating, 0) / rated.length) * 10) / 10;
+}
