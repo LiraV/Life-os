@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 29;
+const VERSION = 30;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -24,6 +24,10 @@ export const SPHERES = [
   { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png' },
   { key: 'trips', name: 'Страны',   mech: 'карта',      img: 'assets/illustration_01.png' },
 ];
+
+/** Пустая запись сферы: по ящику на каждую механику. Одна фабрика на всё
+ *  приложение — иначе новая механика забывается в одном из мест создания. */
+export const blankSphere = () => ({ items: [], note: '', vault: null, log: {}, shelf: [], coll: [], board: [], meas: [] });
 
 /** Все сферы: встроенные из кода плюс свои из состояния. Архивные не в счёт. */
 export const allSpheres = () => [...SPHERES, ...(S.customSpheres || []).filter(sp => !sp.archived)];
@@ -59,9 +63,11 @@ function blank() {
     tracker: { rows: [], values: {}, habitValues: {}, lessonValues: {}, exerciseValues: {}, tagValues: {} },  // свои строки и ручные правки
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
     years: {},           // { 2026: { theme, quarters: {Q1..Q4} } }
-    spheres: {},         // { key: { items: [], note, log: { 'YYYY-MM-DD': число } } }
-    customSpheres: [],   // свои сферы: { key: 'c…', name, icon, mech, kinds: [], unit, archived }
-                         // kinds — механики сферы: 'steps' — этапы, 'log' — журнал отметок
+    spheres: {},         // { key: { items, note, log, shelf, coll, board, meas } }
+                         // у каждой механики свой ящик — они не мешают друг другу
+    customSpheres: [],   // свои сферы: { key: 'c…', name, icon, mech, kinds: [], unit, dir, archived }
+                         // kinds — механики: 'steps' этапы · 'log' журнал · 'shelf' полка
+                         //         'coll' коллекция · 'board' доска стадий · 'meas' замеры
     spheresHidden: [],   // ключи сфер, убранных с глаз: данные остаются, плитки нет
     roleOf: {},          // { ключ сферы: id роли } — к какой роли она относится
     habits: [],          // [{ id, name, target, step, unit, log: { date: количество }, link }]
@@ -357,16 +363,20 @@ function migrate(s) {
   // лежат в коде, свои — в состоянии. Роли остаются набором в коде, но какая
   // сфера к какой роли относится — уже данные, и это можно менять.
   const sph = merged.spheres && typeof merged.spheres === 'object' ? merged.spheres : {};
+  const arr = x => (Array.isArray(x) ? x : []);
   merged.spheres = Object.fromEntries(Object.entries(sph).map(([k, r]) => [k, {
-    items: Array.isArray(r?.items) ? r.items : [],
+    ...blankSphere(),
+    items: arr(r?.items),
     note: r?.note || '',
     vault: r?.vault ?? null,
     log: r?.log && typeof r.log === 'object' ? r.log : {},
+    shelf: arr(r?.shelf), coll: arr(r?.coll), board: arr(r?.board), meas: arr(r?.meas),
   }]));
   merged.customSpheres = (Array.isArray(merged.customSpheres) ? merged.customSpheres : []).map(sp => ({
     key: sp.key, name: sp.name || 'Сфера', icon: sp.icon || '✦', mech: sp.mech || 'своя',
     kinds: Array.isArray(sp.kinds) && sp.kinds.length ? sp.kinds : ['steps'],
-    unit: sp.unit || 'раз', archived: !!sp.archived,
+    unit: sp.unit || 'раз', dir: sp.dir === 'down' ? 'down' : sp.dir === 'up' ? 'up' : 'none',
+    archived: !!sp.archived,
   })).filter(sp => typeof sp.key === 'string' && sp.key.startsWith('c'));
   merged.spheresHidden = (Array.isArray(merged.spheresHidden) ? merged.spheresHidden : []).filter(x => typeof x === 'string');
   merged.roleOf = merged.roleOf && typeof merged.roleOf === 'object' ? merged.roleOf : {};

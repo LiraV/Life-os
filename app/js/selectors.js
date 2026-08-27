@@ -141,6 +141,51 @@ export const sphereLogTotal = (key, ym) => monthDates(ym).reduce((a, d) => a + s
 export const sphereLogYear = (key, y) => Object.keys(sphereLog(key))
   .filter(d => d.startsWith(String(y)) && sphereLogOn(key, d) > 0).length;
 
+// ── остальные механики своей сферы ──────────────────────────────
+// У каждой свой ящик в записи сферы, поэтому они не мешают друг другу:
+// можно вести и полку, и журнал, и ничего не разъедется.
+const box = (key, name) => (S.spheres[key] || {})[name] || [];
+
+/** Полка: путь «хочу → делаю → сделано», плюс «отложено» — это не провал. */
+export const SHELF_STATUS = [
+  { key: 'want', name: 'Хочу' },
+  { key: 'doing', name: 'В процессе' },
+  { key: 'done', name: 'Сделано' },
+  { key: 'off', name: 'Отложено' },
+];
+export const sphereShelf = key => box(key, 'shelf');
+export const shelfBy = (key, status) => sphereShelf(key).filter(x => x.status === status);
+export const shelfDoneIn = (key, from, to) => shelfBy(key, 'done')
+  .filter(x => x.finished && x.finished >= from && x.finished <= to);
+
+/** Коллекция: единицы с датой. «За жизнь» — все, «за год» — по дате. */
+export const sphereColl = key => box(key, 'coll');
+export const collIn = (key, from, to) => sphereColl(key).filter(x => x.date && x.date >= from && x.date <= to);
+export const collYear = (key, y) => sphereColl(key).filter(x => (x.date || '').startsWith(String(y)));
+
+/** Доска: те же стадии, что в учёбе, но короче — не начато, в работе, готово. */
+export const BOARD_STAGES = [
+  { key: 'todo', name: 'Не начато' },
+  { key: 'doing', name: 'В работе' },
+  { key: 'done', name: 'Готово' },
+];
+export const sphereBoard = key => box(key, 'board');
+export const boardBy = (key, stage) => sphereBoard(key).filter(x => (x.stage || 'todo') === stage);
+export const boardDoneIn = (key, from, to) => boardBy(key, 'done')
+  .filter(x => x.stageAt && x.stageAt >= from && x.stageAt <= to);
+
+/** Замеры: число с датой. Рекорд считаем только если сказано, куда лучше. */
+export const sphereMeas = key => [...box(key, 'meas')].sort((a, b) => (a.date < b.date ? -1 : 1));
+export const measIn = (key, from, to) => sphereMeas(key).filter(x => x.date >= from && x.date <= to);
+export const measLast = key => sphereMeas(key).slice(-1)[0] || null;
+export function measRecord(key) {
+  const sp = (S.customSpheres || []).find(x => x.key === key);
+  const list = sphereMeas(key);
+  if (!list.length || !sp || sp.dir === 'none') return null;
+  const better = (a, b) => (sp.dir === 'down' ? a.value < b.value : a.value > b.value);
+  return list.reduce((best, x) => (better(x, best) ? x : best), list[0]);
+}
+
 export function sphereProgress(key) {
   const items = sphereItems(key);
   if (!items.length) return null;
@@ -587,10 +632,15 @@ export function sphereParts(key, days) {
   // попасть нечем: считаем только квесты, а не выдумываем поездке день.
   // Своя сфера приносит закрытые этапы с датой и отметки журнала.
   // У блога закрытый этап — это опубликованный пост, так его и называем.
+  const inDays = d => days.includes((d || '').slice(0, 10));
   return [quests,
     { label: key === 'blog' ? 'посты' : 'этапы',
-      n: sphereItems(key).filter(i => i.done && days.includes((i.doneAt || '').slice(0, 10))).length },
-    { label: 'отметки', n: days.filter(d => Number(sphereLog(key)[d]) > 0).length }];
+      n: sphereItems(key).filter(i => i.done && inDays(i.doneAt)).length },
+    { label: 'отметки', n: days.filter(d => Number(sphereLog(key)[d]) > 0).length },
+    { label: 'закрыто', n: shelfBy(key, 'done').filter(x => inDays(x.finished)).length },
+    { label: 'собрано', n: sphereColl(key).filter(x => inDays(x.date)).length },
+    { label: 'доведено', n: boardBy(key, 'done').filter(x => inDays(x.stageAt)).length },
+    { label: 'замеры', n: sphereMeas(key).filter(x => inDays(x.date)).length }];
 }
 
 /**
@@ -1159,6 +1209,12 @@ const doneWorkouts = r => S.sport.workouts.filter(w => w.done && !w.measure && i
  * Что сферы умеют считать. У источника есть единица, разрешённые горизонты
  * и — если нужно — выбор конкретной пилюли, занятия или копилки.
  */
+/** Свои сферы, которые ведут эту механику, — списком для выбора в цели. */
+const customWith = kind => (S.customSpheres || [])
+  .filter(sp => !sp.archived && (sp.kinds || []).includes(kind))
+  .map(sp => ({ value: sp.key, label: sp.name }));
+const customName = key => (S.customSpheres || []).find(sp => sp.key === key)?.name || '';
+
 export const SOURCES = {
   books: {
     sphere: 'books', name: 'Прочитано книг', unit: 'книг', horizons: ['year', 'quarter', 'month'],
@@ -1201,17 +1257,33 @@ export const SOURCES = {
   // значило бы дописывать код на каждую сферу, чего мы и уходим.
   sphereLog: {
     sphere: '*', name: 'Отметок в журнале', unit: 'дней', horizons: ['year', 'quarter', 'month'],
-    ref: () => (S.customSpheres || []).filter(sp => !sp.archived && (sp.kinds || []).includes('log'))
-      .map(sp => ({ value: sp.key, label: sp.name })),
-    refName: key => (S.customSpheres || []).find(sp => sp.key === key)?.name || '',
+    ref: () => customWith('log'),
+    refName: key => customName(key),
     count: (ref, r) => Object.keys(sphereLog(ref)).filter(d => inRange(d, r) && sphereLogOn(ref, d) > 0).length,
   },
   sphereSteps: {
     sphere: '*', name: 'Закрытых этапов', unit: 'этапов', horizons: ['year', 'quarter', 'month'],
-    ref: () => (S.customSpheres || []).filter(sp => !sp.archived && (sp.kinds || []).includes('steps'))
-      .map(sp => ({ value: sp.key, label: sp.name })),
-    refName: key => (S.customSpheres || []).find(sp => sp.key === key)?.name || '',
+    ref: () => customWith('steps'),
+    refName: key => customName(key),
     count: (ref, r) => sphereItems(ref).filter(i => i.done && inRange((i.doneAt || '').slice(0, 10), r)).length,
+  },
+  sphereShelf: {
+    sphere: '*', name: 'Закрыто на полке', unit: 'штук', horizons: ['year', 'quarter', 'month'], kind: 'shelf',
+    ref: () => customWith('shelf'),
+    refName: key => customName(key),
+    count: (ref, r) => shelfDoneIn(ref, r.from, r.to).length,
+  },
+  sphereColl: {
+    sphere: '*', name: 'Собрано', unit: 'штук', horizons: ['year', 'quarter', 'month'], kind: 'coll',
+    ref: () => customWith('coll'),
+    refName: key => customName(key),
+    count: (ref, r) => collIn(ref, r.from, r.to).length,
+  },
+  sphereBoard: {
+    sphere: '*', name: 'Доведено до конца', unit: 'штук', horizons: ['year', 'quarter', 'month'], kind: 'board',
+    ref: () => customWith('board'),
+    refName: key => customName(key),
+    count: (ref, r) => boardDoneIn(ref, r.from, r.to).length,
   },
   vault: {
     sphere: 'money', name: 'Накоплено в копилке', unit: '₽', horizons: ['year', 'quarter', 'month'], lifetime: true,

@@ -1,18 +1,20 @@
 // «Сферы»: плитки и разбор одной сферы. У каждой — этапы с прогрессом,
 // у блога стадии идей, у бюджета копилка, у спорта — статистика из квестов.
 
-import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds } from '../store.js';
+import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere } from '../store.js';
 import { todayISO, addDays, monthKey, monthTitle, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions,
-  sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleById, roleOfSphere } from '../selectors.js';
+  sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleOfSphere,
+  SHELF_STATUS, sphereShelf, shelfBy, BOARD_STAGES, sphereBoard, boardBy,
+  sphereColl, collYear, sphereMeas, measLast, measRecord } from '../selectors.js';
 import { sums } from './food.js';
 import { balanceAt, money } from './budget.js';
 import { studyNow, workoutsIn } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 
 const STAGES = ['росток', 'бутон', 'готов ✦'];
-const rec = (s, key) => (s.spheres[key] ||= { items: [], note: '', vault: null, log: {} });
+const rec = (s, key) => (s.spheres[key] ||= blankSphere());
 
 export function render(params) {
   return params[0] ? detail(params[0]) : grid();
@@ -87,6 +89,10 @@ function detail(key) {
 
     ${raw(key === 'blog' ? blogBody(items) : key === 'money' ? vaultBody(r) : key === 'sport' ? sportBody() : '')}
     ${raw(kinds.includes('log') ? logBody(key, sp) : '')}
+    ${raw(kinds.includes('shelf') ? shelfBody(key, sp) : '')}
+    ${raw(kinds.includes('coll') ? collBody(key, sp) : '')}
+    ${raw(kinds.includes('board') ? boardBody(key) : '')}
+    ${raw(kinds.includes('meas') ? measBody(key, sp) : '')}
 
     ${raw(sphereGoalsCard(key))}
     ${raw(sphereGoalButton(key))}
@@ -135,6 +141,101 @@ function logBody(key, sp) {
     </div>`;
 }
 
+
+// ── полка ───────────────────────────────────────────────────────
+/** Путь «хочу → в процессе → сделано». Отложенное — статус, а не провал. */
+function shelfBody(key, sp) {
+  return h`
+    ${SHELF_STATUS.map(st => {
+      const list = shelfBy(key, st.key);
+      return raw(h`
+        <div class="card ${st.key === 'off' && !list.length ? 'mute' : ''}">
+          <div class="row between"><div class="caps">${st.name}</div>
+            <span class="lab">${list.length || ''}</span></div>
+          ${list.length ? raw(h`<div class="list">${list.map(x => raw(h`
+            <button class="row between care-name" data-act="shelfedit" data-id="${x.id}">
+              <span class="ink grow ellip">${x.title}</span>
+              <span class="lab">${x.rating ? '★'.repeat(x.rating) : (x.note || '')} ›</span>
+            </button>`))}</div>`)
+            : raw('<div class="lab">Пусто.</div>')}
+        </div>`);
+    })}
+    <button class="add" data-act="shelfadd">+ ${sp.unit || 'Запись'}</button>`;
+}
+
+// ── коллекция ───────────────────────────────────────────────────
+/** Единицы с датой: сколько за год и сколько за всё время. */
+function collBody(key, sp) {
+  const all = sphereColl(key);
+  const y = yearOf(todayISO());
+  const thisYear = collYear(key, y);
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Собрано</div>
+        <span class="lab">за ${y} — ${thisYear.length}</span></div>
+      <div class="ink"><b>${all.length}</b><span class="lab"> ${sp.unit || 'штук'} за всё время</span></div>
+      ${all.length ? raw(h`<div class="chips">${[...all].reverse().slice(0, 40).map(x => raw(h`
+        <button class="chip" data-act="colledit" data-id="${x.id}">${x.name}
+          <span class="lab">${(x.date || '').slice(0, 4)}</span></button>`))}</div>`)
+        : raw('<div class="lab">Пока пусто. Первая запись и будет началом.</div>')}
+      ${all.length > 40 ? raw(h`<div class="lab">Показаны последние 40 из ${all.length}.</div>`) : ''}
+      <button class="add" data-act="colladd">+ ${sp.unit || 'Запись'}</button>
+    </div>`;
+}
+
+// ── доска ───────────────────────────────────────────────────────
+/** Три стадии. Тап по стадии двигает дальше, с последней возвращает в начало. */
+function boardBody(key) {
+  return h`
+    ${BOARD_STAGES.map(st => {
+      const list = boardBy(key, st.key);
+      return raw(h`
+        <div class="card">
+          <div class="row between"><div class="caps">${st.name}</div>
+            <span class="lab">${list.length || ''}</span></div>
+          ${list.length ? raw(h`<div class="list">${list.map(x => raw(h`
+            <div class="chk-row">
+              <button class="pill" data-act="boardmove" data-id="${x.id}">${st.name.toLowerCase()}</button>
+              <span class="grow ellip" data-act="boardedit" data-id="${x.id}" style="cursor:pointer">${x.title}</span>
+              <button class="q-edit" data-act="boardedit" data-id="${x.id}">›</button>
+            </div>`))}</div>`)
+            : raw('<div class="lab">Пусто.</div>')}
+        </div>`);
+    })}
+    <button class="add" data-act="boardadd">+ Дело</button>`;
+}
+
+// ── замеры ──────────────────────────────────────────────────────
+/** Число с датой. Рекорд показываем только если сказано, куда «лучше». */
+function measBody(key, sp) {
+  const list = sphereMeas(key);
+  const last = measLast(key);
+  const rec = measRecord(key);
+  const prev = list.length > 1 ? list[list.length - 2] : null;
+  const d = last && prev ? Math.round((last.value - prev.value) * 100) / 100 : null;
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Замеры</div>
+        <span class="lab">${last ? dayShort(last.date) : 'нет данных'}</span></div>
+      ${last ? raw(h`
+        <div class="ink"><b>${last.value}</b><span class="lab"> ${sp.unit || ''}${d != null ? ` · ${d > 0 ? '+' : ''}${d} к прошлому` : ''}</span></div>
+        ${rec ? raw(h`<div class="lab">Лучшее — ${rec.value} ${sp.unit || ''} · ${dayShort(rec.date)}</div>`)
+              : raw('<div class="lab">Куда «лучше» — не задано, поэтому рекорд не считаю.</div>')}`)
+        : raw('<div class="empty">Первый замер — точка отсчёта, а не оценка.</div>')}
+      <button class="add" data-act="measadd">+ Замер</button>
+    </div>
+    ${list.length > 1 ? raw(h`
+      <div class="card mute">
+        <div class="caps">История</div>
+        ${[...list].reverse().slice(0, 8).map(x => raw(h`
+          <button class="row between care-name" data-act="measedit" data-id="${x.id}">
+            <span class="lab">${dayShort(x.date)}</span>
+            <span class="ink">${x.value} ${sp.unit || ''}</span>
+            <span class="lab">${x.note || ''} ›</span>
+          </button>`))}
+      </div>`) : ''}`;
+}
+
 const plural = (n, one, few, many) => {
   const a = Math.abs(n) % 100, b = a % 10;
   if (a > 10 && a < 20) return many;
@@ -142,16 +243,184 @@ const plural = (n, one, few, many) => {
   return b === 1 ? one : many;
 };
 
+
+/** Одна запись полки: название, статус, оценка, заметка. */
+function shelfSheet(id) {
+  const key = curKey();
+  const x = sphereShelf(key).find(y => y.id === id);
+  const it = x || { id: uid(), title: '', status: 'want', rating: 0, note: '', started: '', finished: '' };
+  openSheet({
+    title: x ? x.title : 'Новая запись',
+    body: [
+      field.text('title', 'Что это', it.title, 'название'),
+      field.opts('status', 'Где оно сейчас', SHELF_STATUS.map(st => ({ value: st.key, label: st.name })), it.status),
+      field.opts('rating', 'Оценка', [
+        { value: '0', label: 'без оценки' }, { value: '1', label: '★' }, { value: '2', label: '★★' },
+        { value: '3', label: '★★★' }, { value: '4', label: '★★★★' }, { value: '5', label: '★★★★★' },
+      ], String(it.rating || 0)),
+      field.text('note', 'Заметка', it.note || ''),
+      field.note('Дата окончания проставляется сама, когда ставишь «Сделано», — по ней считаются итоги за месяц и год.'),
+    ].join(''),
+    primary: x ? 'Сохранить' : 'Добавить',
+    onSave: (v, close) => {
+      const title = (v.title || '').trim();
+      if (!title) return toast('Нужно название');
+      update(s => {
+        const list = rec(s, key).shelf;
+        const status = v.status || 'want';
+        const next = {
+          ...it, title, status, rating: Math.min(5, Math.max(0, Number(v.rating) || 0)),
+          note: (v.note || '').trim(),
+          started: it.started || (status === 'doing' ? todayISO() : ''),
+          finished: status === 'done' ? (it.finished || todayISO()) : '',
+        };
+        const i = list.findIndex(y => y.id === it.id);
+        if (i >= 0) list[i] = next; else list.push(next);
+        if (status === 'done' && x?.status !== 'done') addXp(XP.step);
+      });
+      close();
+    },
+    danger: x ? 'Убрать' : null,
+    onDanger: (_v, close) => {
+      update(s => { const r = rec(s, key); r.shelf = r.shelf.filter(y => y.id !== it.id); });
+      close();
+      toast('Убрала');
+    },
+  });
+}
+
+/** Единица коллекции: имя и дата. Дата нужна, чтобы считать «за год». */
+function collSheet(id) {
+  const key = curKey();
+  const x = sphereColl(key).find(y => y.id === id);
+  const it = x || { id: uid(), name: '', date: todayISO(), note: '' };
+  openSheet({
+    title: x ? x.name : 'Новая запись',
+    body: [
+      field.text('name', 'Что', it.name, 'название'),
+      field.date('date', 'Когда', it.date || todayISO()),
+      field.text('note', 'Заметка', it.note || ''),
+      field.note('Дата нужна, чтобы считать «за год». Если это было давно — поставь ту дату, какая была.'),
+    ].join(''),
+    primary: x ? 'Сохранить' : 'Добавить',
+    onSave: (v, close) => {
+      const name = (v.name || '').trim();
+      if (!name) return toast('Нужно название');
+      update(s => {
+        const list = rec(s, key).coll;
+        const next = { ...it, name, date: v.date || todayISO(), note: (v.note || '').trim() };
+        const i = list.findIndex(y => y.id === it.id);
+        if (i >= 0) list[i] = next; else { list.push(next); addXp(XP.step); }
+      });
+      close();
+    },
+    danger: x ? 'Убрать' : null,
+    onDanger: (_v, close) => {
+      update(s => { const r = rec(s, key); r.coll = r.coll.filter(y => y.id !== it.id); });
+      close();
+      toast('Убрала');
+    },
+  });
+}
+
+/** Дело на доске: название и стадия. */
+function boardSheet(id) {
+  const key = curKey();
+  const x = sphereBoard(key).find(y => y.id === id);
+  const it = x || { id: uid(), title: '', stage: 'todo', stageAt: '', note: '' };
+  openSheet({
+    title: x ? x.title : 'Новое дело',
+    body: [
+      field.text('title', 'Что делаем', it.title, 'коротко'),
+      field.opts('stage', 'Стадия', BOARD_STAGES.map(st => ({ value: st.key, label: st.name })), it.stage || 'todo'),
+      field.text('note', 'Заметка', it.note || ''),
+    ].join(''),
+    primary: x ? 'Сохранить' : 'Добавить',
+    onSave: (v, close) => {
+      const title = (v.title || '').trim();
+      if (!title) return toast('Нужно название');
+      update(s => {
+        const list = rec(s, key).board;
+        const stage = v.stage || 'todo';
+        const next = {
+          ...it, title, stage, note: (v.note || '').trim(),
+          stageAt: stage === it.stage ? it.stageAt : todayISO(),
+        };
+        const i = list.findIndex(y => y.id === it.id);
+        if (i >= 0) list[i] = next; else list.push(next);
+        if (stage === 'done' && x?.stage !== 'done') addXp(XP.step);
+      });
+      close();
+    },
+    danger: x ? 'Убрать' : null,
+    onDanger: (_v, close) => {
+      update(s => { const r = rec(s, key); r.board = r.board.filter(y => y.id !== it.id); });
+      close();
+      toast('Убрала');
+    },
+  });
+}
+
+/** Замер: дата и число. */
+function measSheet(id) {
+  const key = curKey();
+  const sp = sphereOf(key);
+  const x = sphereMeas(key).find(y => y.id === id);
+  const it = x || { id: uid(), date: todayISO(), value: '', note: '' };
+  openSheet({
+    title: x ? 'Замер' : 'Новый замер',
+    sub: sp.unit ? `в ${sp.unit}` : '',
+    body: [
+      field.date('date', 'Когда', it.date),
+      field.number('value', `Сколько${sp.unit ? `, ${sp.unit}` : ''}`, it.value, {}),
+      field.text('note', 'Заметка', it.note || ''),
+    ].join(''),
+    primary: x ? 'Сохранить' : 'Записать',
+    onSave: (v, close) => {
+      if (v.value === '' || v.value == null) return toast('Нужно число');
+      update(s => {
+        const list = rec(s, key).meas;
+        const next = { ...it, date: v.date || todayISO(), value: Number(v.value), note: (v.note || '').trim() };
+        const i = list.findIndex(y => y.id === it.id);
+        if (i >= 0) list[i] = next; else { list.push(next); addXp(XP.measure); }
+      });
+      close();
+    },
+    danger: x ? 'Убрать' : null,
+    onDanger: (_v, close) => {
+      update(s => { const r = rec(s, key); r.meas = r.meas.filter(y => y.id !== it.id); });
+      close();
+      toast('Убрала');
+    },
+  });
+}
+
 /** Заготовки: шаблон только заполняет форму, сам ничего не создаёт. */
 const TEMPLATES = [
   { id: 'practice', name: 'Практика', icon: '🌱', mech: 'практика', kinds: ['log'], unit: 'раз',
     hint: 'медитация, рисование, гитара — важно, как часто' },
-  { id: 'projects', name: 'Проекты', icon: '🔨', mech: 'проекты', kinds: ['steps'], unit: 'шагов',
-    hint: 'ремонт, фриланс, рукоделие — важно, что закрыто' },
-  { id: 'both', name: 'Практика и план', icon: '🧭', mech: 'своя', kinds: ['log', 'steps'], unit: 'раз',
-    hint: 'язык, инструмент — и заниматься, и держать план' },
+  { id: 'shelf', name: 'Полка', icon: '📺', mech: 'полка', kinds: ['shelf'], unit: 'Запись',
+    hint: 'сериалы, игры, фильмы — важно, что смотришь и что досмотрел' },
+  { id: 'coll', name: 'Коллекция', icon: '🗃', mech: 'коллекция', kinds: ['coll'], unit: 'штук',
+    hint: 'пластинки, растения, концерты — важно, сколько набралось' },
+  { id: 'board', name: 'Доска', icon: '🗂', mech: 'доска', kinds: ['board'], unit: 'дел',
+    hint: 'ремонт, заказы, фриланс — важно, что на какой стадии' },
+  { id: 'projects', name: 'Список дел', icon: '🔨', mech: 'проекты', kinds: ['steps'], unit: 'шагов',
+    hint: 'простой список с галочками и прогрессом' },
+  { id: 'meas', name: 'Дневник числа', icon: '📈', mech: 'замеры', kinds: ['meas'], unit: 'баллов',
+    hint: 'настроение, шаги, часы за рулём — важно, как меняется' },
   { id: 'blank', name: 'С нуля', icon: '✦', mech: 'своя', kinds: ['steps'], unit: 'раз',
     hint: 'выберешь всё сам' },
+];
+
+/** Механики в форме: подпись и пояснение, чтобы выбор был осмысленным. */
+const KINDS = [
+  ['steps', 'Этапы', 'список с галочками и прогрессом'],
+  ['log', 'Журнал', 'отметки по дням, счёт за месяц и год'],
+  ['shelf', 'Полка', 'хочу → в процессе → сделано → отложено'],
+  ['coll', 'Коллекция', 'единицы с датой: за год и за всё время'],
+  ['board', 'Доска', 'не начато → в работе → готово'],
+  ['meas', 'Замеры', 'число с датой, разница и лучшее'],
 ];
 
 /** Создание своей сферы: сначала заготовка, потом её можно переписать. */
@@ -189,10 +458,13 @@ function sphereSheet(key, tpl) {
       built ? '' : field.text('icon', 'Значок', base.icon, 'один эмодзи'),
       built ? '' : field.text('mech', 'Подпись на плитке', base.mech, 'коротко: практика, проекты'),
       built ? '' : `<div class="fld"><span>Что она считает</span>
-        <label class="row tight" style="font-size:13px"><input type="checkbox" name="steps" ${kinds.includes('steps') ? 'checked' : ''}> Этапы — список с галочками и прогрессом</label>
-        <label class="row tight" style="font-size:13px"><input type="checkbox" name="log" ${kinds.includes('log') ? 'checked' : ''}> Журнал — отметки по дням, счёт за месяц и год</label>
+        ${KINDS.map(([k, name, hint]) => `<label class="row tight" style="font-size:13px">
+          <input type="checkbox" name="${k}" ${kinds.includes(k) ? 'checked' : ''}> ${name} — ${hint}</label>`).join('')}
       </div>`,
-      built || !kinds.includes('log') ? '' : field.text('unit', 'В чём считаем журнал', base.unit, 'раз, страниц, минут'),
+      built ? '' : field.text('unit', 'Как называть единицу', base.unit, 'раз, штук, баллов'),
+      built || !kinds.includes('meas') ? '' : field.opts('dir', 'Куда «лучше»', [
+        { value: 'none', label: 'не считать' }, { value: 'up', label: 'больше' }, { value: 'down', label: 'меньше' },
+      ], base.dir || 'none'),
       field.select('role', 'К какой роли относится',
         [{ value: '', label: 'без роли' }, ...ROLES.map(r => ({ value: r.id, label: r.name }))],
         key ? roleOfSphere(key) : ''),
@@ -203,7 +475,7 @@ function sphereSheet(key, tpl) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!key && !name) return toast('Нужно название');
-      const picked = [v.steps && 'steps', v.log && 'log'].filter(Boolean);
+      const picked = KINDS.map(([k]) => (v[k] ? k : null)).filter(Boolean);
       if (!key && !picked.length) return toast('Выбери хотя бы одну механику');
       const id = key || ('c' + uid());
       update(s => {
@@ -211,12 +483,13 @@ function sphereSheet(key, tpl) {
           const next = {
             key: id, name, icon: (v.icon || '✦').trim().slice(0, 4) || '✦',
             mech: (v.mech || 'своя').trim() || 'своя', kinds: picked,
-            unit: (v.unit || 'раз').trim() || 'раз', archived: false,
+            unit: (v.unit || 'раз').trim() || 'раз',
+            dir: ['up', 'down'].includes(v.dir) ? v.dir : 'none', archived: false,
           };
           const i = s.customSpheres.findIndex(x => x.key === id);
           if (i >= 0) s.customSpheres[i] = { ...s.customSpheres[i], ...next };
           else s.customSpheres.push(next);
-          s.spheres[id] ||= { items: [], note: '', vault: null, log: {} };
+          s.spheres[id] ||= blankSphere();
         }
         s.roleOf[id] = v.role || '';
         s.spheresHidden = (s.spheresHidden || []).filter(x => x !== id);
@@ -313,6 +586,26 @@ export const actions = {
     const log = rec(s, curKey()).log;
     if (log[v.d]) delete log[v.d];
     else { log[v.d] = 1; addXp(XP.habit); }
+  }),
+
+  shelfadd: () => shelfSheet(null),
+  shelfedit: v => shelfSheet(v.id),
+  colladd: () => collSheet(null),
+  colledit: v => collSheet(v.id),
+  boardadd: () => boardSheet(null),
+  boardedit: v => boardSheet(v.id),
+  measadd: () => measSheet(null),
+  measedit: v => measSheet(v.id),
+
+  /** Тап по стадии двигает дальше, с последней возвращает в начало. */
+  boardmove: v => update(s => {
+    const x = rec(s, curKey()).board.find(y => y.id === v.id);
+    if (!x) return;
+    const order = ['todo', 'doing', 'done'];
+    const next = order[(order.indexOf(x.stage || 'todo') + 1) % order.length];
+    if (next === 'done' && x.stage !== 'done') addXp(XP.step);
+    x.stage = next;
+    x.stageAt = todayISO();
   }),
 
   logset: () => {

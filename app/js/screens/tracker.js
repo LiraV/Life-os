@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth,
+import { liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth, shelfDoneIn, collIn, boardDoneIn, measIn,
   sportTags, tagById, tagMonthCount, tagUsedIn, booksDoneIn, booksDoneYear } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
@@ -38,9 +38,31 @@ export function habitCell(hb, ym) {
   return { value: habitMonthCount(hb, ym), fixed: false };
 }
 
-/** Свои сферы, которые ведут журнал: их месяц — готовая строка трекера. */
-const customLogSpheres = () => (S.customSpheres || [])
-  .filter(sp => !sp.archived && (sp.kinds || []).includes('log'));
+/**
+ * Строки трекера от своих сфер. У каждой считающей механики своё число за
+ * месяц; «этапы» сюда не идут — у закрытого этапа есть дата, но строка
+ * «сколько этапов в марте» ничего не говорит о ритме.
+ */
+// Границы месяца пишем как «-01» и «-31»: ISO-даты сравниваются строками,
+// и настоящих чисел больше 31 не бывает — февраль от этого не страдает.
+const SPHERE_ROWS = [
+  { kind: 'log', unit: 'дн.', count: (key, ym) => sphereLogMonth(key, ym) },
+  { kind: 'shelf', unit: 'закрыто', count: (key, ym) => shelfDoneIn(key, `${ym}-01`, `${ym}-31`).length },
+  { kind: 'coll', unit: 'собрано', count: (key, ym) => collIn(key, `${ym}-01`, `${ym}-31`).length },
+  { kind: 'board', unit: 'готово', count: (key, ym) => boardDoneIn(key, `${ym}-01`, `${ym}-31`).length },
+  { kind: 'meas', unit: 'замеров', count: (key, ym) => measIn(key, `${ym}-01`, `${ym}-31`).length },
+];
+
+/** Свои сферы и их считающие механики — по строке на каждую. */
+const customSphereRows = months => (S.customSpheres || [])
+  .filter(sp => !sp.archived)
+  .flatMap(sp => SPHERE_ROWS.filter(r => (sp.kinds || []).includes(r.kind)).map(r => ({
+    id: `${sp.key}:${r.kind}`,
+    name: (sp.kinds || []).filter(k => SPHERE_ROWS.some(x => x.kind === k)).length > 1
+      ? `${sp.name} · ${r.unit}` : sp.name,
+    unit: r.unit,
+    cells: months.map(ym => ({ value: r.count(sp.key, ym) })),
+  })));
 
 /** Строки таблицы — одни и те же для экрана и для выгрузки. */
 export function buildRows(y) {
@@ -65,11 +87,8 @@ export function buildRows(y) {
       unit: 'дн.',
       cells: months.map(ym => habitCell(hb, ym)),
     })),
-    // Свои сферы с журналом: считаются так же, как занятия, — сами.
-    ...customLogSpheres().map(sp => ({
-      id: sp.key, name: sp.name, unit: 'дн.',
-      cells: months.map(ym => ({ value: sphereLogMonth(sp.key, ym) })),
-    })),
+    // Свои сферы: считаются так же, как занятия, — сами.
+    ...customSphereRows(months),
     // Занятия с полки обучения считаются сами — вручную их заводить не нужно.
     ...liveLessons().filter(l => l.kind === 'practice').map(l => ({
       id: l.id, name: l.name, lesson: true, unit: 'занятий',
