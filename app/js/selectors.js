@@ -467,6 +467,7 @@ export function tone() {
 
 // ── потребности и роли ──────────────────────────────────────────
 const lastDays = n => Array.from({ length: n }, (_, i) => addDays(todayISO(), -i));
+const sum = parts => parts.reduce((a, x) => a + x.n, 0);
 
 function habitRate(nameMatch, days) {
   const hs = liveHabits().filter(hb => nameMatch.test(hb.name));
@@ -480,12 +481,27 @@ function questRate(sphereKeys, days, per) {
   return Math.min(100, Math.round((n / per) * 100));
 }
 
-/** Движение — это и спорт-квесты, и занятия с галочкой «считать в спорте». */
-function moveRate(days) {
-  const n = days.reduce((acc, d) => acc + questsOn(d).filter(q => q.done && q.sphere === 'sport').length, 0)
-    + sportLessonSessions(days)
+/** Сколько закрытых квестов по этим сферам за окно дней. */
+const questsDone = (keys, days) =>
+  days.reduce((acc, d) => acc + questsOn(d).filter(q => q.done && keys.includes(q.sphere)).length, 0);
+
+/**
+ * Спортивная активность по составляющим. Одно место на всё приложение:
+ * и «Движение» в потребностях, и роль «Атлет» считают отсюда, поэтому не
+ * могут разойтись — раньше роль видела только квесты и молчала о тренировках.
+ */
+export function sportParts(days) {
+  return [
+    { label: 'квесты', n: questsDone(['sport'], days) },
     // Тренировка, привязанная к занятию, уже посчитана занятием — не удваиваем.
-    + workoutsIn(days).filter(w => !w.lessonId).length;
+    { label: 'тренировки', n: workoutsIn(days).filter(w => !w.lessonId).length },
+    { label: 'занятия', n: sportLessonSessions(days) },
+  ];
+}
+
+/** Движение — это и спорт-квесты, и тренировки, и занятия «считать в спорте». */
+function moveRate(days) {
+  const n = sum(sportParts(days));
   if (!n) return habitRate(/растяж|зал|бег|йог/i, days);
   return Math.min(100, Math.round((n / 3) * 100));
 }
@@ -506,20 +522,51 @@ export function needs() {
   ];
 }
 
+/**
+ * Роли и то, чем они живут. Считается всё, что реально отмечено, а не одни
+ * квесты: тренировка на «Дне», занятие с полки, пара по предмету, операция
+ * в бюджете, дочитанная книга — каждая отметка кормит свою роль.
+ *
+ * Считаются только события с датой. Этап сферы без отметки времени в окно не
+ * попадёт — лучше не показать, чем показать выдуманное.
+ */
 const ROLES = [
-  { name: 'Учёная', keys: ['edu', 'study'] },
-  { name: 'Атлет', keys: ['sport'] },
-  { name: 'Артистка', keys: ['blog'] },
-  { name: 'Хранительница', keys: ['money', 'food'] },
+  {
+    name: 'Учёная', keys: ['edu', 'study', 'books'],
+    parts: days => [
+      { label: 'квесты', n: questsDone(['edu', 'study', 'books'], days) },
+      { label: 'занятия', n: liveLessons().reduce((a, l) => a + lessonDates(l).filter(d => days.includes(d)).length, 0) },
+      { label: 'пары', n: Object.values(S.study.attend || {})
+        .reduce((a, byDate) => a + Object.keys(byDate || {}).filter(d => byDate[d] && days.includes(d)).length, 0) },
+      { label: 'книги', n: booksBy('done').filter(b => days.includes(b.finished)).length },
+    ],
+  },
+  { name: 'Атлет', keys: ['sport'], parts: sportParts },
+  {
+    name: 'Артистка', keys: ['blog'],
+    parts: days => [
+      { label: 'квесты', n: questsDone(['blog'], days) },
+      { label: 'посты', n: sphereItems('blog').filter(i => i.done && days.includes((i.doneAt || '').slice(0, 10))).length },
+    ],
+  },
+  {
+    name: 'Хранительница', keys: ['money', 'food'],
+    parts: days => [
+      { label: 'квесты', n: questsDone(['money', 'food'], days) },
+      { label: 'операции', n: (S.budget.ops || []).filter(o => days.includes(o.date)).length },
+      { label: 'дни питания', n: days.filter(d => (S.food.days[d]?.entries || []).length).length },
+    ],
+  },
 ];
 
-/** Роль «скучает», если по её сферам две недели ничего не закрыто. */
-export function roles() {
-  const days = lastDays(14);
+/** Роль «скучает», если по её делам две недели нет ни одной отметки. */
+export function roles(window = 14) {
+  const days = lastDays(window);
   return ROLES.map(r => {
-    const n = days.reduce((acc, d) => acc + questsOn(d).filter(q => q.done && r.keys.includes(q.sphere)).length, 0);
+    const parts = r.parts(days).filter(p => p.n > 0);
+    const n = sum(parts);
     const state = n === 0 ? 'скучает' : n < 3 ? 'ровно' : 'довольна';
-    return { ...r, n, state, low: n === 0 };
+    return { name: r.name, keys: r.keys, parts, n, state, low: n === 0, window };
   });
 }
 

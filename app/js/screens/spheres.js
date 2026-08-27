@@ -167,6 +167,8 @@ export const actions = {
       const it = rec(s, key).items.find(x => x.id === v.id);
       if (!it) return;
       it.done = !it.done;
+      // Дата закрытия: по ней круг ролей понимает, было это на неделе или год назад.
+      it.doneAt = it.done ? todayISO() : '';
       addXp(it.done ? XP.step : -XP.step);
       all = rec(s, key).items.every(x => x.done);
       name = it.title;
@@ -188,6 +190,7 @@ export const actions = {
       const it = rec(s, 'blog').items.find(x => x.id === v.id);
       if (!it) return;
       it.done = true;
+      it.doneAt = todayISO();
       title = it.title;
       addXp(XP.step);
       addDiary(s, `опубликовано: ${title}`, 'Блог', 'sphere');

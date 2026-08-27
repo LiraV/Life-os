@@ -186,7 +186,9 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 
 /* ── привычки ───────────────────────────────────────────────── */
 .role{display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:8px 10px;
-      background:rgba(255,250,243,.6); border-radius:14px}
+      background:rgba(255,250,243,.6); border-radius:14px;
+      border:0; width:100%; text-align:left; font:inherit; cursor:pointer}
+.role:active{background:rgba(255,250,243,.95)}
 
 .hab-grid{display:flex; gap:5px; justify-content:space-between}
 .hab-cell{width:28px; height:28px; border-radius:10px; background:var(--track); font-size:10px; color:var(--ink4);

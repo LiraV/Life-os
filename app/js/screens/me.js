@@ -75,12 +75,12 @@ export function render() {
       <div class="caps">Круг ролей</div>
       <div class="grid2">
         ${rls.map(r => raw(h`
-          <div class="role">
+          <button class="role" data-act="role" data-v="${r.name}">
             <span class="ink">${r.name}</span>
-            <span class="tag" ${raw(r.low ? 'style="background:#a63a35;color:#fff6ee"' : '')}>${r.state}</span>
-          </div>`))}
+            <span class="tag" ${raw(r.low ? 'style="background:#a63a35;color:#fff6ee"' : '')}>${r.state}${r.n ? ` · ${r.n}` : ''}</span>
+          </button>`))}
       </div>
-      <div class="lab">Состояние — из закрытых квестов за 14 дней.</div>
+      <div class="lab">Считается всё отмеченное за 14 дней: квесты, тренировки, занятия, пары, операции, книги. Тапни роль — покажу, что засчиталось.</div>
     </div>
 
     ${lonely ? raw(h`<div class="ai">${lonely.name} две недели без дела. Открыть чат — соберём одно маленькое действие?
@@ -158,10 +158,26 @@ function energyCard() {
 
 export const actions = {
   avatar: () => avatarSheet(),
+  role: v => roleSheet(roles().find(r => r.name === v.v)),
   traits: () => update(s => { s.ui.traitsOpen = !s.ui.traitsOpen; }),
   chat: () => { location.hash = '#/inside/chat'; },
   edit: () => profileSheet(),
 };
+
+/** Что именно засчиталось роли: по каждому источнику своя строка. */
+function roleSheet(r) {
+  if (!r) return;
+  openSheet({
+    title: r.name,
+    sub: `${r.state} · за ${r.window} дней`,
+    body: [
+      r.parts.length
+        ? r.parts.map(p => h`<div class="row between"><span class="lab grow">${p.label}</span><span class="ink">${p.n}</span></div>`).join('')
+        : '<p class="fld-note">За две недели по этой роли нет ни одной отметки.</p>',
+      field.note('Считаются только события с датой. Этап сферы, закрытый до этого обновления, в счёт не попадёт — времени у него не записано.'),
+    ].join(''),
+  });
+}
 
 /** «Персонаж»: имя, хронотип, сон и строка аватара. */
 function profileSheet() {
