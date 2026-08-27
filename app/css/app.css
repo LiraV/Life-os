@@ -263,6 +263,11 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .mod-body .chk-row{padding:2px 0}
 .mod-body .pill{align-self:flex-start; font-size:12px; padding:4px 11px}
 
+/* шкала ответов в тестах */
+.scale{display:flex; flex-direction:column; gap:6px}
+.scale-btn{display:flex; align-items:center; gap:10px; text-align:left; padding:11px 14px}
+.scale-btn .ink b{color:var(--deep)}
+
 /* ── забота ─────────────────────────────────────────────────── */
 .care-row{display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--track)}
 .care-row:first-of-type{border-top:0}

@@ -8,6 +8,7 @@ import { weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest }
 import { questSheet } from './day.js';
 import { hasKey, chatChronicler } from '../ai.js';
 import { byId } from '../traits.js';
+import { TESTS, testLength, scoreTest } from '../tests.js';
 
 const TABS = [['chat', 'Чат'], ['tests', 'Тесты'], ['diary', 'Дневник']];
 const tab = params => params[0] || S.ui.insideTab || 'chat';
@@ -133,38 +134,6 @@ function push(who, text) {
 }
 
 // ── тесты ───────────────────────────────────────────────────────
-const TESTS = {
-  motivation: {
-    name: 'Мотивация',
-    sub: 'без правильных ответов',
-    questions: [
-      { q: 'Что радует сильнее?', a: [['Красиво оформленный результат', 'aesthete'], ['Новое, чего не пробовала', 'explorer'], ['Обойти вчерашнюю себя', 'racer'], ['Что это кому-то нужно', 'keeper']] },
-      { q: 'Когда бросаешь начатое?', a: [['Когда получается некрасиво', 'aesthete'], ['Когда стало предсказуемо', 'explorer'], ['Когда не видно прогресса', 'racer'], ['Когда теряется смысл', 'keeper']] },
-      { q: 'Идеальная награда?', a: [['Что-то ощутимое и красивое', 'aesthete'], ['Дверь в новую тему', 'explorer'], ['Цифра, которая выросла', 'racer'], ['Спасибо от близкого', 'keeper']] },
-    ],
-    results: {
-      aesthete: { id: 'aesthete', text: 'Тебя двигает форма, а не счётчик.' },
-      explorer: { id: 'explorer', text: 'Тебя двигает новизна.' },
-      racer: { id: 'racer', text: 'Тебя двигает видимый рост.' },
-      keeper: { id: 'keeper', text: 'Тебя двигает «зачем».' },
-    },
-  },
-  chrono: {
-    name: 'Хронотип точнее',
-    sub: 'уточним кривую энергии',
-    questions: [
-      { q: 'Если не будильник — во сколько проснёшься?', a: [['До 7', 'жаворонок'], ['7–9', 'жаворонок'], ['9–11', 'сова'], ['После 11', 'сова']] },
-      { q: 'Когда голова работает лучше всего?', a: [['Сразу после подъёма', 'жаворонок'], ['До обеда', 'жаворонок'], ['Ближе к вечеру', 'сова'], ['Ночью', 'сова']] },
-      { q: 'Вечером в 23:00 ты...', a: [['Уже сплю', 'жаворонок'], ['Досыпаю день', 'плавает'], ['Только разошлась', 'сова'], ['Самое рабочее время', 'сова']] },
-    ],
-    results: {
-      'сова': { id: 'owl', text: 'Пик вечером. Тяжёлое ставлю на 19–22, утро оставляю мягким.' },
-      'жаворонок': { id: 'lark', text: 'Пик утром. Тяжёлое ставлю на 10–13, вечер — на восстановление.' },
-      'плавает': { id: 'floating', text: 'Ритм плавает. Буду ориентироваться на твою отметку энергии каждый день.' },
-    },
-  },
-};
-
 function testsView() {
   const run = S.ui.test;
   if (run) return testRun(run);
@@ -174,42 +143,79 @@ function testsView() {
       return raw(h`
         <div class="card">
           <div class="row between">
-            <div><div class="ink"><b>${t.name}</b></div><div class="lab">${done ? `пройден · ${done.trait}` : t.sub}</div></div>
+            <div class="grow">
+              <div class="ink"><b>${t.name}</b></div>
+              <div class="lab">${done ? `пройден · ${done.title || done.trait || ''}` : t.sub}</div>
+              ${t.source ? raw(h`<div class="lab">${t.source}</div>`) : ''}
+            </div>
             <button class="pill" data-act="start" data-v="${key}">${done ? 'пройти снова' : 'начать'}</button>
           </div>
         </div>`);
     })}
-    <div class="card dash"><div class="lab">Тесты меняют не тебя, а приложение: после них перестраиваются подсказки и награды.</div></div>`;
+    <div class="card dash"><div class="lab">Тесты меняют не тебя, а приложение: после них перестраиваются подсказки и награды.
+      Часть опросников взята из опубликованных методик — это самоотчёт, а не диагностика.</div></div>`;
 }
 
 function testRun(run) {
   const t = TESTS[run.key];
-  if (run.finished) {
-    const res = t.results[run.result];
-    const trait = byId(res.id);
+  const total = testLength(t);
+  if (run.finished) return testResult(run, t);
+
+  const step = run.step;
+  const head = h`
+    <div class="row between"><div class="caps">${t.name}</div><span class="lab">${step + 1} из ${total}</span></div>
+    <div class="bar"><i style="width:${Math.round(step / total * 100)}%"></i></div>`;
+
+  // Опросник с вариантами: и свои тесты, и rMEQ, где у каждого пункта свои баллы.
+  if (t.kind === 'pick' || t.picks) {
+    const q = t.questions[step];
     return h`
-      <div class="card">
-        <div class="caps">${t.name} · результат</div>
-        <div class="title" style="font-size:20px">${trait.icon} ${trait.name}</div>
-        <div class="ink">${res.text}</div>
-      </div>
+      ${raw(head)}
+      <div class="title" style="font-size:19px">${q.q}</div>
+      ${q.a.map(([label, key]) => raw(h`<button class="card" style="text-align:left" data-act="answer" data-v="${key}"><div class="ink">${label}</div></button>`))}
+      <div class="lab" style="text-align:center">без правильных ответов</div>
+      <button class="btn-ghost" data-act="cancel">выйти</button>`;
+  }
+
+  // Шкала: один пункт — ряд ответов от «совсем нет» до «точно да».
+  const item = t.items[step];
+  return h`
+    ${raw(head)}
+    ${t.intro ? raw(h`<div class="lab">${t.intro}</div>`) : ''}
+    <div class="title" style="font-size:19px">${item.t}</div>
+    <div class="scale">
+      ${t.scale.map((label, i) => raw(h`
+        <button class="card scale-btn" data-act="answer" data-v="${i + 1}">
+          <span class="ink"><b>${i + 1}</b></span><span class="lab">${label}</span>
+        </button>`))}
+    </div>
+    <button class="btn-ghost" data-act="cancel">выйти</button>`;
+}
+
+/** Результат: у методик — разбор по шкалам, у своих тестов — черта. */
+function testResult(run, t) {
+  const res = run.res || {};
+  const trait = res.traitId ? byId(res.traitId) : null;
+  return h`
+    <div class="card">
+      <div class="caps">${t.name} · результат</div>
+      <div class="title" style="font-size:20px">${trait ? `${trait.icon} ${trait.name}` : res.title}</div>
+      ${trait && res.title !== trait.name ? raw(h`<div class="ink">${res.title}</div>`) : ''}
+      ${(res.lines || []).map(l => raw(h`<div class="lab">${l}</div>`))}
+      ${t.source ? raw(h`<div class="lab">Методика: ${t.source}.</div>`) : ''}
+    </div>
+    ${trait ? raw(h`
       <div class="card">
         <div class="caps">Что перестроится</div>
         <div class="ink">${trait.does || trait.desc}</div>
         <div class="lab">Это не подпись на профиле: черта правда меняет то, что показано и как говорит Летописец.</div>
-      </div>
-      <button class="btn" data-act="accept">Принять</button>
-      <button class="btn-ghost" data-act="cancel">оставить как было</button>`;
-  }
-  const q = t.questions[run.step];
-  return h`
-    <div class="row between"><div class="caps">${t.name}</div><span class="lab">${run.step + 1} из ${t.questions.length}</span></div>
-    <div class="bar"><i style="width:${Math.round(run.step / t.questions.length * 100)}%"></i></div>
-    <div class="title" style="font-size:19px">${q.q}</div>
-    ${q.a.map(([label, key], i) => raw(h`<button class="card" style="text-align:left" data-act="answer" data-v="${key}"><div class="ink">${label}</div></button>`))}
-    <div class="lab" style="text-align:center">без правильных ответов</div>
-    <button class="btn-ghost" data-act="cancel">выйти</button>`;
+      </div>`) : ''}
+    ${res.chronotype ? raw(h`<div class="card mute"><div class="lab">Хронотип в профиле станет «${res.chronotype}» — от него зависит кривая дня.</div></div>`) : ''}
+    ${res.introversion != null ? raw(h`<div class="card mute"><div class="lab">Ползунок интроверсии встанет на ${res.introversion} — это та же шкала, что и в профиле.</div></div>`) : ''}
+    <button class="btn" data-act="accept">Сохранить</button>
+    <button class="btn-ghost" data-act="cancel">оставить как было</button>`;
 }
+
 
 // ── дневник ─────────────────────────────────────────────────────
 function diaryView() {
@@ -281,30 +287,36 @@ export const actions = {
   nomove: () => update(s => { s.ui.offerMove = false; }),
 
   start: v => update(s => { s.ui.test = { key: v.v, step: 0, picks: [], finished: false }; }),
+
   answer: v => update(s => {
     const run = s.ui.test;
     run.picks.push(v.v);
     run.step++;
-    if (run.step >= TESTS[run.key].questions.length) {
-      const counts = {};
-      run.picks.forEach(p => { counts[p] = (counts[p] || 0) + 1; });
-      run.result = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    if (run.step >= testLength(TESTS[run.key])) {
+      run.res = scoreTest(run.key, run.picks);
       run.finished = true;
     }
   }),
+
+  /** Сохранение результата: черта, если она есть, и настройки, на которые
+   *  методика прямо отвечает — хронотип и интроверсия. */
   accept: () => {
     const run = S.ui.test;
-    const t = TESTS[run.key], res = t.results[run.result];
+    const t = TESTS[run.key], res = run.res || {};
+    const trait = res.traitId ? byId(res.traitId) : null;
     update(s => {
-      const trait = byId(res.id);
-      s.tests[run.key] = { trait: trait.name, id: res.id, result: run.result, date: todayISO() };
-      if (!s.user.traits.includes(res.id)) s.user.traits.push(res.id);
-      if (run.key === 'chrono') s.user.chronotype = run.result;
-      addDiary(s, `тест «${t.name}»: ${trait.name}`, 'тесты', 'test');
+      s.tests[run.key] = {
+        title: res.title, trait: trait?.name || '', id: res.traitId || '',
+        result: res.pickResult || res.title, lines: res.lines || [], date: todayISO(),
+      };
+      if (res.traitId && !s.user.traits.includes(res.traitId)) s.user.traits.push(res.traitId);
+      if (res.chronotype) s.user.chronotype = res.chronotype;
+      if (res.introversion != null) s.user.introversion = res.introversion;
+      addDiary(s, `тест «${t.name}»: ${res.title}`, 'тесты', 'test');
       addXp(XP.test);
       s.ui.test = null;
     });
-    toast(`Черта добавлена: ${byId(res.id).name}`);
+    toast(trait ? `Черта добавлена: ${trait.name}` : 'Результат сохранён');
   },
   cancel: () => update(s => { s.ui.test = null; }),
 
