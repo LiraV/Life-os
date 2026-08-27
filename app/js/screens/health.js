@@ -5,7 +5,8 @@
 import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
-import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint } from '../selectors.js';
+import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, build, energyNeed, waistRisk, age } from '../selectors.js';
+import { g } from '../gender.js';
 
 const sign = n => n == null ? '' : n > 0 ? `+${n}` : `${n}`;
 const fmt = (v, unit) => v == null || v === '' ? '—' : `${v} ${unit}`;
@@ -23,10 +24,39 @@ export function render() {
 }
 
 function nowView() {
-  const c = cycleInfo();
   const m = measureDeltas();
   const cur = m.cur;
 
+  return h`
+    ${raw(S.user.cycle ? cycleCard() : '')}
+    ${raw(buildCard())}
+
+    <div class="card">
+      <div class="row between"><div class="caps">Замеры тела</div>
+        <span class="lab">${cur ? dayShort(cur.date) : 'нет данных'}</span></div>
+      ${cur ? raw(h`
+        <div class="row between"><span class="ink">Вес</span><span class="ink">${fmt(cur.weight, 'кг')} <i class="lab">${sign(m.delta.weight)}</i></span></div>
+        <div class="row between"><span class="ink">Талия</span><span class="ink">${fmt(cur.waist, 'см')} <i class="lab">${sign(m.delta.waist)}</i></span></div>
+        <div class="row between"><span class="ink">Бёдра</span><span class="ink">${fmt(cur.hips, 'см')} <i class="lab">${sign(m.delta.hips)}</i></span></div>
+        <div class="row between"><span class="ink">Сон</span><span class="ink">${fmt(cur.sleep, 'ч')} <i class="lab">цель ${S.user.sleep} ч</i></span></div>`)
+      : raw('<div class="empty">Первый замер — точка отсчёта, а не оценка.</div>')}
+      <button class="add" data-act="measure">+ Новый замер</button>
+    </div>
+
+    ${m.list.length > 1 ? raw(h`
+      <div class="card mute">
+        <div class="caps">История замеров</div>
+        ${m.list.slice(-6).reverse().map(x => raw(h`<div class="row between"><span class="lab">${dayShort(x.date)}</span>
+          <span class="lab">${fmt(x.weight, 'кг')} · ${fmt(x.waist, 'см')} · сон ${fmt(x.sleep, 'ч')}</span>
+          <button class="q-edit" data-act="mdel" data-id="${x.id}">×</button></div>`))}
+      </div>`) : ''}
+    <div style="height:4px"></div>`;
+}
+
+/** Цикл целиком: карточка, календарь, отметки, симптомы. Показывается по тумблеру
+ *  в профиле — выключенный цикл прячет раздел, но не трогает ни одной отметки. */
+function cycleCard() {
+  const c = cycleInfo();
   return h`
 
     <div class="card">
@@ -61,27 +91,37 @@ function nowView() {
 
     ${raw(cyclesList())}
     ${raw(symptomsCard())}
+`;
+}
 
+/** Сложение: рост, ИМТ, талия и тип кости. Всё — ориентиры, а не оценки. */
+function buildCard() {
+  const b = bmi(), bd = build(), w = waistRisk(), en = energyNeed(), yr = age();
+  if (!b && !bd && !w && !en) {
+    return h`
+      <div class="card dash">
+        <div class="caps">Сложение</div>
+        <div class="lab">Заполни в «Я» рост, дату рождения и обхват запястья — посчитаю ИМТ, тип сложения и суточный расход.
+          Пол там же: от него зависят порог талии и формула расхода.</div>
+      </div>`;
+  }
+  return h`
     <div class="card">
-      <div class="row between"><div class="caps">Замеры тела</div>
-        <span class="lab">${cur ? dayShort(cur.date) : 'нет данных'}</span></div>
-      ${cur ? raw(h`
-        <div class="row between"><span class="ink">Вес</span><span class="ink">${fmt(cur.weight, 'кг')} <i class="lab">${sign(m.delta.weight)}</i></span></div>
-        <div class="row between"><span class="ink">Талия</span><span class="ink">${fmt(cur.waist, 'см')} <i class="lab">${sign(m.delta.waist)}</i></span></div>
-        <div class="row between"><span class="ink">Бёдра</span><span class="ink">${fmt(cur.hips, 'см')} <i class="lab">${sign(m.delta.hips)}</i></span></div>
-        <div class="row between"><span class="ink">Сон</span><span class="ink">${fmt(cur.sleep, 'ч')} <i class="lab">цель ${S.user.sleep} ч</i></span></div>`)
-      : raw('<div class="empty">Первый замер — точка отсчёта, а не оценка.</div>')}
-      <button class="add" data-act="measure">+ Новый замер</button>
-    </div>
-
-    ${m.list.length > 1 ? raw(h`
-      <div class="card mute">
-        <div class="caps">История замеров</div>
-        ${m.list.slice(-6).reverse().map(x => raw(h`<div class="row between"><span class="lab">${dayShort(x.date)}</span>
-          <span class="lab">${fmt(x.weight, 'кг')} · ${fmt(x.waist, 'см')} · сон ${fmt(x.sleep, 'ч')}</span>
-          <button class="q-edit" data-act="mdel" data-id="${x.id}">×</button></div>`))}
-      </div>`) : ''}
-    <div style="height:4px"></div>`;
+      <div class="caps">Сложение</div>
+      ${b ? raw(h`<div class="row between"><span class="ink">ИМТ</span>
+        <span class="ink">${b.value} <i class="lab">${b.band}</i></span></div>`) : ''}
+      ${w ? raw(h`<div class="row between"><span class="ink">Талия</span>
+        <span class="ink">${w.cm} см <i class="lab">${w.level === 'ok' ? `ниже ${w.warn}` : w.level === 'warn' ? `выше ${w.warn}` : `выше ${w.high}`}</i></span></div>`) : ''}
+      ${bd ? raw(h`<div class="row between"><span class="ink">Тип сложения</span>
+        <span class="ink">${bd.name} <i class="lab">${bd.note}</i></span></div>`) : ''}
+      ${en ? raw(h`<div class="row between"><span class="ink">Расход в сутки</span>
+        <span class="ink">${en.tdee} ккал <i class="lab">покой ${en.bmr}</i></span></div>`) : ''}
+      <div class="lab">${[
+        b ? 'ИМТ не отличает мышцы от жира.' : '',
+        w ? `Порог талии для ${g('женщин', 'мужчин')} — ${w.warn} см; это повод спросить врача, а не вывод.` : '',
+        en ? `Расход — формула Миффлина по весу, росту и возрасту (${yr}), помноженная на активность из профиля.` : '',
+      ].filter(Boolean).join(' ')}</div>
+    </div>`;
 }
 
 const plural = (n, a, b, c) => {

@@ -2,8 +2,9 @@
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
 import { S, SPHERES, level, levelFloor } from './store.js';
-import { effects, hasTrait, byId as traitById } from './traits.js';
+import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
 import { COUNTRIES, countryBy, REGIONS } from './countries.js';
+import { isMale } from './gender.js';
 import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
@@ -566,7 +567,9 @@ export function roles(window = 14) {
     const parts = r.parts(days).filter(p => p.n > 0);
     const n = sum(parts);
     const state = n === 0 ? 'скучает' : n < 3 ? 'ровно' : 'довольна';
-    return { name: r.name, keys: r.keys, parts, n, state, low: n === 0, window };
+    // Имя роли берётся в роде профиля на каждом расчёте, а не при загрузке:
+    // иначе смена пола в настройках не долетала бы до круга без перезапуска.
+    return { name: nameOf(r.name), keys: r.keys, parts, n, state, low: n === 0, window };
   });
 }
 
@@ -849,8 +852,9 @@ export function chatDigest() {
   const late = (S.care?.items || []).filter(it => careDue(it) < 0).slice(0, 6);
   const lines = [
     `Сегодня ${t}, ${dayShort(t)}.`,
+    `Пол: ${isMale() ? 'мужской' : 'женский'} — обращайся в этом роде.`,
     `Хронотип ${S.user.chronotype}, пик энергии ${peakLabel()}. Уровень ${level(S.user.xp)}.`,
-    S.user.traits?.length ? `Черты: ${S.user.traits.map(id => (traitById(id) || {}).name || id).join(', ')}.` : '',
+    S.user.traits?.length ? `Черты: ${S.user.traits.map(id => nameOf(traitById(id)) || id).join(', ')}.` : '',
     `Энергия сегодня: ${S.energy[t] ?? 'не отмечена'}${e7.length ? `, в среднем за неделю ${Math.round(e7.reduce((a, x) => a + x.value, 0) / e7.length)}` : ''}.`,
     `Квесты сегодня: ${qs.length ? qs.map(x => `${x.title}${x.done ? ' (сделано)' : ''}`).join(', ') : 'нет'}.`,
     `За неделю закрыто ${w.done} из ${w.total}.`,
@@ -980,4 +984,83 @@ export function proteinHint() {
   const kg = cur && cur.weight != null ? Number(cur.weight) : null;
   if (!kg) return null;
   return { kg, low: Math.round(kg * 1.2), high: Math.round(kg * 1.6), date: cur.date };
+}
+
+// ── сложение: рост, вес, пол и возраст ──────────────────────────
+// Всё здесь — ориентиры, а не диагнозы: формулы дают оценку по среднему
+// человеку и ничего не знают о конкретном теле. Поэтому каждая величина
+// возвращает и число, и повод усомниться в нём.
+
+/** Полных лет на сегодня. null — дата рождения не заполнена. */
+export function age(from = todayISO()) {
+  const b = S.user.birth;
+  if (!b) return null;
+  let y = Number(from.slice(0, 4)) - Number(b.slice(0, 4));
+  if (from.slice(5) < b.slice(5)) y -= 1;
+  return y >= 0 && y < 130 ? y : null;
+}
+
+/** Последний вес из замеров — общая точка входа для всех расчётов. */
+const lastWeight = () => {
+  const cur = measureDeltas().cur;
+  return cur && cur.weight != null ? Number(cur.weight) : null;
+};
+
+/**
+ * ИМТ. Границы одинаковы для мужчин и женщин — это не упущение, а сама
+ * методика ВОЗ. Мышцы он не отличает от жира, о чём и говорит подпись.
+ */
+export function bmi() {
+  const kg = lastWeight(), cm = Number(S.user.height) || 0;
+  if (!kg || !cm) return null;
+  const v = Math.round((kg / (cm / 100) ** 2) * 10) / 10;
+  const band = v < 18.5 ? 'ниже нормы' : v < 25 ? 'норма' : v < 30 ? 'выше нормы' : 'заметно выше нормы';
+  return { value: v, band, kg, cm };
+}
+
+/**
+ * Тип сложения по обхвату запястья — индекс Соловьёва. Пороги свои у мужчин
+ * и женщин. Это описание костяка, а не приговор и не программа тренировок:
+ * ни норм веса, ни рекомендаций отсюда не выводится.
+ */
+export const BUILDS = {
+  thin: { name: 'астеническое', note: 'тонкая кость' },
+  norm: { name: 'нормостеническое', note: 'средняя кость' },
+  wide: { name: 'гиперстеническое', note: 'широкая кость' },
+};
+
+export function build() {
+  const w = Number(S.user.wrist) || 0;
+  if (!w) return null;
+  const [lo, hi] = isMale() ? [18, 20] : [15, 17];
+  const key = w < lo ? 'thin' : w <= hi ? 'norm' : 'wide';
+  return { key, wrist: w, ...BUILDS[key] };
+}
+
+/**
+ * Расход калорий: Миффлин — Сан Жеор. Единственное место, где пол входит
+ * в формулу напрямую: −161 у женщин, +5 у мужчин. Множитель активности
+ * берётся из того же ползунка, что и норма квестов, — отдельной настройки
+ * для него заводить незачем.
+ */
+export function energyNeed() {
+  const kg = lastWeight(), cm = Number(S.user.height) || 0, yr = age();
+  if (!kg || !cm || yr == null) return null;
+  const bmr = Math.round(10 * kg + 6.25 * cm - 5 * yr + (isMale() ? 5 : -161));
+  const a = Number(S.user.activity);
+  const pal = a > 80 ? 1.725 : a > 60 ? 1.55 : a > 40 ? 1.375 : 1.2;
+  return { bmr, pal, tdee: Math.round(bmr * pal), kg, cm, age: yr };
+}
+
+/**
+ * Талия: пороги ВОЗ, у мужчин и женщин разные. Это скрининговый ориентир —
+ * повод спросить врача, а не вывод о здоровье.
+ */
+export function waistRisk() {
+  const cur = measureDeltas().cur;
+  const cm = cur && cur.waist != null ? Number(cur.waist) : null;
+  if (!cm) return null;
+  const [warn, high] = isMale() ? [94, 102] : [80, 88];
+  const level = cm >= high ? 'high' : cm >= warn ? 'warn' : 'ok';
+  return { cm, warn, high, level, date: cur.date };
 }

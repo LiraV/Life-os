@@ -11,6 +11,7 @@ import {
   BOOK_STATUS, books, booksBy, bookById, bookProgress,
   booksDoneIn, booksDoneYear, pagesInYear, ratingAvg,
 } from '../selectors.js';
+import { gv } from '../gender.js';
 
 const TABS = [['now', 'Сейчас'], ['shelf', 'Полка'], ['year', 'Год']];
 const tab = () => (TABS.some(([k]) => k === S.ui.bookTab) ? S.ui.bookTab : 'now');
@@ -52,7 +53,7 @@ function nowView() {
     </div>`;
 }
 
-/** Карточка книги, которую читаешь: прогресс и «дочитала до…». */
+/** Карточка книги, которую читаешь: прогресс и «дочитал(а) до…». */
 function readingCard(b) {
   const pct = bookProgress(b);
   const left = b.pages > 0 ? b.pages - b.page : null;
@@ -70,8 +71,8 @@ function readingCard(b) {
         <div class="lab">${num(b.page)} из ${num(b.pages)}${left > 0 ? ` · осталось ${num(left)}` : ''}</div>`)
         : raw('<div class="lab">Объём не задан — прогресс не считаю, просто отмечу, когда дочитаешь.</div>')}
       <div class="pills">
-        <button class="pill" data-act="page" data-id="${b.id}">докуда дочитала</button>
-        <button class="pill" data-act="finish" data-id="${b.id}">дочитала ✦</button>
+        <button class="pill" data-act="page" data-id="${b.id}">докуда ${gv('дочитал')}</button>
+        <button class="pill" data-act="finish" data-id="${b.id}">${gv('дочитал')} ✦</button>
       </div>
     </div>`;
 }
@@ -150,7 +151,7 @@ function bookSheet(book) {
       ], b.kind),
       field.opts('status', 'Где она сейчас', BOOK_STATUS.map(x => ({ value: x.key, label: x.name })), b.status),
       field.number('pages', 'Сколько всего страниц', b.pages || '', { min: 0 }),
-      field.number('page', 'Докуда дочитала', b.page || '', { min: 0 }),
+      field.number('page', `Докуда ${gv('дочитал')}`, b.page || '', { min: 0 }),
       field.opts('rating', 'Оценка', [
         { value: '0', label: 'без оценки' }, { value: '1', label: '★' }, { value: '2', label: '★★' },
         { value: '3', label: '★★★' }, { value: '4', label: '★★★★' }, { value: '5', label: '★★★★★' },
@@ -188,13 +189,13 @@ function bookSheet(book) {
   });
 }
 
-/** Отметка «дочитала до…»: страница и, если дошла до конца, вопрос о финале. */
+/** Отметка «дочитал(а) до…»: страница и, если дошла до конца, вопрос о финале. */
 function pageSheet(b) {
   openSheet({
     title: b.title,
     sub: b.pages ? `всего ${num(b.pages)}` : 'объём не задан',
     body: [
-      field.number('page', 'Дочитала до страницы', b.page || '', { min: 0 }),
+      field.number('page', `${gv('Дочитал')} до страницы`, b.page || '', { min: 0 }),
       field.note('Это просто закладка: прогресс пересчитается сам.'),
     ].join(''),
     primary: 'Записать',
@@ -217,7 +218,7 @@ function finishSheet(b) {
     title: `${b.title} — дочитана`,
     sub: 'можно поставить оценку, а можно не ставить',
     body: [
-      field.date('finished', 'Когда дочитала', todayISO()),
+      field.date('finished', `Когда ${gv('дочитал')}`, todayISO()),
       field.opts('rating', 'Оценка', [
         { value: '0', label: 'без оценки' }, { value: '1', label: '★' }, { value: '2', label: '★★' },
         { value: '3', label: '★★★' }, { value: '4', label: '★★★★' }, { value: '5', label: '★★★★★' },

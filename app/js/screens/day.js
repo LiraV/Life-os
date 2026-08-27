@@ -11,6 +11,7 @@ import {
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
   workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName,
 } from '../selectors.js';
+import { gv } from '../gender.js';
 
 const curDate = () => S.ui.date || todayISO();
 
@@ -297,7 +298,7 @@ function reflectionSheet(q) {
     title: 'Как оно?',
     sub: q.title,
     body: [
-      field.opts('body', 'Тело', ['устала', 'приятная усталость', 'лёгкость'], 'приятная усталость'),
+      field.opts('body', 'Тело', [gv('устал'), 'приятная усталость', 'лёгкость'], 'приятная усталость'),
       field.opts('mood', 'Настроение', ['наполнилась', 'ровно', 'не зашло'], 'ровно'),
       field.area('note', 'Заметка — если хочется', ''),
     ].join(''),

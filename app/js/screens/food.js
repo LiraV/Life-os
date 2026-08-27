@@ -5,7 +5,12 @@ import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
-import { proteinHint } from '../selectors.js';
+import { proteinHint, energyNeed } from '../selectors.js';
+
+const plural = (n, a, b, c) => {
+  const m = n % 100, d = n % 10;
+  return m > 4 && m < 20 ? c : d === 1 ? a : d > 1 && d < 5 ? b : c;
+};
 
 const cal = () => S.ui.foodMonth || monthKey(S.ui.foodDate || todayISO());
 const sel = () => S.ui.foodDate || todayISO();
@@ -218,10 +223,17 @@ export const actions = {
   goals: () => {
     const t = targets();
     const p = proteinHint();
+    const en = energyNeed();
     openSheet({
       title: 'Дневные нормы',
       body: [
         field.number('kcal', 'Калории', t.kcal, { min: 0 }),
+        // Расход считается по весу, росту, возрасту и полу — они уже есть
+        // в профиле. Кнопка ставит расход как есть: дефицит или профицит
+        // от него — решение человека, а не приложения.
+        en ? h`<button class="pill" data-act="frombody">взять от тела: ${en.tdee} ккал</button>` : '',
+        en ? field.note(`Формула Миффлина: ${en.kg} кг, ${en.cm} см, ${en.age} ${plural(en.age, 'год', 'года', 'лет')} · покой ${en.bmr} ккал, с активностью ×${String(en.pal).replace('.', ',')}.`)
+           : field.note('Чтобы посчитать норму калорий, заполни в «Я» пол, дату рождения и рост, а в «Теле» — вес.'),
         field.number('prot', 'Белки, г', t.prot, { min: 0 }),
         // Связка с замерами: белок обычно считают от веса, а вес уже есть
         // в «Теле». Кнопка ставит середину диапазона — решение всё равно твоё.
@@ -232,11 +244,17 @@ export const actions = {
         field.number('water', 'Вода, мл', t.water, { min: 0 }),
       ].join(''),
       onAct: (name, _d, close) => {
-        if (name !== 'fromweight' || !p) return;
-        const prot = Math.round((p.low + p.high) / 2);
-        update(s => { s.food.targets = { ...s.food.targets, prot }; });
-        close();
-        toast(`Норма белка: ${prot} г`);
+        if (name === 'fromweight' && p) {
+          const prot = Math.round((p.low + p.high) / 2);
+          update(s => { s.food.targets = { ...s.food.targets, prot }; });
+          close();
+          toast(`Норма белка: ${prot} г`);
+        }
+        if (name === 'frombody' && en) {
+          update(s => { s.food.targets = { ...s.food.targets, kcal: en.tdee }; });
+          close();
+          toast(`Норма калорий: ${en.tdee} ккал`);
+        }
       },
       onSave: (v, close) => {
         const n = (x, d) => Math.max(0, Math.round(Number(x) || d));

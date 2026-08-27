@@ -89,7 +89,9 @@ export function openSheet({ title, sub, body = '', primary = 'Сохранить
     // Своя кнопка внутри шторки: экранные действия сюда не долетают,
     // поэтому шторка отдаёт их тому, кто её открыл.
     const own = e.target.closest('[data-act]');
-    if (own && onAct) { onAct(own.dataset.act, { ...own.dataset }, closeSheet); return; }
+    // Введённое отдаём вместе с действием: если шторка уходит и вернётся,
+    // ей есть что сохранить, и заполненное не пропадает.
+    if (own && onAct) { onAct(own.dataset.act, { ...own.dataset }, closeSheet, values()); return; }
     const act = e.target.closest('[data-sheet]');
     if (!act) return;
     const kind = act.dataset.sheet;

@@ -7,7 +7,7 @@ import { h, raw, field, toast, openSheet } from '../ui.js';
 import { weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest } from '../selectors.js';
 import { questSheet } from './day.js';
 import { hasKey, chatChronicler } from '../ai.js';
-import { byId } from '../traits.js';
+import { byId, nameOf } from '../traits.js';
 import { TESTS, testLength, scoreTest } from '../tests.js';
 
 const TABS = [['chat', 'Чат'], ['tests', 'Тесты'], ['diary', 'Дневник']];
@@ -199,8 +199,8 @@ function testResult(run, t) {
   return h`
     <div class="card">
       <div class="caps">${t.name} · результат</div>
-      <div class="title" style="font-size:20px">${trait ? `${trait.icon} ${trait.name}` : res.title}</div>
-      ${trait && res.title !== trait.name ? raw(h`<div class="ink">${res.title}</div>`) : ''}
+      <div class="title" style="font-size:20px">${trait ? `${trait.icon} ${nameOf(trait)}` : res.title}</div>
+      ${trait && res.title !== nameOf(trait) ? raw(h`<div class="ink">${res.title}</div>`) : ''}
       ${(res.lines || []).map(l => raw(h`<div class="lab">${l}</div>`))}
       ${t.source ? raw(h`<div class="lab">Методика: ${t.source}.</div>`) : ''}
     </div>
@@ -306,7 +306,7 @@ export const actions = {
     const trait = res.traitId ? byId(res.traitId) : null;
     update(s => {
       s.tests[run.key] = {
-        title: res.title, trait: trait?.name || '', id: res.traitId || '',
+        title: res.title, trait: trait ? nameOf(trait) : '', id: res.traitId || '',
         result: res.pickResult || res.title, lines: res.lines || [], date: todayISO(),
       };
       if (res.traitId && !s.user.traits.includes(res.traitId)) s.user.traits.push(res.traitId);
@@ -316,7 +316,7 @@ export const actions = {
       addXp(XP.test);
       s.ui.test = null;
     });
-    toast(trait ? `Черта добавлена: ${trait.name}` : 'Результат сохранён');
+    toast(trait ? `Черта добавлена: ${nameOf(trait)}` : 'Результат сохранён');
   },
   cancel: () => update(s => { s.ui.test = null; }),
 

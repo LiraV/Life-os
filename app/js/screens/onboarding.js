@@ -9,7 +9,7 @@ import { offerTips } from '../tips.js';
 
 const SUGGESTED = ['Итальянский 15 минут', 'Вода 2 литра', 'Растяжка', 'Сон до 00:30', 'Страница дневника'];
 
-const draft = () => (S.ui.onb ||= { step: 0, name: '', chronotype: 'сова', sleep: 10, introversion: 55, activity: 55, habits: [], theme: '' });
+const draft = () => (S.ui.onb ||= { step: 0, name: '', sex: 'f', chronotype: 'сова', sleep: 10, introversion: 55, activity: 55, habits: [], theme: '' });
 
 function traits(d) {
   const t = [d.chronotype === 'сова' ? 'Сова' : d.chronotype === 'жаворонок' ? 'Жаворонок' : 'Плавающий ритм'];
@@ -37,6 +37,11 @@ const step0 = d => h`
       <span>Как тебя звать</span>
       <input type="text" value="${d.name}" data-field="name" data-act-enter="next" placeholder="Имя" autocomplete="given-name">
     </div>
+    <div class="lab">Пол</div>
+    <div class="pills">
+      ${[['f', 'Женский'], ['m', 'Мужской']].map(([k, l]) => raw(h`<button class="pill ${d.sex === k ? 'on' : ''}" data-act="sex" data-v="${k}">${l}</button>`))}
+    </div>
+    <div class="lab">От него зависит обращение и нормы, которые считаются по-разному: расход калорий, порог талии, тип сложения. Поменять можно в «Я».</div>
   </div>
   <div style="flex:1"></div>
   <button class="btn" data-act="next">Начать · 3 минуты</button>
@@ -98,6 +103,9 @@ function finish(skipped) {
   const d = draft();
   update(s => {
     s.user.name = (d.name || '').trim() || 'Персонаж';
+    s.user.sex = d.sex === 'm' ? 'm' : 'f';
+    // Цикл по умолчанию идёт от пола, но дальше живёт своим тумблером в «Я».
+    s.user.cycle = s.user.sex === 'f';
     s.user.chronotype = d.chronotype;
     s.user.sleep = Number(d.sleep);
     s.user.introversion = Number(d.introversion);
@@ -120,6 +128,7 @@ const sync = () => Object.assign(draft(), collect());
 
 export const actions = {
   chrono: v => update(() => { sync(); draft().chronotype = v.v; }),
+  sex: v => update(() => { sync(); draft().sex = v.v === 'm' ? 'm' : 'f'; }),
   hab: v => update(() => {
     sync();
     const d = draft();

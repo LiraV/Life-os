@@ -1,7 +1,7 @@
 // «Я»: всё на этом экране посчитано из реальных отметок, ничего не зашито.
 
 import { S, update } from '../store.js';
-import { TRAITS, GROUPS, byId, hasTrait, effects } from '../traits.js';
+import { TRAITS, GROUPS, byId, hasTrait, effects, nameOf } from '../traits.js';
 import { titleFor } from '../traits.js';
 import { todayISO, monthKey, MONTHS, yearOf, addDays } from '../dates.js';
 import { h, raw, bar, toast, openSheet, field } from '../ui.js';
@@ -104,7 +104,7 @@ function traitShelf() {
         <button class="q-edit" data-act="traits">${open ? 'свернуть' : 'все ›'}</button>
       </div>
       <div class="pills">
-        ${owned.map(t => raw(h`<span class="pill on" title="${t.does || t.desc}">${t.icon} ${t.name}</span>`))}
+        ${owned.map(t => raw(h`<span class="pill on" title="${t.does || t.desc}">${t.icon} ${nameOf(t)}</span>`))}
       </div>
       ${open ? raw(h`
         ${Object.entries(GROUPS).map(([key, g]) => {
@@ -113,7 +113,7 @@ function traitShelf() {
             <div class="lab" style="margin-top:6px">${g.name}</div>
             ${list.map(t => raw(h`
               <div class="row between" style="opacity:${hasTrait(t.id) ? 1 : 0.5}">
-                <span class="ink grow">${t.icon} ${t.name}</span>
+                <span class="ink grow">${t.icon} ${nameOf(t)}</span>
                 <span class="lab" style="max-width:56%;text-align:right">${hasTrait(t.id) ? (t.does || t.desc) : (t.how || t.desc)}</span>
               </div>`))}`);
         })}
@@ -190,28 +190,42 @@ function profileSheet() {
           <span class="lab">сменить ›</span>
         </button>`,
       field.text('name', 'Имя', S.user.name),
+      field.opts('sex', 'Пол', [{ value: 'f', label: 'Женский' }, { value: 'm', label: 'Мужской' }], S.user.sex),
+      field.date('birth', 'Дата рождения', S.user.birth || ''),
       field.opts('chronotype', 'Хронотип', ['жаворонок', 'сова', 'плавает'], S.user.chronotype),
       field.range('sleep', 'Нужно спать', S.user.sleep, { min: 6, max: 11, step: 0.5, suffix: ' ч' }),
+      field.number('height', 'Рост', S.user.height || '', { min: 0, max: 260, suffix: 'см' }),
+      field.number('wrist', 'Обхват запястья', S.user.wrist || '', { min: 0, max: 30, suffix: 'см' }),
+      `<label class="row tight" style="font-size:13px"><input type="checkbox" name="cycle" ${S.user.cycle ? 'checked' : ''}> Вести цикл в «Теле»</label>`,
+      field.note('Пол меняет обращение и нормы, которые считаются по-разному у мужчин и женщин: расход калорий, порог талии, тип сложения. Цикл — отдельный тумблер: выключишь — раздел скроется, отметки останутся.'),
     ].join(''),
     // Кнопка аватара живёт внутри шторки, поэтому её ловит сама шторка.
-    onAct: (name, _data, close) => {
+    onAct: (name, _data, close, typed) => {
       if (name !== 'avatar') return;
-      // Введённое имя не теряем: подхватим его при возврате.
-      const typed = document.querySelector('.sheet input[name="name"]')?.value;
-      if (typed != null) update(s => { s.user.name = typed.trim() || s.user.name; });
+      // Заполненное не теряем: сохраняем всё, а не одно имя, — иначе поход
+      // за аватаром откатывал бы рост, дату рождения и остальное.
+      if (typed) update(s => saveProfile(s, typed));
       close();
       avatarSheet(profileSheet);
     },
     onSave: (v, close) => {
-      update(s => {
-        s.user.name = (v.name || '').trim() || s.user.name;
-        s.user.chronotype = v.chronotype || s.user.chronotype;
-        s.user.sleep = Number(v.sleep) || s.user.sleep;
-      });
+      update(s => saveProfile(s, v));
       close();
       toast('Сохранено');
     },
   });
+}
+
+/** Поля профиля из шторки в состояние. Одно место — и сохранение, и уход за аватаром. */
+function saveProfile(s, v) {
+  s.user.name = (v.name || '').trim() || s.user.name;
+  s.user.sex = v.sex === 'm' ? 'm' : 'f';
+  s.user.birth = v.birth || '';
+  s.user.chronotype = v.chronotype || s.user.chronotype;
+  s.user.sleep = Number(v.sleep) || s.user.sleep;
+  s.user.height = Math.max(0, Number(v.height) || 0);
+  s.user.wrist = Math.max(0, Number(v.wrist) || 0);
+  s.user.cycle = !!v.cycle;
 }
 
 /** Мини-окно выбора: буква имени и полсотни портретов. */

@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 27;
+const VERSION = 28;
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -32,6 +32,11 @@ function blank() {
       name: '', chronotype: 'сова', sleep: 10, introversion: 55, activity: 55,
       traits: [], xp: 0, createdAt: t,
       avatar: '',                                        // 'a1'…'a5' из assets/avatars или пусто — буква имени
+      sex: 'f',                                          // 'f' | 'm' — род обращения и нормы тела
+      cycle: true,                                       // вести ли цикл: отдельный тумблер, а не следствие пола
+      birth: '',                                         // дата рождения — нужна для расхода калорий и пульса
+      height: 0,                                         // рост, см — без него нет ИМТ
+      wrist: 0,                                          // обхват запястья, см — тип сложения по Соловьёву
     },
     quests: {},          // { 'YYYY-MM-DD': [quest] }
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
@@ -98,6 +103,15 @@ function migrate(s) {
   merged.user = { ...base.user, ...(s.user || {}) };
   // v22 → v23: аватар профиля. Пусто — рисуем букву имени, как раньше.
   merged.user.avatar = typeof merged.user.avatar === 'string' ? merged.user.avatar : '';
+  // v27 → v28: пол и мерки. Приложение всё время говорило в женском роде, поэтому
+  // старым данным ставим 'f' — это сохраняет то, что человек уже видел, а не
+  // навязывает новое. Цикл включён отдельным тумблером: пол задаёт ему значение
+  // по умолчанию, но не управляет им дальше, и отметки не пропадают в любом случае.
+  merged.user.sex = merged.user.sex === 'm' ? 'm' : 'f';
+  merged.user.cycle = typeof merged.user.cycle === 'boolean' ? merged.user.cycle : merged.user.sex === 'f';
+  merged.user.birth = typeof merged.user.birth === 'string' ? merged.user.birth : '';
+  merged.user.height = Number(merged.user.height) || 0;
+  merged.user.wrist = Number(merged.user.wrist) || 0;
   merged.health = { ...base.health, ...(s.health || {}) };
   merged.ui = { ...base.ui, ...(s.ui || {}) };
   // v21 → v22: подсказки на экранах. 'ask' — предложение ещё не показывали;

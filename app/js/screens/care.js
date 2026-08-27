@@ -9,6 +9,7 @@ import {
   CARE_GROUPS, careGroupName, careItems, careLast, careNext, careDue,
   careDueNow, careSoon, careInGroup, careMonthCost, careYearPlan, petAge,
 } from '../selectors.js';
+import { gv } from '../gender.js';
 
 const TABS = [['now', 'Сейчас'], ['all', 'Списком'], ['year', 'Год']];
 const tab = () => (TABS.some(([k]) => k === S.ui.careTab) ? S.ui.careTab : 'now');
@@ -226,7 +227,7 @@ function doneSheet(it) {
     title: it.name,
     sub: `${everyLabel(Number(it.every) || 1)} · ${dueLabel(it)}`,
     body: [
-      field.date('date', 'Когда сделала', todayISO()),
+      field.date('date', `Когда ${gv('сделал')}`, todayISO()),
       field.note('От этой даты посчитаю, когда будет пора в следующий раз.'),
     ].join(''),
     primary: 'Отметить',

@@ -13,6 +13,7 @@ import {
   templates, templateById, templateName, exerciseById, exerciseHistory, exerciseRecord,
   liveLessons, liveGoals, isCounter, sportTags, tagMonthCount,
 } from '../selectors.js';
+import { gv } from '../gender.js';
 
 const TABS = [['tpl', 'Шаблоны'], ['ex', 'Упражнения']];
 const tab = () => (S.ui.sportTab === 'ex' ? 'ex' : 'tpl');
@@ -172,7 +173,7 @@ export function workoutSheet(workout, date) {
         : '',
       goals.length ? field.note('Это только подпись, к чему тренировка относится: счётчик цели остаётся за тобой.') : '',
       tagPicks(w.tags || []),
-      `<label class="row tight" style="font-size:13px"><input type="checkbox" name="done" ${w.done ? 'checked' : ''}> Уже сделала</label>`,
+      `<label class="row tight" style="font-size:13px"><input type="checkbox" name="done" ${w.done ? 'checked' : ''}> Уже ${gv('сделал')}</label>`,
       field.area('note', 'Заметка', w.note || ''),
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
