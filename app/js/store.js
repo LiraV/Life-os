@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 30;
+const VERSION = 31;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -57,6 +57,8 @@ function blank() {
       wrist: 0,                                          // обхват запястья, см — тип сложения по Соловьёву
     },
     quests: {},          // { 'YYYY-MM-DD': [quest] }
+    inbox: [],           // входящее без даты: { id, text, note, sphere, createdAt }
+                         // ничего отсюда не уходит само — переносит человек
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
@@ -358,6 +360,13 @@ function migrate(s) {
         .filter(([, v]) => v > 0),
     ),
   }));
+
+  // v30 → v31: инбокс. Место, куда мысль кладут, не решая сразу, когда её делать:
+  // без даты, без сферы, без обязательств. В планер она уходит только руками.
+  merged.inbox = (Array.isArray(merged.inbox) ? merged.inbox : []).map(x => ({
+    id: x.id || uid(), text: String(x.text || '').trim(),
+    note: x.note || '', sphere: x.sphere || '', createdAt: x.createdAt || todayISO(),
+  })).filter(x => x.text);
 
   // v28 → v29: свои сферы. Набор сфер перестал быть константой: встроенные
   // лежат в коде, свои — в состоянии. Роли остаются набором в коде, но какая

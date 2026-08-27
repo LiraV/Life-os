@@ -8,6 +8,13 @@ import { isMale } from './gender.js';
 import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
+
+// ── инбокс ──────────────────────────────────────────────────────
+/** Входящее, новое сверху: инбокс читают с конца, а не с начала. */
+export const inboxItems = () => [...(S.inbox || [])].reverse();
+export const inboxCount = () => (S.inbox || []).length;
+/** Сколько дней лежит. Не для укора — чтобы было видно, что пора решить. */
+export const inboxAge = it => diffDays(todayISO(), it.createdAt);
 // По всем сферам, а не только встроенным: иначе своя сфера открывалась бы
 // экраном «такой сферы нет».
 export const sphereOf = key => allSpheres().find(s => s.key === key);

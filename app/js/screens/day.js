@@ -9,9 +9,10 @@ import { scheduleMark, occurrenceSheet } from '../schedule.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
-  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName,
+  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName, inboxCount,
 } from '../selectors.js';
 import { gv } from '../gender.js';
+import { inboxSheet } from './inbox.js';
 
 const curDate = () => S.ui.date || todayISO();
 
@@ -66,7 +67,11 @@ export function render() {
     </div>
 
     <div class="row between"><div class="caps">Квесты дня</div>
-      <span class="lab">${qs.length ? raw('<span data-act="add" style="cursor:pointer">+ квест</span> · ') : ''}<span data-act="wadd" style="cursor:pointer">+ тренировка</span></span></div>
+      <span class="lab">${qs.length ? raw('<span data-act="add" style="cursor:pointer">+ квест</span> · ') : ''}<span data-act="wadd" style="cursor:pointer">+ тренировка</span>${raw(' · ')}<span data-act="inbox" style="cursor:pointer">+ в инбокс</span></span></div>
+
+    ${inboxCount() ? raw(h`<button class="row between care-name" data-act="toinbox">
+      <span class="lab grow">В инбоксе ${inboxCount()} — разобрать, когда будет настроение</span>
+      <span class="lab">›</span></button>`) : ''}
 
     ${raw(scheduleBlock(date))}
 
@@ -319,6 +324,8 @@ function reflectionSheet(q) {
 }
 
 export const actions = {
+  inbox: () => inboxSheet(),
+  toinbox: () => { location.hash = '#/inbox'; },
   prev: () => update(s => { s.ui.date = addDays(curDate(), -1); }),
   next: () => update(s => { s.ui.date = addDays(curDate(), 1); }),
   today: () => update(s => { s.ui.date = todayISO(); }),
