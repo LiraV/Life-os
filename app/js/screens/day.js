@@ -9,10 +9,12 @@ import { scheduleMark, occurrenceSheet } from '../schedule.js';
 import {
   questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
-  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName, inboxCount,
+  workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName, inboxCount, dueOn,
 } from '../selectors.js';
 import { gv } from '../gender.js';
 import { inboxSheet } from './inbox.js';
+import { taskSheet as workTaskSheet } from './work.js';
+import { taskSheet as studyTaskSheet } from './study.js';
 
 const curDate = () => S.ui.date || todayISO();
 
@@ -74,6 +76,7 @@ export function render() {
       <span class="lab">›</span></button>`) : ''}
 
     ${raw(scheduleBlock(date))}
+    ${raw(dueBlock(date))}
 
     ${workoutsOn(date).map(w => raw(workoutRow(w)))}
 
@@ -102,6 +105,34 @@ function energyHistory(date) {
 }
 
 /** По расписанию: не записи, а правила — считаются на лету для этого дня. */
+
+/**
+ * Сроки на этот день: задачи работы и задания учёбы. Запись остаётся там, где
+ * заведена, — день её только показывает и отмечает. Просроченное показывается
+ * на сегодня, иначе оно пропадает из виду совсем.
+ */
+function dueBlock(date) {
+  const list = dueOn(date);
+  if (!list.length) return '';
+  return h`
+    <div class="row between"><div class="caps">Сроки</div>
+      <span class="lab">${list.filter(x => !x.done).length || 'всё закрыто'}</span></div>
+    ${list.map(x => raw(h`
+      <div class="quest ${x.done ? 'done' : ''}">
+        <button class="check ${x.done ? 'on' : ''}" data-act="duedone" data-k="${x.kind}" data-id="${x.id}"
+          aria-label="Сделано">✓</button>
+        <div class="grow" data-act="dueopen" data-k="${x.kind}" data-id="${x.id}" style="cursor:pointer">
+          <div class="q-title">${x.title}</div>
+          <div class="q-meta">
+            <span class="tag">${x.tag}</span>
+            ${x.sub ? raw(h`<span class="tag">${x.sub}</span>`) : ''}
+            <span class="q-time">${x.overdue ? `срок был ${dayShort(x.due)}` : 'срок сегодня'}</span>
+          </div>
+        </div>
+        <button class="q-edit" data-act="dueopen" data-k="${x.kind}" data-id="${x.id}">открыть ›</button>
+      </div>`))}`;
+}
+
 function scheduleBlock(date) {
   const list = scheduleOn(date);
   const shifted = scheduleShiftedOn(date);
@@ -325,6 +356,28 @@ function reflectionSheet(q) {
 
 export const actions = {
   inbox: () => inboxSheet(),
+
+  /** Отметка срока: сама задача живёт в своей сфере, день её только закрывает. */
+  duedone: v => update(s => {
+    if (v.k === 'work') {
+      const t = s.work.tasks.find(x => x.id === v.id);
+      if (!t) return;
+      const done = t.stage === 'done';
+      t.stage = done ? 'doing' : 'done';
+      t.stageAt = todayISO();
+      addXp(done ? -XP.step : XP.step);
+    } else {
+      const t = s.study.tasks.find(x => x.id === v.id);
+      if (!t) return;
+      const done = t.stage === 'done';
+      t.stage = done ? 'draft' : 'done';
+      addXp(done ? -XP.step : XP.step);
+    }
+    touchTracker(s);
+  }),
+  dueopen: v => (v.k === 'work'
+    ? workTaskSheet(v.id)
+    : studyTaskSheet(S.study.tasks.find(x => x.id === v.id))),
   toinbox: () => { location.hash = '#/inbox'; },
   prev: () => update(s => { s.ui.date = addDays(curDate(), -1); }),
   next: () => update(s => { s.ui.date = addDays(curDate(), 1); }),

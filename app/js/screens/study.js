@@ -174,7 +174,7 @@ function subjectCard(id) {
 }
 
 // ── шторки ──────────────────────────────────────────────────────
-function taskSheet(task, subjectId) {
+export function taskSheet(task, subjectId) {
   const isNew = !task;
   const t = task || { id: uid(), subjectId, title: '', stage: 'todo', due: '', note: '' };
   const subs = liveSubjects();

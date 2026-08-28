@@ -1582,3 +1582,43 @@ export function mindShift(key = null, n = 30) {
   return { n: list.length, before: avg(x => x.before), after: avg(x => x.after),
     delta: avg(x => x.after - x.before) };
 }
+
+// ── сроки на день ───────────────────────────────────────────────
+// У задач работы и заданий учёбы есть срок, но жили они только на своих
+// экранах: поставила задачу на 8 сентября — и на «Дне» её нет. Здесь они
+// сводятся в один список, чтобы день показывал всё, что на него назначено.
+//
+// Запись остаётся там, где заведена: день её только показывает и отмечает.
+
+/** Что назначено на этот день: задачи работы и задания учёбы со сроком. */
+export function dueOn(date) {
+  const t = todayISO();
+  const out = [];
+
+  (S.work.tasks || []).forEach(x => {
+    if (!x.due) return;
+    const done = x.stage === 'done';
+    // На сегодня показываем и просроченное: иначе оно пропадает из виду совсем.
+    const overdue = !done && date === t && x.due < t;
+    if (x.due !== date && !overdue) return;
+    out.push({
+      kind: 'work', id: x.id, title: x.title, due: x.due, done, overdue,
+      sub: [jobsNow().length > 1 ? jobName(x.jobId) : '', x.projectId ? workProjectName(x.projectId) : '']
+        .filter(Boolean).join(' · '),
+      tag: 'работа',
+    });
+  });
+
+  liveTasks().forEach(x => {
+    if (!x.due) return;
+    const done = x.stage === 'done';
+    const overdue = !done && date === t && x.due < t;
+    if (x.due !== date && !overdue) return;
+    out.push({
+      kind: 'study', id: x.id, title: x.title, due: x.due, done, overdue,
+      sub: taskSubject(x).name, tag: 'учёба',
+    });
+  });
+
+  return out.sort((a, b) => (a.done === b.done ? a.due.localeCompare(b.due) : a.done ? 1 : -1));
+}

@@ -489,7 +489,7 @@ function jobSheet(id) {
 }
 
 /** Задача: место, проект, стадия, срок. Место спрашивается, когда их много. */
-function taskSheet(id) {
+export function taskSheet(id) {
   const t = workTasks().find(x => x.id === id);
   const jid = curJob() || jobsNow()[0]?.id || '';
   const it = t || {
