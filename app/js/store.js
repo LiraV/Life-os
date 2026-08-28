@@ -9,6 +9,10 @@ const KEY = 'lifeos.state';
 // Куда откладывается сырой текст, если его не удалось прочитать: из него
 // всё можно вернуть, поэтому он не должен пропасть вместе со сбоем.
 const RESCUE = 'lifeos.state.rescue';
+// Снимок последнего состояния перед сменой формата. Нужен на случай, когда
+// миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
+// вернуться можно только отсюда.
+const PREV = 'lifeos.state.prev';
 const VERSION = 36;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
@@ -592,6 +596,8 @@ let saveBlocked = false;
  */
 export let loadError = null;
 export const rescueRaw = () => { try { return localStorage.getItem(RESCUE); } catch { return null; } };
+/** Состояние до последней смены формата — на случай, если новая что-то потеряла. */
+export const prevRaw = () => { try { return localStorage.getItem(PREV); } catch { return null; } };
 export const dropRescue = () => { try { localStorage.removeItem(RESCUE); } catch {} };
 
 function load() {
@@ -601,7 +607,12 @@ function load() {
   if (!raw) { needsRewrite = true; return migrate(blank()); }
   try {
     const parsed = JSON.parse(raw);
-    if (parsed.v !== VERSION) needsRewrite = true;
+    if (parsed.v !== VERSION) {
+      needsRewrite = true;
+      // Перед сменой формата откладываем то, что было: обратной миграции нет,
+      // и если новая что-то потеряет, взять данные будет больше неоткуда.
+      try { localStorage.setItem(PREV, raw); } catch { /* нет места — идём дальше */ }
+    }
     return migrate(parsed);
   } catch (e) {
     console.error('[lifeos] не удалось прочитать сохранение', e);

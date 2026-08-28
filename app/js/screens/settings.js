@@ -1,6 +1,6 @@
 // «Настройки»: профиль, данные и честный список того, что приложение умеет.
 
-import { S, update, exportJSON, importJSON, resetAll, level } from '../store.js';
+import { S, update, exportJSON, importJSON, resetAll, level, prevRaw } from '../store.js';
 import { todayISO } from '../dates.js';
 import { BUILD } from '../version.js';
 import { hasKey, maskKey, setKey, setModel, getModel, checkKey, DEFAULT_MODEL } from '../ai.js';
@@ -59,6 +59,9 @@ export function render() {
       <div class="caps">Данные</div>
       <div class="lab">${counts.quests} квестов · ${counts.goals} целей · ${counts.habits} привычек · ${counts.diary} записей · ${counts.measures} замеров · ${size} КБ</div>
       <button class="add" data-act="export">Скачать копию (JSON)</button>
+      ${prevRaw() ? raw(h`<button class="btn-ghost" data-act="prev">Скачать состояние до обновления формата</button>
+        <div class="lab">Приложение откладывает копию перед каждой сменой формата данных.
+          Если после обновления чего-то не хватает — она здесь.</div>`) : ''}
       <button class="add" data-act="import">Загрузить из копии</button>
       <div class="lab">Копию стоит делать хоть иногда: если очистить данные браузера, всё пропадёт.</div>
     </div>
@@ -168,6 +171,19 @@ export const actions = {
       toast('Сохранено');
     },
   }),
+
+  /** Копия до последней смены формата: страховка, если новая версия что-то потеряла. */
+  prev: () => {
+    const raw2 = prevRaw();
+    if (!raw2) return toast('Копии нет');
+    const a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(new Blob([raw2], { type: 'application/json' }));
+    a2.download = `life-os-before-update-${todayISO()}.json`;
+    document.body.appendChild(a2);
+    a2.click();
+    setTimeout(() => { URL.revokeObjectURL(a2.href); a2.remove(); }, 1000);
+    toast('Копия скачана');
+  },
 
   export: () => {
     const blob = new Blob([exportJSON()], { type: 'application/json' });
