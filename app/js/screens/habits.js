@@ -1,6 +1,6 @@
 // «Ритм»: привычки без стриков. Неделя — тап по дню, месяц — реальные итоги.
 
-import { S, update, uid, tickHabit, habitStep, isWater } from '../store.js';
+import { S, update, uid, tickHabit, habitStep, isWater, isMeals } from '../store.js';
 import { todayISO, addDays, weekDates, monthKey, addMonths, monthTitle, daysInMonth, DOW, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { habitMonthCount, habitTarget, habitCount, habitDone, liveHabits, habitUnit } from '../selectors.js';
@@ -94,11 +94,14 @@ function tip(list) {
 function habitSheet(hb) {
   const isNew = !hb;
   const water = isWater(hb);
+  const meals = isMeals(hb);
   openSheet({
     title: isNew ? 'Новая привычка' : 'Привычка',
     body: [
       field.text('name', 'Название', hb?.name || '', 'например, «Итальянский 15 минут»'),
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="water" ${water ? 'checked' : ''}> Это вода из «Питания»</label>`,
+      `<label class="row tight" style="font-size:13px"><input type="checkbox" name="meals" ${meals ? 'checked' : ''}> Это приёмы пищи из «Питания»</label>`,
+      meals ? field.note('Число берётся из «Питания»: считаются приёмы, в которых есть хоть одно блюдо. Отметить такую привычку руками нельзя — её отмечает еда.') : '',
       water ? field.note(`Норма и выпитое берутся из «Питания» — сейчас ${habitTarget(hb)} мл в день. Число одно: стакан, отмеченный здесь, виден там, и наоборот. Свой журнал привычки сохранён и вернётся, если снять галочку.`)
             : field.number('target', 'Норма за день', hb ? habitTarget(hb) : 1, { min: 1 }),
       water ? '' : field.text('unit', 'В чём считаем', hb?.unit || '', 'раз, мл, минут — необязательно'),
@@ -112,7 +115,7 @@ function habitSheet(hb) {
       const target = Math.max(1, Number(v.target) || 1);
       const step = Math.max(1, Math.min(target, Number(v.step) || 1));
       const unit = (v.unit || '').trim();
-      const link = v.water ? 'water' : '';
+      const link = v.water ? 'water' : v.meals ? 'meals' : '';
       // В режиме воды поля нормы и единицы на экране нет, поэтому их нельзя
       // перезаписывать тем, чего не спрашивали: своя норма привычки лежит
       // нетронутой и возвращается вместе со снятой связью.
@@ -143,5 +146,10 @@ export const actions = {
   mnext: () => update(s => { s.ui.habMonth = addMonths(monthA(), 1); }),
   add: () => habitSheet(null),
   edit: v => habitSheet(S.habits.find(x => x.id === v.id)),
-  tick: v => update(s => { tickHabit(s, v.id, v.d); }),
+  tick: v => {
+    let res = null;
+    update(s => { res = tickHabit(s, v.id, v.d); });
+    // Приёмы пищи не отмечают — их едят. Ведём туда, где они записываются.
+    if (res?.readOnly) { toast(`${res.name} считаются в «Питании»`); location.hash = '#/food'; }
+  },
 };

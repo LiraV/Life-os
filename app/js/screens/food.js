@@ -1,11 +1,11 @@
 // «Питание»: календарь по месяцу, КБЖУ и вода на каждый день,
 // плюс оценка приёма пищи по фотографии.
 
-import { S, update, uid, XP, addXp, isWater } from '../store.js';
+import { S, update, uid, XP, addXp, isWater, MEALS } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
-import { proteinHint, energyNeed, liveHabits } from '../selectors.js';
+import { proteinHint, energyNeed, liveHabits, mealEntries, mealsOn } from '../selectors.js';
 
 const plural = (n, a, b, c) => {
   const m = n % 100, d = n % 10;
@@ -69,16 +69,46 @@ export function render() {
     </div>
 
     <div class="row between"><div class="caps">Приёмы пищи</div>
-      ${day.entries?.length ? raw(h`<span class="lab">${day.entries.length}</span>`) : ''}</div>
+      <span class="lab">${mealsOn(date) ? `${mealsOn(date)} из ${MEALS.length}` : 'ничего не записано'}</span></div>
 
-    ${day.entries?.length ? day.entries.map(e => raw(entryRow(e))) : raw(h`
-      <div class="card dash"><div class="empty">За этот день пока пусто.</div></div>`)}
+    ${MEALS.map(m => raw(mealCard(date, m)))}
+    ${raw(looseCard(date))}
 
-    <button class="add" data-act="add">+ Приём пищи</button>
     <button class="add" data-act="photo">📷 Определить по фото</button>
     <button class="add" data-act="describe">✎ Описать словами</button>
     ${!hasKey() ? raw(h`<div class="lab" style="padding:0 4px">Оценка по фото и по описанию работает через OpenAI: добавь свой ключ в Настройках.</div>`) : ''}
     <div style="height:4px"></div>`;
+}
+
+
+/** Приём пищи: свои блюда и своя сумма. Пустой приём тоже показан — в него
+ *  и добавляют, а «на завтрак ничего» это тоже факт дня. */
+function mealCard(date, m) {
+  const list = mealEntries(date, m.key);
+  const kcal = list.reduce((a, e) => a + (Number(e.kcal) || 0), 0);
+  return h`
+    <div class="card ${list.length ? '' : 'mute'}">
+      <div class="row between">
+        <div class="caps">${m.name}</div>
+        <span class="lab">${list.length ? `${kcal} ккал` : 'пусто'}</span>
+      </div>
+      ${list.map(e => raw(entryRow(e)))}
+      <button class="add" data-act="add" data-m="${m.key}">+ Блюдо</button>
+    </div>`;
+}
+
+/** Блюда без приёма: так лежат записи, сделанные до деления на приёмы.
+ *  Карточки нет, пока таких блюд нет. */
+function looseCard(date) {
+  const list = mealEntries(date, '');
+  if (!list.length) return '';
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Без приёма</div>
+        <span class="lab">${list.length}</span></div>
+      ${list.map(e => raw(entryRow(e)))}
+      <div class="lab">Записаны без приёма — открой и выбери, к какому они относятся.</div>
+    </div>`;
 }
 
 const macro = (name, val, target) => h`
@@ -90,7 +120,7 @@ const macro = (name, val, target) => h`
 
 function entryRow(e) {
   return h`
-    <div class="card" style="padding:11px 13px">
+    <div class="meal-row">
       <div class="row between">
         <div class="grow" data-act="edit" data-id="${e.id}" style="cursor:pointer">
           <div class="ink">${e.title}${e.source === 'ai' ? raw('<span class="tag" style="margin-left:6px">по фото</span>') : ''}</div>
@@ -135,10 +165,12 @@ function entrySheet(entry, preset) {
   const isNew = !entry;
   const e = entry || { id: uid(), title: '', kcal: '', prot: '', fat: '', carb: '', time: '', source: 'manual', ...(preset || {}) };
   openSheet({
-    title: isNew ? 'Приём пищи' : 'Правка',
+    title: isNew ? 'Блюдо' : 'Правка',
     sub: preset?.note || (preset ? 'оценка по фото — поправь, если мимо' : ''),
     body: [
       field.text('title', 'Что ели', e.title, 'например, «Овсянка с бананом»'),
+      field.opts('meal', 'К какому приёму', [...MEALS.map(m => ({ value: m.key, label: m.name })),
+        { value: '', label: 'без приёма' }], e.meal || ''),
       field.number('kcal', 'Калории', e.kcal, { min: 0 }),
       field.number('prot', 'Белки, г', e.prot, { min: 0 }),
       field.number('fat', 'Жиры, г', e.fat, { min: 0 }),
@@ -153,7 +185,8 @@ function entrySheet(entry, preset) {
       const date = sel();
       update(s => {
         const day = (s.food.days[date] ||= { water: 0, entries: [] });
-        const next = { ...e, title, kcal: n(v.kcal), prot: n(v.prot), fat: n(v.fat), carb: n(v.carb), time: v.time || '' };
+        const next = { ...e, title, meal: v.meal ?? e.meal ?? '',
+          kcal: n(v.kcal), prot: n(v.prot), fat: n(v.fat), carb: n(v.carb), time: v.time || '' };
         const i = day.entries.findIndex(x => x.id === e.id);
         if (i >= 0) day.entries[i] = next; else day.entries.push(next);
         if (isNew) addXp(XP.habit);
@@ -198,7 +231,7 @@ export const actions = {
   cnext: () => update(s => { s.ui.foodMonth = addMonths(cal(), 1); }),
   pick: v => update(s => { s.ui.foodDate = v.d; s.ui.foodMonth = monthKey(v.d); }),
 
-  add: () => entrySheet(null),
+  add: v => entrySheet(null, v?.m ? { meal: v.m } : null),
   edit: v => entrySheet((dayOf(sel()).entries || []).find(x => x.id === v.id)),
   del: v => update(s => {
     const day = s.food.days[sel()];

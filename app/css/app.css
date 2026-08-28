@@ -589,3 +589,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
   .app.desk .sheet{max-width:620px; width:100%; border-radius:22px; max-height:84vh;
                    padding-bottom:16px; box-shadow:0 20px 60px rgba(90,45,42,.32)}
 }
+
+/* Блюдо внутри приёма: не карточка в карточке, а строка с разделителем. */
+.meal-row{padding:8px 0; border-top:1px solid var(--track)}
+.meal-row:first-of-type{border-top:0}

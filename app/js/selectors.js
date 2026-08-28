@@ -1,7 +1,7 @@
 // Производные значения. Ничего не хранят — считают из состояния,
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
-import { S, SPHERES, allSpheres, level, levelFloor, isWater } from './store.js';
+import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS } from './store.js';
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
 import { COUNTRIES, countryBy, REGIONS } from './countries.js';
 import { isMale } from './gender.js';
@@ -222,21 +222,32 @@ export function weekStats(date) {
 // Привычка со связью 'water' не хранит своих чисел: и норма, и выпитое
 // берутся из «Питания». Поэтому один стакан виден сразу в обоих местах —
 // синхронизировать нечего, число одно.
+/** Блюда одного приёма за день. */
+export const mealEntries = (date, meal) =>
+  ((S.food.days[date] || {}).entries || []).filter(e => (e.meal || '') === meal);
+/**
+ * Сколько раз за день ела: считаются приёмы, в которых есть хоть одно блюдо.
+ * Не блюда — их за обед может быть три, а обед всё равно один.
+ */
+export const mealsOn = date => MEALS.filter(m => mealEntries(date, m.key).length).length;
+
 export const habitTarget = hb => (isWater(hb)
   ? Math.max(1, Number(S.food.targets.water) || 1)
   : Math.max(1, Number(hb.target) || 1));
 export const habitCount = (hb, date) => (isWater(hb)
   ? Math.max(0, Number(S.food.days[date]?.water) || 0)
+  : isMeals(hb) ? mealsOn(date)
   : Math.max(0, Number(hb.log?.[date]) || 0));
 export const habitDone = (hb, date) => habitCount(hb, date) >= habitTarget(hb);
 
 /** Дни, в которые у привычки есть значение, — с учётом связи. Для выгрузки. */
 export const habitDates = hb => (isWater(hb)
   ? Object.keys(S.food.days).filter(d => Number(S.food.days[d]?.water) > 0)
+  : isMeals(hb) ? Object.keys(S.food.days).filter(d => mealsOn(d) > 0)
   : Object.keys(hb.log || {}).filter(d => Number(hb.log[d]) > 0)).sort();
 
 /** Единица измерения: у воды она своя и задана «Питанием». */
-export const habitUnit = hb => (isWater(hb) ? 'мл' : hb.unit || '');
+export const habitUnit = hb => (isWater(hb) ? 'мл' : isMeals(hb) ? 'раз' : hb.unit || '');
 
 export const liveHabits = () => S.habits.filter(hb => !hb.archived);
 

@@ -480,6 +480,8 @@ export const actions = {
     if (date > todayISO()) return;
     let res = null;
     update(s => { res = tickHabit(s, v.id, date); });
+    // Приёмы пищи не отмечают — их едят. Ведём туда, где они записываются.
+    if (res?.readOnly) { toast(`${res.name} считаются в «Питании»`); location.hash = '#/food'; return; }
     if (res?.reached) toast(`${res.name} — норма закрыта ✦`);
   },
 

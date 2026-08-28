@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 36;
+const VERSION = 37;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -54,6 +54,16 @@ export const WORK_KINDS = [
 ];
 
 /** График по умолчанию у нового места. Правится в самом месте. */
+/** Приёмы пищи. Список закрытый: это разделы дня, а не свободные записи —
+ *  и по ним же считается привычка «сколько раз ела». */
+export const MEALS = [
+  { key: 'breakfast', name: 'Завтрак' },
+  { key: 'lunch', name: 'Обед' },
+  { key: 'dinner', name: 'Ужин' },
+  { key: 'snack', name: 'Перекус' },
+];
+export const mealName = k => MEALS.find(m => m.key === k)?.name || 'Без приёма';
+
 export const blankSched = () => ({ days: [0, 1, 2, 3, 4], start: '09:00', end: '18:00', lunch: 60 });
 
 export const XP = { quest: 10, boss: 40, habit: 3, step: 15, measure: 5, reflection: 8, test: 25 };
@@ -146,6 +156,7 @@ function blank() {
     food: {                                              // дневник питания: КБЖУ и вода по дням
       targets: { kcal: 2000, prot: 90, fat: 70, carb: 220, water: 2000 },
       days: {},                                          // { 'YYYY-MM-DD': { water, entries: [] } }
+                                                         // блюдо: { id, meal, title, kcal, prot, fat, carb, time, source }
     },
     mind: [],            // осознанность: { id, date, key, minutes, before, after, note }
                          // before/after — своя отметка напряжения 0..100, обе необязательны
@@ -394,6 +405,13 @@ function migrate(s) {
         .filter(([, v]) => v > 0),
     ),
   }));
+
+  // v36 → v37: день питания делится на приёмы пищи. Уже записанным блюдам
+  // приём не придумываем: они попадают в «Без приёма», и разложить их можно
+  // руками — угадывать, что было завтраком, а что ужином, нельзя.
+  Object.values(merged.food.days).forEach(d => {
+    (d.entries || []).forEach(e => { e.meal = MEALS.some(m => m.key === e.meal) ? e.meal : ''; });
+  });
 
   // v34 → v35: осознанность. Журнал практик: что делала, сколько минут и
   // как было до и после. Отметки «до/после» необязательны — практика без них
@@ -696,12 +714,16 @@ export function touchBudget(s) {
 /** Вода живёт в «Питании». Привычка со связью читает и пишет туда же —
  *  два числа не синхронизируются, потому что число одно. */
 export const isWater = hb => hb?.link === 'water';
+/** Привычка «приёмы пищи»: число берётся из «Питания» и руками не ставится. */
+export const isMeals = hb => hb?.link === 'meals';
 export const waterOf = (s, date) => Math.max(0, Number(s.food.days[date]?.water) || 0);
 export const waterNorm = s => Math.max(1, Number(s.food.targets.water) || 1);
 
 export function tickHabit(s, id, date) {
   const hb = s.habits.find(x => x.id === id);
   if (!hb) return null;
+  // Приём пищи нельзя «отметить» — его едят. Число приходит из «Питания».
+  if (isMeals(hb)) return { readOnly: true, name: hb.name };
   const target = isWater(hb) ? waterNorm(s) : habitNorm(hb);
   const was = isWater(hb) ? waterOf(s, date) : Math.max(0, Number(hb.log[date]) || 0);
   const next = was >= target ? 0 : Math.min(target, was + habitStep(hb));
