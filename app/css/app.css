@@ -81,23 +81,20 @@ h1,h2,h3{margin:0; font-weight:400}
 /* ── кнопки и пилюли ────────────────────────────────────────── */
 .btn{background:var(--accent); color:var(--on-accent); border-radius:99px; padding:12px 18px; font-size:14.5px;
      text-align:center; box-shadow:0 8px 18px rgba(166,58,53,.35); transition:transform .15s; flex:none; width:100%}
-.btn:hover{transform:translateY(-1px)} .btn:active{transform:scale(.98)}
+.btn:active{transform:scale(.98)}
 .btn-ghost{font-size:13px; color:var(--ink2); padding:9px; text-align:center; width:100%}
 .btn-ghost.danger{color:var(--accent)}
 .pill{font-size:12.5px; color:var(--deep); border:1px solid var(--line); border-radius:99px; padding:5px 12px;
       background:rgba(255,250,243,.65); transition:all .15s; flex:none}
-.pill:hover{border-color:var(--accent)}
 .pill.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
 .pills{display:flex; gap:7px; flex-wrap:wrap; flex:none}
 .add{border:1.5px dashed var(--line); border-radius:var(--r-card); padding:11px; font-size:13px; color:var(--ink2);
      background:transparent; width:100%; text-align:center}
-.add:hover{border-color:var(--accent); color:var(--deep)}
 
 .stepper{display:flex; align-items:center; justify-content:space-between; gap:8px; flex:none}
 .arrow{width:30px; height:30px; border-radius:99px; font-size:16px; color:var(--deep); line-height:1;
        display:flex; align-items:center; justify-content:center; flex:none}
 .arrow[disabled]{opacity:.28; pointer-events:none}
-.arrow:hover{background:rgba(255,250,243,.6)}
 
 /* ── квесты ─────────────────────────────────────────────────── */
 .quest{display:flex; align-items:flex-start; gap:10px; background:var(--card); border-radius:var(--r-card);
@@ -120,11 +117,9 @@ h1,h2,h3{margin:0; font-weight:400}
 .w-set-name{display:flex; align-items:center; justify-content:space-between; gap:8px; flex:1;
             font-size:12.5px; color:var(--ink); text-align:left; padding:5px 9px;
             background:var(--card); border-radius:10px; min-width:0}
-.w-set-name:hover{background:var(--track)}
 .check.sm{width:19px; height:19px; border-radius:7px; margin-top:0; font-size:11px}
 .w-sets .add{padding:7px; font-size:12px}
 .tpl-set{width:100%; text-align:left; padding:3px 0; border-radius:8px}
-.tpl-set:hover{background:var(--track)}
 
 /* ── намерения ──────────────────────────────────────────────── */
 .dyn-row{display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--track)}
@@ -203,7 +198,6 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .cal{display:grid; grid-template-columns:repeat(7,1fr); gap:4px}
 .cal-d{aspect-ratio:1; border-radius:11px; background:var(--track); font-size:12px; color:var(--ink);
        display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s}
-.cal-d:hover:not([disabled]){background:#e6d3c6}
 .cal-d.on{background:var(--accent); color:var(--on-accent)}
 .cal-d.start{box-shadow:inset 0 0 0 2px rgba(255,246,238,.7)}
 .cal-d.today{outline:1.5px solid var(--deep); outline-offset:1px; font-weight:600}
@@ -222,7 +216,6 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .hab-row.done .ink{opacity:.6}
 .hab-plus{width:34px; height:34px; border-radius:12px; flex:none; background:var(--track); color:var(--deep);
   font-size:18px; line-height:1; display:flex; align-items:center; justify-content:center; transition:all .15s}
-.hab-plus:hover{background:#e6d3c6}
 .hab-plus.on{background:var(--accent); color:var(--on-accent); font-size:15px}
 .hab-plus[disabled]{opacity:.35; pointer-events:none}
 
@@ -275,10 +268,16 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .care-row:first-of-type{border-top:0}
 .care-name{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; min-width:0}
 .care-name .lab.late{color:var(--accent)}
+/* Строка-ссылка: текст слева, подпись или шеврон справа. Раньше такие строки
+   собирались из «row between care-name», но care-name задаёт колонку и
+   перебивал row — подпись падала на вторую строку. */
+.link-row{display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;
+          background:none; border:0; padding:3px 0; font:inherit; color:inherit;
+          text-align:left; min-width:0; cursor:pointer}
+.link-row .lab.late{color:var(--accent)}
 .check.linked{border-style:dashed}
 .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px}
 .chip{font-size:11.5px; color:var(--deep); background:var(--tag-bg); border-radius:99px; padding:4px 10px; line-height:1.2; max-width:100%}
-.chip:hover{background:var(--track)}
 
 /* ── большой трекер ─────────────────────────────────────────── */
 /* Таблица года ездит вбок сама — экрану это разрешение не передаётся. */
@@ -301,7 +300,6 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .tr tbody td.fixed{position:relative}
 .tr tbody td.fixed::after{content:''; position:absolute; top:3px; right:3px; width:4px; height:4px;
   border-radius:99px; background:var(--deep); opacity:.55}
-.tr tbody td.edit:not(.has):hover{background:var(--track); border-radius:8px}
 
 .tr .tr-sum{position:sticky; right:0; background:var(--card); font-weight:500; color:var(--deep);
   box-shadow:-1px 0 0 var(--track)}
@@ -426,3 +424,20 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 /* Заливка плотная сама по себе: на размытие полагаться нельзя — его может
    не быть, и тогда под шапкой читался бы уехавший текст. Размытие только
    смягчает край. */
+
+
+/* Подсветка при наведении — только там, где есть настоящий курсор. На тач-экране
+   :hover залипает после тапа: нажатая стрелка так и оставалась подсвеченной,
+   пока не тронешь что-то ещё. */
+@media (hover: hover) and (pointer: fine){
+  .btn:hover{transform:translateY(-1px)}
+  .pill:hover{border-color:var(--accent)}
+  .add:hover{border-color:var(--accent); color:var(--deep)}
+  .arrow:hover{background:rgba(255,250,243,.6)}
+  .w-set-name:hover{background:var(--track)}
+  .tpl-set:hover{background:var(--track)}
+  .cal-d:hover:not([disabled]){background:#e6d3c6}
+  .hab-plus:hover{background:#e6d3c6}
+  .chip:hover{background:var(--track)}
+  .tr tbody td.edit:not(.has):hover{background:var(--track); border-radius:8px}
+}

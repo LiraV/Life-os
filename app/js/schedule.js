@@ -29,7 +29,7 @@ export const scheduleBlock = (kind, refId) => {
     <div class="row between"><div class="caps">Расписание</div>
       <button class="q-edit" data-act="schedadd" data-k="${kind}" data-id="${refId}">+ день</button></div>
     ${list.length ? list.map(sc => raw(h`
-      <button class="row between care-name" data-act="schededit" data-k="${kind}" data-id="${refId}" data-s="${sc.id}">
+      <button class="link-row" data-act="schededit" data-k="${kind}" data-id="${refId}" data-s="${sc.id}">
         <span class="lab grow ellip">${sc.off ? '⏸ ' : ''}${scheduleLabel(sc)}</span>
         <span class="lab">${sc.place || 'изменить'} ›</span>
       </button>`))

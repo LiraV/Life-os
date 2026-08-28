@@ -47,7 +47,7 @@ function nowView() {
       <div class="row between"><div class="caps">Хочу прочитать</div>
         <span class="lab">${want.length || 'пусто'}</span></div>
       ${want.length ? raw(h`<div class="list">${want.map(b => raw(h`
-        <button class="row between care-name" data-act="open" data-id="${b.id}">
+        <button class="link-row" data-act="open" data-id="${b.id}">
           <span class="ink grow ellip">${b.title}</span>
           <span class="lab">${b.author || KINDS[b.kind]} ›</span>
         </button>`))}</div>`)
@@ -90,7 +90,7 @@ function shelfView() {
           <div class="row between"><div class="caps">${st.name}</div>
             <span class="lab">${list.length || ''}</span></div>
           ${list.length ? raw(h`<div class="list">${list.map(b => raw(h`
-            <button class="row between care-name" data-act="open" data-id="${b.id}">
+            <button class="link-row" data-act="open" data-id="${b.id}">
               <span class="ink grow ellip">${b.title}</span>
               <span class="lab">${b.rating ? stars(b.rating) : (b.author || '')} ›</span>
             </button>`))}</div>`)
@@ -120,7 +120,7 @@ function yearView() {
           <div class="row between"><div class="caps">${name}${ym === cur ? ' · сейчас' : ''}</div>
             <span class="lab">${list.length || ''}</span></div>
           ${list.length ? raw(h`<div class="list">${list.map(b => raw(h`
-            <button class="row between care-name" data-act="open" data-id="${b.id}">
+            <button class="link-row" data-act="open" data-id="${b.id}">
               <span class="ink grow ellip">${b.title}</span>
               <span class="lab">${stars(b.rating)}</span>
             </button>`))}</div>`)

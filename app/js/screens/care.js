@@ -171,7 +171,7 @@ function petCard() {
       </div>`) : ''}
       <button class="add" data-act="weight">+ Вес</button>
       ${list.length ? raw(h`<div class="list">${list.map(it => raw(h`
-        <button class="row between care-name" data-act="edit" data-id="${it.id}">
+        <button class="link-row" data-act="edit" data-id="${it.id}">
           <span class="lab grow ellip">${it.name}</span>
           <span class="lab ${careDue(it) < 0 ? 'late' : ''}">${dueLabel(it)}</span>
         </button>`))}</div>`) : ''}

@@ -69,7 +69,7 @@ export function render() {
     <div class="row between"><div class="caps">Квесты дня</div>
       <span class="lab">${qs.length ? raw('<span data-act="add" style="cursor:pointer">+ квест</span> · ') : ''}<span data-act="wadd" style="cursor:pointer">+ тренировка</span>${raw(' · ')}<span data-act="inbox" style="cursor:pointer">+ в инбокс</span></span></div>
 
-    ${inboxCount() ? raw(h`<button class="row between care-name" data-act="toinbox">
+    ${inboxCount() ? raw(h`<button class="link-row" data-act="toinbox">
       <span class="lab grow">В инбоксе ${inboxCount()} — разобрать, когда будет настроение</span>
       <span class="lab">›</span></button>`) : ''}
 

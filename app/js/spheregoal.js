@@ -114,7 +114,7 @@ export function sphereGoalsCard(sphere) {
     <div class="card mute">
       <div class="caps">Цели отсюда</div>
       ${list.map(g => raw(h`
-        <button class="row between care-name" data-act="togoal" data-id="${g.id}">
+        <button class="link-row" data-act="togoal" data-id="${g.id}">
           <span class="ink grow ellip">${g.title}</span>
           <span class="lab">${autoLabel(g)} ›</span>
         </button>`))}

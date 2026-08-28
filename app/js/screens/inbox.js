@@ -120,7 +120,7 @@ function moveSheet(id) {
        ['sphere', '🧩 В сферу', 'этапом внутри сферы'],
        ['care', '🔁 В заботу', 'повторяющимся делом']]
         .map(([k, name, hint]) => h`
-          <button class="row between care-name" data-act="to" data-v="${k}">
+          <button class="link-row" data-act="to" data-v="${k}">
             <span class="ink grow">${name}</span>
             <span class="lab">${hint} ›</span>
           </button>`).join(''),

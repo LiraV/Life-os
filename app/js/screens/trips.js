@@ -82,7 +82,7 @@ function yearView() {
       <div class="card mute">
         <div class="caps">Все годы</div>
         ${years.map(yy => raw(h`
-          <button class="row between care-name" data-act="goyear" data-v="${yy}">
+          <button class="link-row" data-act="goyear" data-v="${yy}">
             <span class="ink grow">${yy}</span>
             <span class="lab">${countriesInYear(yy).map(c => flagOf(c.code)).join(' ')} ›</span>
           </button>`))}
@@ -101,7 +101,7 @@ function addView() {
       </div>
       ${q && !found.length ? raw('<div class="lab">Ничего не нашлось. Проверь написание — список на русском.</div>') : ''}
       ${found.length ? raw(h`<div class="list">${found.map(c => raw(h`
-        <button class="row between care-name" data-act="mark" data-v="${c.code}">
+        <button class="link-row" data-act="mark" data-v="${c.code}">
           <span class="ink grow">${flagOf(c.code)} ${c.name}</span>
           <span class="lab">${been.has(c.code) ? 'уже была · ещё раз' : c.region} ›</span>
         </button>`))}</div>`) : ''}
@@ -112,7 +112,7 @@ function addView() {
       <div class="card mute">
         <div class="caps">Последние отметки</div>
         ${[...visits()].reverse().slice(0, 8).map(v => raw(h`
-          <button class="row between care-name" data-act="edit" data-id="${v.id}">
+          <button class="link-row" data-act="edit" data-id="${v.id}">
             <span class="ink grow">${flagOf(v.code)} ${countryName(v.code)}</span>
             <span class="lab">${v.year}${v.note ? ` · ${v.note}` : ''} ›</span>
           </button>`))}

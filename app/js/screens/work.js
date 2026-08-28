@@ -116,7 +116,7 @@ function nowView() {
       <div class="card">
         <div class="caps">Со сроком</div>
         ${due.slice(0, 5).map(x => raw(h`
-          <button class="row between care-name" data-act="task" data-id="${x.id}">
+          <button class="link-row" data-act="task" data-id="${x.id}">
             <span class="ink grow ellip">${x.title}</span>
             <span class="lab">${dueLabel(x.due)} ›</span>
           </button>`))}
@@ -219,7 +219,7 @@ function taskCard(t) {
 
 function taskRow(t) {
   return h`
-    <button class="row between care-name" data-act="task" data-id="${t.id}">
+    <button class="link-row" data-act="task" data-id="${t.id}">
       <span class="ink grow ellip">${t.title}</span>
       <span class="lab">${t.projectId ? workProjectName(t.projectId) : ''} ›</span>
     </button>`;
@@ -246,7 +246,7 @@ function roadView() {
       <div class="card">
         <div class="caps">Сейчас</div>
         ${now.map(j => raw(h`
-          <button class="row between care-name" data-act="job2" data-id="${j.id}">
+          <button class="link-row" data-act="job2" data-id="${j.id}">
             <span class="grow"><span class="ink">${j.title || 'без должности'}</span>
               <span class="lab"> · ${j.company}</span></span>
             <span class="lab">${spanLabel(jobSpan(j))} ›</span>
@@ -339,7 +339,7 @@ function winsCard(limit) {
       <div class="row between"><div class="caps">Опыт и победы</div>
         <button class="q-edit" data-act="winadd">+ запись</button></div>
       ${list.length ? raw(h`<div class="list">${list.map(x => raw(h`
-        <button class="row between care-name" data-act="win" data-id="${x.id}">
+        <button class="link-row" data-act="win" data-id="${x.id}">
           <span class="ink grow ellip">${x.title}</span>
           <span class="lab">${many() && x.jobId ? `${jobName(x.jobId)} · ` : ''}${dayShort(x.date)} ›</span>
         </button>`))}</div>`)
@@ -404,7 +404,7 @@ function pickJobForDay(date) {
     sub: 'какое место отмечаем',
     body: list.map(j => {
       const rec = dayOfJob(date, j.id);
-      return h`<button class="row between care-name" data-act="pick" data-v="${j.id}">
+      return h`<button class="link-row" data-act="pick" data-v="${j.id}">
         <span class="ink grow">${jobName(j.id)}</span>
         <span class="lab">${rec ? `${typeName(rec.type)}${rec.type === 'work' ? ` · ${hrs(rec.hours)}` : ''}` : 'не отмечено'} ›</span>
       </button>`;

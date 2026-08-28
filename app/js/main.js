@@ -96,8 +96,10 @@ function stickHead() {
   head.forEach(el => box.appendChild(el));
 
   // Высокая шапка съедала бы экран. Лишнее сверху возвращаем в поток:
-  // вкладки и стрелки полезнее заголовка, поэтому убираем с начала.
-  const max = scr.clientHeight * 0.45;
+  // вкладки и фильтры полезнее заголовка, поэтому убираем с начала. Треть —
+  // это примерно два ряда пилюль: на доске работы их три, и заголовок с
+  // кнопкой «назад» честнее отпустить, чем держать полэкрана занятым.
+  const max = scr.clientHeight / 3;
   while (box.children.length > 1 && box.offsetHeight > max) {
     scr.insertBefore(box.firstElementChild, box);
   }

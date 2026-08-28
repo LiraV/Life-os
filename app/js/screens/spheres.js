@@ -155,7 +155,7 @@ function shelfBody(key, sp) {
           <div class="row between"><div class="caps">${st.name}</div>
             <span class="lab">${list.length || ''}</span></div>
           ${list.length ? raw(h`<div class="list">${list.map(x => raw(h`
-            <button class="row between care-name" data-act="shelfedit" data-id="${x.id}">
+            <button class="link-row" data-act="shelfedit" data-id="${x.id}">
               <span class="ink grow ellip">${x.title}</span>
               <span class="lab">${x.rating ? '★'.repeat(x.rating) : (x.note || '')} ›</span>
             </button>`))}</div>`)
@@ -230,7 +230,7 @@ function measBody(key, sp) {
       <div class="card mute">
         <div class="caps">История</div>
         ${[...list].reverse().slice(0, 8).map(x => raw(h`
-          <button class="row between care-name" data-act="measedit" data-id="${x.id}">
+          <button class="link-row" data-act="measedit" data-id="${x.id}">
             <span class="lab">${dayShort(x.date)}</span>
             <span class="ink">${x.value} ${sp.unit || ''}</span>
             <span class="lab">${x.note || ''} ›</span>
@@ -432,7 +432,7 @@ function newSphereSheet() {
     sub: 'сначала выбери, на что она похожа',
     body: [
       TEMPLATES.map(t => h`
-        <button class="row between care-name" data-act="tpl" data-v="${t.id}">
+        <button class="link-row" data-act="tpl" data-v="${t.id}">
           <span class="ink grow">${t.icon} ${t.name}</span>
           <span class="lab">${t.hint} ›</span>
         </button>`).join(''),
