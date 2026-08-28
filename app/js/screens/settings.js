@@ -6,6 +6,7 @@ import { BUILD } from '../version.js';
 import { hasKey, maskKey, setKey, setModel, getModel, checkKey, DEFAULT_MODEL } from '../ai.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import { tipsOn, tipsReset, tipsDisable } from '../tips.js';
+import { APP_ICONS, iconKey, setAppIcon, iconById } from '../appicon.js';
 
 export function render() {
   const size = (() => {
@@ -82,6 +83,17 @@ export function render() {
     </div>
 
     <div class="card">
+      <div class="caps">Иконка приложения</div>
+      <div class="icon-grid">
+        ${APP_ICONS.map(i => raw(h`<button class="icon-pick ${i.key === iconKey() ? 'on' : ''}" data-act="icon" data-id="${i.key}">
+          <img src="icons/${i.key}-192.png" alt="${i.name}" width="64" height="64" loading="lazy">
+          <span class="ink">${i.name}</span>
+          <span class="lab">${i.note}</span></button>`))}
+      </div>
+      <div class="lab">Во вкладке браузера иконка меняется сразу. Ярлык, который уже стоит на экране «Домой», система нарисовала при установке и сама не обновит — чтобы увидеть новую, поставь ярлык заново.</div>
+    </div>
+
+    <div class="card">
       <div class="caps">Установить на телефон</div>
       <div class="ink">iPhone: «Поделиться» → «На экран „Домой“». Android: меню браузера → «Установить приложение».</div>
       <div class="lab">После установки открывается без браузера и работает офлайн.</div>
@@ -99,6 +111,12 @@ export function render() {
 }
 
 export const actions = {
+  icon: v => {
+    const key = v.id;
+    if (!key || key === iconKey()) return;
+    setAppIcon(key);
+    toast(`Иконка · ${iconById(key).name}`);
+  },
   tips: () => { if (tipsOn()) { tipsDisable(); toast('Выключила'); } else { tipsReset(); toast('Подсказки вернулись'); } },
   aikey: () => openSheet({
     title: 'Ключ OpenAI',

@@ -595,3 +595,15 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 /* Блюдо внутри приёма: не карточка в карточке, а строка с разделителем. */
 .meal-row{padding:8px 0; border-top:1px solid var(--track)}
 .meal-row:first-of-type{border-top:0}
+
+/* выбор иконки приложения: сама картинка и есть кнопка */
+.icon-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:8px}
+.icon-pick{display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center;
+  padding:8px 4px; border:1px solid transparent; border-radius:14px; background:none; cursor:pointer}
+.icon-pick img{width:64px; height:64px; border-radius:15px; display:block;
+  box-shadow:0 2px 8px rgba(0,0,0,.14)}
+.icon-pick .ink{font-size:12px}
+.icon-pick .lab{font-size:10px; line-height:1.2}
+.icon-pick.on{border-color:var(--accent); background:var(--tag-bg)}
+.icon-pick.on img{outline:2px solid var(--accent); outline-offset:2px}
+@media (hover: hover) and (pointer: fine){ .icon-pick:hover{background:var(--tag-bg)} }

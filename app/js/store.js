@@ -217,7 +217,7 @@ function blank() {
     tests: {},
     // tips: 'ask' — предложение ещё не показывали, 'on' — показываем, 'off' — отказалась
     ui: { tab: 'day', date: t, weekAnchor: t, monthAnchor: monthKey(t), year: yearOf(t), habitAnchor: t,
-          tips: 'ask', tipsSeen: {} },
+          tips: 'ask', tipsSeen: {}, icon: 'pearl' },
   };
 }
 

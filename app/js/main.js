@@ -5,6 +5,7 @@ import { S, onChange, update, updateQuiet, level, loadError, rescueRaw, acceptFr
 import { todayISO } from './dates.js';
 import { closeSheet, toast } from './ui.js';
 import { reconcile } from './traits.js';
+import { applyAppIcon } from './appicon.js';
 
 import * as onboarding from './screens/onboarding.js';
 import * as day from './screens/day.js';
@@ -262,6 +263,7 @@ export function render() {
   syncDesk();
   syncTraits();
   renderStatus();
+  applyAppIcon();
   if (!S.onboarded) {
     nav.hidden = true;
     scr.innerHTML = onboarding.render(route());
