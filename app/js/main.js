@@ -257,6 +257,9 @@ export function render() {
   // Сначала — не удалось ли прочитать данные. Иначе человека встретит
   // онбординг поверх целых, но непрочитанных данных: выглядит как «всё стёрлось».
   if (loadError) return renderRescue();
+  // Режим ноутбука — до всего остального: онбординг тоже экран, и он оставался
+  // телефонной колонкой посреди широкого окна.
+  syncDesk();
   syncTraits();
   renderStatus();
   if (!S.onboarded) {
@@ -270,11 +273,23 @@ export function render() {
   const keep = key === lastKey ? scr.scrollTop : 0;
   // Доска работы — единственный экран, которому тесно в телефонной рамке:
   // на широком экране приложение раскрывается во всю ширину.
-  syncDesk();
   // Доска работы и трекер года шире прочего: им отдаём всю ширину без колонок.
   app.classList.toggle('wide', name === 'tracker'
     || (name === 'work' && (S.ui.workTab || 'now') === 'board'));
-  scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
+  // Сбой в одном экране не должен оборачиваться пустой страницей: пустой экран
+  // невозможно ни понять, ни починить, а сообщение — можно.
+  try {
+    scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
+  } catch (e) {
+    console.error('[lifeos] экран не отрисовался', name, e);
+    scr.innerHTML = `
+      <div class="title">Экран не открылся</div>
+      <div class="card">
+        <div class="ink">Что-то сломалось при отрисовке «${name}». Данные целы — это ошибка показа.</div>
+        <div class="lab" style="margin-top:6px">${String(e?.message || e)}</div>
+        <div class="lab">Остальные разделы работают: перейди в другой и вернись.</div>
+      </div>`;
+  }
   stickHead();
   scr.classList.toggle('scrolled', scr.scrollTop > 2);
   SCREENS[name].afterRender?.();
