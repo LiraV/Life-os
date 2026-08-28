@@ -634,7 +634,7 @@ export function sphereParts(key, days) {
   if (key === 'money') return [quests,
     { label: 'операции', n: (S.budget.ops || []).filter(o => days.includes(o.date)).length }];
   if (key === 'work') return [quests,
-    { label: 'рабочие дни', n: days.filter(d => S.work.days[d]?.type === 'work').length },
+    { label: 'рабочие дни', n: days.filter(d => dayEntries(d).some(e => e.type === 'work')).length },
     { label: 'задачи', n: workDoneIn(days[days.length - 1], days[0]).length },
     { label: 'опыт', n: winsIn(days[days.length - 1], days[0]).length }];
   if (key === 'food') return [quests,
@@ -1350,141 +1350,147 @@ export function autoLabel(goal) {
 }
 
 // ── работа: наём ────────────────────────────────────────────────
-// График задаётся один раз, и из него считается норма дня. Поэтому отметить
-// день — это один тап, а не анкета: часы подставляются, а не вводятся.
+// Мест работы может быть несколько, и у каждого свой график, оклад, норма
+// офиса и отпуск. Поэтому всё считается по месту, а итог складывается —
+// но только там, где складывать честно: часы да, ставка нет.
 //
 // Экран считает нагрузку и границы, а не производительность: сколько часов,
 // сколько дней подряд, сколько в офисе. «Мало сделала» тут не считается.
 
-export const W = () => S.work;
-export const workJob = () => S.work.job;
+export const workJobs = () => S.work.jobs;
+/** Текущие места — те, у кого нет даты окончания. Их может быть несколько. */
+export const jobsNow = () => S.work.jobs.filter(j => !j.end)
+  .sort((a, b) => (a.start < b.start ? -1 : 1));
+export const jobById = id => S.work.jobs.find(j => j.id === id) || null;
+export const jobName = id => {
+  const j = jobById(id);
+  return j ? (j.company || j.title || 'Работа') : '';
+};
+/** Единственное текущее место — когда оно одно, экран не показывает выбор. */
+export const soleJob = () => (jobsNow().length === 1 ? jobsNow()[0] : null);
 
-/** Норма рабочего дня в часах: от начала до конца минус обед. */
-export function workDayNorm() {
-  const j = workJob();
-  const mins = toMin(j.end) - toMin(j.start) - (Number(j.lunch) || 0);
-  return Math.max(0, Math.round((mins / 60) * 100) / 100);
-}
 const toMin = t => { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
 
-/** Норма недели: рабочих дней по графику × норма дня. */
-export const workWeekNorm = () => (workJob().days || []).length * workDayNorm();
+/** Норма рабочего дня места: от начала до конца минус обед. */
+export function jobDayNorm(job) {
+  if (!job) return 0;
+  const sc = job.sched || {};
+  const mins = toMin(sc.end) - toMin(sc.start) - (Number(sc.lunch) || 0);
+  return Math.max(0, Math.round((mins / 60) * 100) / 100);
+}
+export const jobWeekNorm = job => (job?.sched?.days || []).length * jobDayNorm(job);
+/** Норма недели по всем текущим местам — их графики складываются. */
+export const weekNormAll = () => jobsNow().reduce((a, j) => a + jobWeekNorm(j), 0);
+/** Рабочий ли это день по графику места. */
+export const isJobDay = (job, date) => (job?.sched?.days || []).includes(dowIndex(date));
 
-export const workDay = date => S.work.days[date] || null;
-export const workDays = () => S.work.days;
-/** Рабочий ли это день по графику — чтобы не спрашивать про воскресенье. */
-export const isWorkday = date => (workJob().days || []).includes(dowIndex(date));
+/** Запись дня по месту: { type, hours, where, note } или null. */
+export const dayOfJob = (date, jobId) => (S.work.days[date] || {})[jobId] || null;
+/** Все записи дня: [{ jobId, ...запись }] — на случай двух мест в один день. */
+export const dayEntries = date => Object.entries(S.work.days[date] || {})
+  .map(([jobId, r]) => ({ jobId, ...r }));
 
-const daysOf = (from, to) => Object.keys(S.work.days).filter(d => d >= from && d <= to).sort();
+const datesIn = (from, to) => Object.keys(S.work.days).filter(d => d >= from && d <= to).sort();
+/** Записи за отрезок; jobId — по одному месту, null — по всем. */
+const recordsIn = (from, to, jobId = null) => datesIn(from, to)
+  .flatMap(d => dayEntries(d).filter(e => jobId === null || e.jobId === jobId).map(e => ({ ...e, date: d })));
+
+export const workHours = (from, to, jobId = null) => Math.round(recordsIn(from, to, jobId)
+  .reduce((a, e) => a + (e.type === 'work' ? Number(e.hours) || 0 : 0), 0) * 10) / 10;
+/** Дни, а не записи: два места в один день — это всё равно один рабочий день. */
+export const workedDays = (from, to, jobId = null) => new Set(recordsIn(from, to, jobId)
+  .filter(e => e.type === 'work').map(e => e.date)).size;
+export const officeDays = (from, to, jobId = null) => new Set(recordsIn(from, to, jobId)
+  .filter(e => e.type === 'work' && e.where === 'office').map(e => e.date)).size;
+export const daysOfType = (from, to, type, jobId = null) => new Set(recordsIn(from, to, jobId)
+  .filter(e => e.type === type).map(e => e.date)).size;
+
 const monthRange = ym => [`${ym}-01`, `${ym}-31`];
 
-/** Отработанные часы за отрезок. Отпуск и больничный часов не дают. */
-export const workHours = (from, to) => daysOf(from, to)
-  .reduce((a, d) => a + (S.work.days[d].type === 'work' ? Number(S.work.days[d].hours) || 0 : 0), 0);
-export const workedDays = (from, to) => daysOf(from, to).filter(d => S.work.days[d].type === 'work').length;
-export const officeDays = (from, to) => daysOf(from, to)
-  .filter(d => S.work.days[d].type === 'work' && S.work.days[d].where === 'office').length;
-export const daysOfType = (from, to, type) => daysOf(from, to).filter(d => S.work.days[d].type === type).length;
-
-export const workMonth = ym => {
+export const workMonth = (ym, jobId = null) => {
   const [from, to] = monthRange(ym);
   return {
-    hours: Math.round(workHours(from, to) * 10) / 10,
-    days: workedDays(from, to),
-    office: officeDays(from, to),
-    vacation: daysOfType(from, to, 'vacation'),
-    sick: daysOfType(from, to, 'sick'),
+    hours: workHours(from, to, jobId),
+    days: workedDays(from, to, jobId),
+    office: officeDays(from, to, jobId),
+    vacation: daysOfType(from, to, 'vacation', jobId),
+    sick: daysOfType(from, to, 'sick', jobId),
   };
 };
 
-export const workWeek = date => {
+export const workWeek = (date, jobId = null) => {
   const days = weekDates(date);
   const from = days[0], to = days[days.length - 1];
-  return { hours: Math.round(workHours(from, to) * 10) / 10, days: workedDays(from, to), office: officeDays(from, to) };
+  return { hours: workHours(from, to, jobId), days: workedDays(from, to, jobId), office: officeDays(from, to, jobId) };
 };
 
-/** Сколько дней подряд работала без единого выходного — считаем назад от сегодня. */
+/** Сколько дней подряд работала без единого выходного — по всем местам сразу. */
 export function workStreak(from = todayISO()) {
   let n = 0;
   for (let i = 0; i < 60; i++) {
     const d = addDays(from, -i);
-    const rec = S.work.days[d];
-    if (rec && rec.type === 'work') n++;
+    const worked = dayEntries(d).some(e => e.type === 'work');
+    if (worked) n++;
     else if (i === 0) continue;      // сегодня могли ещё не отметить
     else break;
   }
   return n;
 }
 
-/** Переработка за отрезок: всё, что сверх нормы дня. */
-export const workOver = (from, to) => Math.round(daysOf(from, to)
-  .reduce((a, d) => a + (S.work.days[d].type === 'work'
-    ? Math.max(0, (Number(S.work.days[d].hours) || 0) - workDayNorm()) : 0), 0) * 10) / 10;
+/** Переработка: всё, что сверх нормы дня своего места. */
+export const workOver = (from, to, jobId = null) => Math.round(recordsIn(from, to, jobId)
+  .reduce((a, e) => a + (e.type === 'work'
+    ? Math.max(0, (Number(e.hours) || 0) - jobDayNorm(jobById(e.jobId))) : 0), 0) * 10) / 10;
 
 /**
- * Фактическая ставка за час: оклад делённый на реально отработанные часы.
- * Число отрезвляющее — переработка его снижает, и это видно.
+ * Сколько стоит час у этого места: его оклад делённый на его же часы.
+ * По всем местам сразу такое число не считается — складывать ставки разных
+ * работодателей бессмысленно, а среднее было бы красивым враньём.
  */
-export function workRate(ym) {
-  const salary = currentSalary();
-  const m = workMonth(ym);
-  if (!salary || !m.hours) return null;
-  return { rate: Math.round(salary / m.hours), hours: m.hours, salary };
+export function jobRate(job, ym) {
+  if (!job || !Number(job.salary)) return null;
+  const m = workMonth(ym, job.id);
+  if (!m.hours) return null;
+  return { rate: Math.round(Number(job.salary) / m.hours), hours: m.hours, salary: Number(job.salary) };
 }
+/** Суммарный доход текущих мест до налогов — это складывать честно. */
+export const salaryAll = () => jobsNow().reduce((a, j) => a + (Number(j.salary) || 0), 0);
 
-/** Отпуск за год: сколько использовано из положенного. */
-export function workVacation(year = todayISO().slice(0, 4)) {
-  const used = daysOfType(`${year}-01-01`, `${year}-12-31`, 'vacation');
-  const total = Math.max(0, Number(workJob().vacationDays) || 0);
+/** Отпуск за год по месту: сколько использовано из положенного. */
+export function jobVacation(job, year = todayISO().slice(0, 4)) {
+  const used = daysOfType(`${year}-01-01`, `${year}-12-31`, 'vacation', job?.id ?? null);
+  const total = Math.max(0, Number(job?.vacationDays) || 0);
   return { used, total, left: Math.max(0, total - used) };
 }
 
 // ── проекты, задачи, победы ─────────────────────────────────────
-export const workProjects = () => S.work.projects.filter(p => !p.archived);
+export const workProjects = jobId => S.work.projects
+  .filter(p => !p.archived && (jobId == null || (p.jobId || '') === jobId));
 export const workProject = id => S.work.projects.find(p => p.id === id) || null;
 export const workProjectName = id => workProject(id)?.name || 'без проекта';
 
-export const workTasks = () => S.work.tasks;
-export const tasksInStage = (stage, projectId = null) => workTasks()
+export const workTasks = jobId => S.work.tasks.filter(t => jobId == null || (t.jobId || '') === jobId);
+export const tasksInStage = (stage, projectId = null, jobId = null) => workTasks(jobId)
   .filter(t => t.stage === stage && (projectId === null || (t.projectId || '') === projectId));
-export const tasksOfProject = id => workTasks().filter(t => (t.projectId || '') === id);
-export const workDoneIn = (from, to) => workTasks()
+export const workDoneIn = (from, to, jobId = null) => workTasks(jobId)
   .filter(t => t.stage === 'done' && t.stageAt && t.stageAt >= from && t.stageAt <= to);
 /** Задачи со сроком, который уже прошёл или подходит. Без красного — просто список. */
-export const workDue = (within = 7) => workTasks()
+export const workDue = (within = 7, jobId = null) => workTasks(jobId)
   .filter(t => t.stage !== 'done' && t.due && diffDays(t.due, todayISO()) <= within)
   .sort((a, b) => (a.due < b.due ? -1 : 1));
 
-export const workWins = () => [...S.work.wins].sort((a, b) => (a.date < b.date ? 1 : -1));
-export const winsIn = (from, to) => S.work.wins.filter(x => x.date >= from && x.date <= to);
+export const workWins = jobId => S.work.wins
+  .filter(x => jobId == null || (x.jobId || '') === jobId)
+  .sort((a, b) => (a.date < b.date ? 1 : -1));
+export const winsIn = (from, to, jobId = null) => workWins(jobId).filter(x => x.date >= from && x.date <= to);
 
-// ── карьерный путь ──────────────────────────────────────────────
-// Треков может быть несколько: наём и своё дело идут параллельно, и
-// складывать их стаж в одно число было бы враньём. Поэтому итог считается
-// по каждому треку отдельно, а пересекающиеся периоды внутри трека
-// объединяются — две должности в одной компании не удваивают стаж.
+// ── путь ────────────────────────────────────────────────────────
+// Места работы во времени. Пересекаться они могут — два найма разом это
+// нормально, и на шкале это видно как есть.
 
-export const careerTracks = () => S.work.tracks.filter(t => !t.archived);
-export const trackById = id => S.work.tracks.find(t => t.id === id) || null;
-export const trackName = id => trackById(id)?.name || 'Без трека';
+/** Все места, новые сверху. */
+export const careerLine = () => [...S.work.jobs].sort((a, b) => (a.start < b.start ? 1 : -1));
 
-/** Должности трека, новые сверху. Без трека — тоже трек, просто безымянный. */
-export const careerIn = trackId => S.work.career
-  .filter(x => (x.trackId || '') === trackId)
-  .sort((a, b) => (a.start < b.start ? 1 : -1));
-
-/** Текущие — те, у кого нет даты окончания. Их может быть несколько. */
-export const careerCurrent = () => S.work.career.filter(x => !x.end)
-  .sort((a, b) => (a.start < b.start ? 1 : -1));
-
-/** Треки, в которых что-то есть, — включая безымянный. */
-export const careerTrackIds = () => {
-  const used = [...new Set(S.work.career.map(x => x.trackId || ''))];
-  const known = careerTracks().map(t => t.id);
-  return [...new Set([...known, ...used])];
-};
-
-/** Сколько месяцев прошло от одного месяца до другого. */
 const monthsBetween = (a, b) => {
   const [y1, m1] = a.split('-').map(Number);
   const [y2, m2] = b.split('-').map(Number);
@@ -1496,9 +1502,7 @@ const monthsBetween = (a, b) => {
  * месяцев, а не шесть, — декабрь отработан целиком. Так же считают в резюме.
  */
 const monthSpan = (a, b) => monthsBetween(a, b) + 1;
-
-/** Длительность должности в месяцах. Незакрытая считается по сегодня. */
-export const careerSpan = x => monthSpan(x.start.slice(0, 7), (x.end || todayISO()).slice(0, 7));
+export const jobSpan = j => monthSpan(j.start.slice(0, 7), (j.end || todayISO()).slice(0, 7));
 
 /** «1 год 2 месяца» — длительность словами. */
 export function spanLabel(months) {
@@ -1509,12 +1513,12 @@ export function spanLabel(months) {
 }
 
 /**
- * Стаж по треку: пересекающиеся периоды объединяются, поэтому две должности
- * в одной компании подряд не считаются дважды.
+ * Общий стаж: пересекающиеся периоды объединяются. Два найма разом — это
+ * по-прежнему один календарный отрезок жизни, а не двойной стаж.
  */
-export function trackTotal(trackId) {
-  const list = careerIn(trackId)
-    .map(x => [x.start.slice(0, 7), (x.end || todayISO()).slice(0, 7)])
+export function careerTotal() {
+  const list = S.work.jobs
+    .map(j => [j.start.slice(0, 7), (j.end || todayISO()).slice(0, 7)])
     .sort((a, b) => (a[0] < b[0] ? -1 : 1));
   if (!list.length) return 0;
   const merged = [list[0]];
@@ -1526,21 +1530,19 @@ export function trackTotal(trackId) {
   return merged.reduce((a, [from, to]) => a + monthSpan(from, to), 0);
 }
 
-/** Перерыв между двумя соседними должностями трека — если он был. */
-export function careerGap(trackId, index) {
-  const list = careerIn(trackId);
-  const newer = list[index], older = list[index + 1];
-  if (!newer || !older || !older.end) return 0;
-  // Месяц, в котором работа закончилась, отработан — в перерыв он не идёт.
-  return Math.max(0, monthsBetween(older.end.slice(0, 7), newer.start.slice(0, 7)) - 1);
-}
-
-/**
- * Оклад для расчёта часа. Он живёт у текущей должности — там, где ему место.
- * Поле в графике осталось только как запас для тех, кто вписал его до того,
- * как появился «Путь»: терять уже введённое из-за переезда поля нельзя.
- */
-export function currentSalary() {
-  const paid = careerCurrent().find(x => Number(x.salary) > 0);
-  return paid ? Number(paid.salary) : Math.max(0, Number(workJob().salary) || 0);
+/** Перерыв перед этим местом — если в это время не было вообще никакой работы. */
+export function careerGap(index) {
+  const list = careerLine();
+  const newer = list[index];
+  if (!newer) return 0;
+  const older = list.slice(index + 1);
+  if (!older.length) return 0;
+  // Ищем самое позднее окончание среди всех прошлых мест: пока хоть одно
+  // из них ещё длилось, перерыва не было.
+  const lastEnd = older.reduce((best, j) => {
+    const e = j.end || todayISO();
+    return e > best ? e : best;
+  }, '');
+  if (!lastEnd || older.some(j => !j.end)) return 0;
+  return Math.max(0, monthsBetween(lastEnd.slice(0, 7), newer.start.slice(0, 7)) - 1);
 }

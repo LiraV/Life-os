@@ -7,7 +7,7 @@ import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions,
   sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleOfSphere,
   SHELF_STATUS, sphereShelf, shelfBy, BOARD_STAGES, sphereBoard, boardBy,
-  sphereColl, collYear, sphereMeas, measLast, measRecord, workWeek } from '../selectors.js';
+  sphereColl, collYear, sphereMeas, measLast, measRecord, workWeek, jobsNow } from '../selectors.js';
 import { sums } from './food.js';
 import { balanceAt, money } from './budget.js';
 import { studyNow, workoutsIn } from '../selectors.js';
@@ -30,7 +30,7 @@ function grid() {
         const food = sp.key === 'food' ? sums(todayISO()) : null;
         const bal = sp.key === 'money' ? balanceAt(todayISO().slice(0, 7)) : null;
         const stu = sp.key === 'study' ? studyNow() : null;
-        const wk = sp.key === 'work' ? workWeek(todayISO()) : null;
+        const wk = sp.key === 'work' ? { ...workWeek(todayISO()), jobs: jobsNow().length } : null;
         const edu = sp.key === 'edu'
           ? liveLessons().filter(l => !l.paused).reduce((a, l) => a + lessonMonth(l, todayISO().slice(0, 7)), 0)
           : null;
@@ -39,7 +39,7 @@ function grid() {
             ${sp.img ? raw(h`<img src="${sp.img}" alt="">`) : raw(h`<div class="tile-emoji">${sp.icon}</div>`)}
             <span class="tile-badge">${sp.mech}</span>
             <b>${sp.name}</b>
-            <span>${wk ? (wk.days ? `${wk.hours} ч за неделю` : 'неделя не отмечена')
+            <span>${wk ? (!wk.jobs ? 'место не заведено' : wk.days ? `${wk.hours} ч за неделю` : 'неделя не отмечена')
               : food ? `сегодня ${food.kcal} ккал`
               : bal != null ? `остаток ${money(bal)}`
               : edu != null ? (edu ? `${edu} занятий за месяц` : 'полка занятий')

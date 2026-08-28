@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 33;
+const VERSION = 34;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -46,14 +46,16 @@ export const WORK_STAGES = [
   { key: 'done', name: 'Готово' },
 ];
 
-/** Чем была работа. Список короткий намеренно: это подпись, а не анкета. */
+/** Виды найма. Фриланса и своего дела тут нет намеренно: сфера про наём,
+ *  а остальное станет отдельными сферами со своей механикой. */
 export const WORK_KINDS = [
   { key: 'job', name: 'Наём' },
-  { key: 'freelance', name: 'Фриланс' },
-  { key: 'own', name: 'Своё дело' },
+  { key: 'part', name: 'Подработка' },
   { key: 'intern', name: 'Стажировка' },
-  { key: 'volunteer', name: 'Волонтёрство' },
 ];
+
+/** График по умолчанию у нового места. Правится в самом месте. */
+export const blankSched = () => ({ days: [0, 1, 2, 3, 4], start: '09:00', end: '18:00', lunch: 60 });
 
 export const XP = { quest: 10, boss: 40, habit: 3, step: 15, measure: 5, reflection: 8, test: 25 };
 
@@ -77,19 +79,16 @@ function blank() {
     quests: {},          // { 'YYYY-MM-DD': [quest] }
     inbox: [],           // входящее без даты: { id, text, note, sphere, createdAt }
                          // ничего отсюда не уходит само — переносит человек
-    work: {              // сфера «Работа»: наём — один график, свои проекты и доска
-      projects: [],      // { id, name, archived } — задача может быть и без проекта
-      tasks: [],         // { id, title, projectId, stage, stageAt, due, note, createdAt }
-      days: {},          // { 'YYYY-MM-DD': { type, hours, where, note } }
+    work: {              // сфера «Работа»: наём. Мест работы может быть несколько,
+                         // и у каждого свой график, оклад, норма офиса и отпуск.
+      jobs: [],          // { id, company, title, kind, start, end, salary, note,
+                         //   sched: { days: [], start, end, lunch }, officeNorm, vacationDays }
+                         // без end — значит, работаю там сейчас
+      days: {},          // { 'YYYY-MM-DD': { <id места>: { type, hours, where, note } } }
                          // type: 'work' | 'vacation' | 'sick' | 'off'; where: 'office' | 'home'
-      wins: [],          // опыт и победы: { id, date, title, note }
-      tracks: [],        // карьерные треки: { id, name, archived } — линий может быть несколько
-      career: [],        // должности: { id, trackId, company, title, kind, start, end, salary, note }
-                         // без end — значит, текущая
-      // График нужен, чтобы не спрашивать часы каждый день: норма считается из него.
-      // Дни недели нумеруются как везде в приложении: 0 — понедельник.
-      job: { start: '11:00', end: '18:00', lunch: 60, days: [0, 1, 2, 3, 4],
-             salary: 0, catId: '', officeNorm: 0, vacationDays: 28 },
+      projects: [],      // { id, name, jobId, archived } — задача может быть и без проекта
+      tasks: [],         // { id, title, projectId, jobId, stage, stageAt, due, note, createdAt }
+      wins: [],          // опыт и победы: { id, date, title, note, jobId }
     },
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
@@ -393,22 +392,66 @@ function migrate(s) {
     ),
   }));
 
-  // v31 → v32: сфера «Работа» — наём. График задаётся один раз, из него
-  // считается норма дня, поэтому отметка дня — это один тап, а не анкета.
+  // v33 → v34: мест работы стало несколько. Раньше график, оклад и норма
+  // офиса были одни на человека, а отметка дня не знала, к какому месту она
+  // относится, — со вторым наймом это перестало быть правдой.
+  //
+  // Перенос: должности из «Пути» и есть места работы, к ним добавляется
+  // график. Если отметки дней уже были, а места ни одного, заводим одно —
+  // названное общим словом «Работа», а не выдуманной компанией: имя человек
+  // впишет сам, а терять отмеченные дни нельзя.
   const w = merged.work && typeof merged.work === 'object' ? merged.work : {};
+  const oldJob = w.job && typeof w.job === 'object' ? w.job : null;
+  const oldSched = () => ({
+    days: Array.isArray(oldJob?.days) ? oldJob.days : blankSched().days,
+    start: oldJob?.start || blankSched().start,
+    end: oldJob?.end || blankSched().end,
+    lunch: Number(oldJob?.lunch) >= 0 ? Number(oldJob.lunch) : 60,
+  });
+
+  let jobs = Array.isArray(w.jobs) ? w.jobs : null;
+  if (!jobs) {
+    // Должности прошлой версии становятся местами работы.
+    jobs = (Array.isArray(w.career) ? w.career : []).map(x => ({
+      id: x.id, company: x.company || '', title: x.title || '', kind: x.kind || 'job',
+      start: x.start, end: x.end || '', salary: Math.max(0, Number(x.salary) || 0),
+      note: x.note || '', sched: oldSched(),
+      officeNorm: Math.max(0, Number(oldJob?.officeNorm) || 0),
+      vacationDays: Number(oldJob?.vacationDays) >= 0 ? Number(oldJob.vacationDays) : 28,
+    }));
+  }
+  const dayRecords = w.days && typeof w.days === 'object' ? w.days : {};
+  const flatDays = Object.values(dayRecords).some(r => r && typeof r.type === 'string');
+  if (flatDays && !jobs.length) {
+    jobs = [{
+      id: uid(), company: 'Работа', title: '', kind: 'job',
+      start: Object.keys(dayRecords).sort()[0] || todayISO(), end: '',
+      salary: Math.max(0, Number(oldJob?.salary) || 0), note: '', sched: oldSched(),
+      officeNorm: Math.max(0, Number(oldJob?.officeNorm) || 0),
+      vacationDays: Number(oldJob?.vacationDays) >= 0 ? Number(oldJob.vacationDays) : 28,
+    }];
+  }
+  const mainJob = jobs.find(j => !j.end)?.id || jobs[0]?.id || '';
+
   merged.work = {
-    projects: Array.isArray(w.projects) ? w.projects : [],
+    jobs: jobs.map(j => ({
+      ...j, kind: WORK_KINDS.some(k => k.key === j.kind) ? j.kind : 'job',
+      sched: { ...blankSched(), ...(j.sched && typeof j.sched === 'object' ? j.sched : {}) },
+      salary: Math.max(0, Number(j.salary) || 0),
+      officeNorm: Math.max(0, Number(j.officeNorm) || 0),
+      vacationDays: Number(j.vacationDays) >= 0 ? Number(j.vacationDays) : 28,
+    })),
+    // Плоская отметка дня переезжает под место работы, а не пропадает.
+    days: Object.fromEntries(Object.entries(dayRecords).map(([d, r]) => [d,
+      (r && typeof r.type === 'string')
+        ? { [mainJob]: { type: r.type, hours: Number(r.hours) || 0, where: r.where === 'home' ? 'home' : 'office', note: r.note || '' } }
+        : (r && typeof r === 'object' ? r : {})]).filter(([, r]) => Object.keys(r).length)),
+    projects: (Array.isArray(w.projects) ? w.projects : []).map(x => ({ ...x, jobId: x.jobId || mainJob })),
     tasks: (Array.isArray(w.tasks) ? w.tasks : []).map(t => ({
-      ...t, projectId: t.projectId || '', stage: WORK_STAGES.some(x => x.key === t.stage) ? t.stage : 'queue',
+      ...t, projectId: t.projectId || '', jobId: t.jobId || mainJob,
+      stage: WORK_STAGES.some(x => x.key === t.stage) ? t.stage : 'queue',
     })),
-    days: w.days && typeof w.days === 'object' ? w.days : {},
-    wins: Array.isArray(w.wins) ? w.wins : [],
-    tracks: Array.isArray(w.tracks) ? w.tracks : [],
-    career: (Array.isArray(w.career) ? w.career : []).map(x => ({
-      ...x, trackId: x.trackId || '', kind: WORK_KINDS.some(k => k.key === x.kind) ? x.kind : 'job',
-      salary: Math.max(0, Number(x.salary) || 0),
-    })),
-    job: { ...base.work.job, ...(w.job && typeof w.job === 'object' ? w.job : {}) },
+    wins: (Array.isArray(w.wins) ? w.wins : []).map(x => ({ ...x, jobId: x.jobId || mainJob })),
   };
 
   // v30 → v31: инбокс. Место, куда мысль кладут, не решая сразу, когда её делать:
