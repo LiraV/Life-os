@@ -3,7 +3,7 @@
 // Код приложения отдаётся из сети в первую очередь, кеш — только запасной
 // вариант офлайна. Обратный порядок означал бы, что после выкладки на телефоне
 // ещё долго крутится старая сборка.
-const VERSION = 'lifeos-v76';
+const VERSION = 'lifeos-v77';
 const ASSETS = 'lifeos-assets-v1';
 const FONTS = 'lifeos-fonts-v1';
 
@@ -37,6 +37,7 @@ const SHELL = [
   './app/js/screens/study.js',
   './app/js/screens/sport.js',
   './app/js/appicon.js',
+  './app/js/sphereart.js',
   './manifest.webmanifest',
   './manifest-spiral.webmanifest',
   './manifest-moon.webmanifest',
@@ -66,6 +67,11 @@ const MEDIA = [
   './icons/citrus-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
+  './assets/spheres/travel.webp',
+  './assets/spheres/care.webp',
+  './assets/spheres/move.webp',
+  './assets/spheres/read.webp',
+  './assets/spheres/money.webp',
   './assets/illustration_01.png',
   './assets/illustration_02.png',
   './assets/illustration_03.png',

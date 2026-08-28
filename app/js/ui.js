@@ -164,6 +164,16 @@ export const field = {
       </div>`;
   },
 
+  /** Выбор картинки: та же механика, что у пилюль, только вместо подписи —
+   *  сама обложка. Значение так же уезжает в скрытый input. */
+  pics: (name, label, options, value) => h`
+    <div class="fld"><span>${label}</span>
+      <div class="opts pics" data-name="${name}">
+        <input type="hidden" name="${name}" value="${value ?? ''}">
+        ${options.map(o => raw(h`<button type="button" class="opt pic ${o.key === value ? 'on' : ''}" data-value="${o.key}" title="${o.name}">
+          <img src="${o.src}" alt="${o.name}" loading="lazy"><span>${o.name}</span></button>`))}
+      </div></div>`,
+
   note: text => h`<p class="fld-note">${text}</p>`,
 };
 

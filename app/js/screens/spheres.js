@@ -4,6 +4,7 @@
 import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken } from '../store.js';
 import { todayISO, addDays, monthKey, monthTitle, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
+import { SPHERE_ART, DEFAULT_ART, artSrc } from '../sphereart.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions,
   sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleOfSphere,
   SHELF_STATUS, sphereShelf, shelfBy, BOARD_STAGES, sphereBoard, boardBy,
@@ -56,7 +57,7 @@ function grid() {
       <div class="card mute">
         <div class="caps">Убраны с глаз</div>
         <div class="lab">Данные на месте — просто не мозолят глаза.</div>
-        <div class="pills">${hidden().map(sp => raw(h`<button class="pill" data-act="unhide" data-v="${sp.key}">${sp.icon || ''} ${sp.name}</button>`))}</div>
+        <div class="pills">${hidden().map(sp => raw(h`<button class="pill" data-act="unhide" data-v="${sp.key}">${sp.img ? raw(h`<img class="pill-art" src="${sp.img}" alt="">`) : (sp.icon || '')} ${sp.name}</button>`))}</div>
       </div>`) : ''}
     <div class="card dash">
       <div class="lab">Сферы — это не отчёт. Пустая сфера не отнимает ничего,
@@ -399,19 +400,19 @@ function measSheet(id) {
 
 /** Заготовки: шаблон только заполняет форму, сам ничего не создаёт. */
 const TEMPLATES = [
-  { id: 'practice', name: 'Практика', icon: '🌱', mech: 'практика', kinds: ['log'], unit: 'раз',
+  { id: 'practice', name: 'Практика', icon: '🌱', art: 'move', mech: 'практика', kinds: ['log'], unit: 'раз',
     hint: 'медитация, рисование, гитара — важно, как часто' },
-  { id: 'shelf', name: 'Полка', icon: '📺', mech: 'полка', kinds: ['shelf'], unit: 'Запись',
+  { id: 'shelf', name: 'Полка', icon: '📺', art: 'read', mech: 'полка', kinds: ['shelf'], unit: 'Запись',
     hint: 'сериалы, игры, фильмы — важно, что смотришь и что досмотрел' },
-  { id: 'coll', name: 'Коллекция', icon: '🗃', mech: 'коллекция', kinds: ['coll'], unit: 'штук',
+  { id: 'coll', name: 'Коллекция', icon: '🗃', art: 'photo', mech: 'коллекция', kinds: ['coll'], unit: 'штук',
     hint: 'пластинки, растения, концерты — важно, сколько набралось' },
-  { id: 'board', name: 'Доска', icon: '🗂', mech: 'доска', kinds: ['board'], unit: 'дел',
+  { id: 'board', name: 'Доска', icon: '🗂', art: 'sign', mech: 'доска', kinds: ['board'], unit: 'дел',
     hint: 'ремонт, заказы, фриланс — важно, что на какой стадии' },
-  { id: 'projects', name: 'Список дел', icon: '🔨', mech: 'проекты', kinds: ['steps'], unit: 'шагов',
+  { id: 'projects', name: 'Список дел', icon: '🔨', art: 'plan', mech: 'проекты', kinds: ['steps'], unit: 'шагов',
     hint: 'простой список с галочками и прогрессом' },
-  { id: 'meas', name: 'Дневник числа', icon: '📈', mech: 'замеры', kinds: ['meas'], unit: 'баллов',
+  { id: 'meas', name: 'Дневник числа', icon: '📈', art: 'note', mech: 'замеры', kinds: ['meas'], unit: 'баллов',
     hint: 'настроение, шаги, часы за рулём — важно, как меняется' },
-  { id: 'blank', name: 'С нуля', icon: '✦', mech: 'своя', kinds: ['steps'], unit: 'раз',
+  { id: 'blank', name: 'С нуля', icon: '✦', art: 'city', mech: 'своя', kinds: ['steps'], unit: 'раз',
     hint: 'выберешь всё сам' },
 ];
 
@@ -433,7 +434,8 @@ function newSphereSheet() {
     body: [
       TEMPLATES.map(t => h`
         <button class="link-row" data-act="tpl" data-v="${t.id}">
-          <span class="ink grow">${t.icon} ${t.name}</span>
+          <img class="tpl-art" src="${artSrc(t.art)}" alt="" loading="lazy">
+          <span class="ink grow">${t.name}</span>
           <span class="lab">${t.hint} ›</span>
         </button>`).join(''),
       field.note('Заготовка только заполнит форму — можно поменять всё до создания и после. Пока не нажмёшь «Создать», ничего не появится.'),
@@ -450,14 +452,14 @@ function newSphereSheet() {
 function sphereSheet(key, tpl) {
   const own = key ? S.customSpheres.find(x => x.key === key) : null;
   const built = key && !own ? sphereOf(key) : null;
-  const base = own || tpl || { name: '', icon: '✦', mech: 'своя', kinds: ['steps'], unit: 'раз' };
+  const base = own || tpl || { name: '', icon: '✦', art: DEFAULT_ART, mech: 'своя', kinds: ['steps'], unit: 'раз' };
   const kinds = base.kinds || [];
   openSheet({
     title: built ? built.name : own ? own.name : 'Своя сфера',
     sub: built ? 'встроенная сфера — можно сменить роль или убрать с глаз' : 'что это и что она считает',
     body: [
       built ? '' : field.text('name', 'Название', base.name, 'например, «Музыка»'),
-      built ? '' : field.text('icon', 'Значок', base.icon, 'один эмодзи'),
+      built ? '' : field.pics('art', 'Обложка', SPHERE_ART, base.art || DEFAULT_ART),
       built ? '' : field.text('mech', 'Подпись на плитке', base.mech, 'коротко: практика, проекты'),
       built ? '' : `<div class="fld"><span>Что она считает</span>
         ${KINDS.map(([k, name, hint]) => `<label class="row tight" style="font-size:13px">
@@ -485,7 +487,7 @@ function sphereSheet(key, tpl) {
       update(s => {
         if (!built) {
           const next = {
-            key: id, name, icon: (v.icon || '✦').trim().slice(0, 4) || '✦',
+            key: id, name, art: SPHERE_ART.some(a => a.key === v.art) ? v.art : DEFAULT_ART,
             mech: (v.mech || 'своя').trim() || 'своя', kinds: picked,
             unit: (v.unit || 'раз').trim() || 'раз',
             dir: ['up', 'down'].includes(v.dir) ? v.dir : 'none', archived: false,

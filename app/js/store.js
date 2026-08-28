@@ -13,13 +13,15 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 38;
+const VERSION = 39;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
   edu: 'scholar', study: 'scholar', books: 'reader', sport: 'athlete',
   food: 'healer', blog: 'artist', work: 'master', money: 'keeper', trips: 'wanderer',
 };
+
+import { artSrc } from './sphereart.js';
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -38,7 +40,10 @@ export const SPHERES = [
 export const blankSphere = () => ({ items: [], note: '', vault: null, log: {}, shelf: [], coll: [], board: [], meas: [] });
 
 /** Все сферы: встроенные из кода плюс свои из состояния. Архивные не в счёт. */
-export const allSpheres = () => [...SPHERES, ...(S.customSpheres || []).filter(sp => !sp.archived)];
+/** Своя сфера с готовой обложкой: путь к картинке выводим из ключа, а не
+ *  храним в данных — иначе переезд файла разошёлся бы с сохранённым. */
+export const withArt = sp => (sp.art ? { ...sp, img: artSrc(sp.art) } : sp);
+export const allSpheres = () => [...SPHERES, ...(S.customSpheres || []).filter(sp => !sp.archived).map(withArt)];
 /** Те, что показываем плитками: скрытые остаются в данных, но не мозолят глаза. */
 export const visibleSpheres = () => allSpheres().filter(sp => !(S.spheresHidden || []).includes(sp.key));
 export const isCustomSphere = key => (S.customSpheres || []).some(sp => sp.key === key);
@@ -589,6 +594,9 @@ function migrate(s) {
   }]));
   merged.customSpheres = (Array.isArray(merged.customSpheres) ? merged.customSpheres : []).map(sp => ({
     key: sp.key, name: sp.name || 'Сфера', icon: sp.icon || '✦', mech: sp.mech || 'своя',
+    // v38 → v39: у своих сфер появилась обложка. Старым её не придумываем —
+    // без ключа рисуется прежний значок, пока человек не выберет картинку сам.
+    art: typeof sp.art === 'string' ? sp.art : '',
     kinds: Array.isArray(sp.kinds) && sp.kinds.length ? sp.kinds : ['steps'],
     unit: sp.unit || 'раз', dir: sp.dir === 'down' ? 'down' : sp.dir === 'up' ? 'up' : 'none',
     archived: !!sp.archived,
