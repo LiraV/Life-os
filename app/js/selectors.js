@@ -1,7 +1,8 @@
 // Производные значения. Ничего не хранят — считают из состояния,
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
-import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS } from './store.js';
+import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS, energyRec, energyAt, energyOn } from './store.js';
+export { energyRec, energyAt, energyOn };
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
 import { COUNTRIES, countryBy, REGIONS } from './countries.js';
 import { isMale } from './gender.js';
@@ -20,20 +21,47 @@ export const inboxAge = it => diffDays(todayISO(), it.createdAt);
 // экраном «такой сферы нет».
 export const sphereOf = key => allSpheres().find(s => s.key === key);
 
-/** Кривая энергии по хронотипу: 6 блоков от утра к ночи. */
+/** Кривая энергии: 6 блоков от утра к ночи. */
 export const ENERGY_BLOCKS = ['7–10', '10–13', '13–16', '16–19', '19–22', '22–01'];
 const CURVES = {
   'сова':       [22, 40, 46, 62, 95, 78],
   'жаворонок':  [82, 95, 72, 54, 38, 18],
   'плавает':    [48, 70, 64, 72, 62, 36],
 };
-/** Заработанная «Ранняя пташка» перебивает хронотип: факты важнее анкеты. */
-export const energyCurve = () => {
+
+/** Кривая из анкеты. Заработанная «Ранняя пташка» перебивает хронотип: факты важнее анкеты. */
+export const presetCurve = () => {
   const e = effects();
   if (e.peak === 'morning') return CURVES['жаворонок'];
   if (e.peak === 'evening') return CURVES['сова'];
   return CURVES[S.user.chronotype] || CURVES['плавает'];
 };
+
+// ── отметки энергии ─────────────────────────────────────────────
+// Отметка привязана к блоку дня: одно число в сутки не говорит, когда оно
+// было, и кривая по нему учиться не может.
+
+/** Сколько дней должно отметиться в блоке, чтобы верить своим данным, а не анкете. */
+const CURVE_MIN = 3;
+
+/**
+ * Кривая дня по блокам. Там, где отметок хватает, берётся среднее по ним;
+ * где нет — остаётся анкета. Возвращаем и то, откуда взято число: рисовать
+ * предположение так же, как факт, — то же самое, что выдумывать.
+ */
+export function curveInfo(days = 60) {
+  const dates = Array.from({ length: days }, (_, i) => addDays(todayISO(), -i));
+  const preset = presetCurve();
+  return ENERGY_BLOCKS.map((_, i) => {
+    const vals = dates.map(d => energyAt(d, i)).filter(v => v != null);
+    if (vals.length < CURVE_MIN) return { value: preset[i], own: false, n: vals.length };
+    return { value: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length), own: true, n: vals.length };
+  });
+}
+export const energyCurve = () => curveInfo().map(x => x.value);
+/** Сколько блоков кривой уже держится на своих отметках. */
+export const curveOwn = () => curveInfo().filter(x => x.own).length;
+
 export const peakBlock = () => { const c = energyCurve(); return c.indexOf(Math.max(...c)); };
 export const peakLabel = () => ENERGY_BLOCKS[peakBlock()];
 
@@ -478,17 +506,17 @@ export function measureDeltas() {
 }
 
 // ── энергия ─────────────────────────────────────────────────────
-export const energyDays = () => Object.keys(S.energy).filter(d => S.energy[d] != null).sort();
+export const energyDays = () => Object.keys(S.energy).filter(d => energyOn(d) != null).sort();
 const mean = list => (list.length ? Math.round(list.reduce((a, b) => a + b, 0) / list.length) : null);
 
 /** Средняя энергия за месяц — для строки в годовом трекере. */
-export const energyMonth = ym => mean(energyDays().filter(d => d.startsWith(ym)).map(d => S.energy[d]));
+export const energyMonth = ym => mean(energyDays().filter(d => d.startsWith(ym)).map(d => energyOn(d)));
 
 /** Последние N дней подряд: и пустые тоже, чтобы график не врал про пропуски. */
 export function energyRecent(n = 30) {
   return Array.from({ length: n }, (_, i) => {
     const d = addDays(todayISO(), -(n - 1 - i));
-    return { date: d, value: S.energy[d] ?? null };
+    return { date: d, value: energyOn(d) };
   });
 }
 
@@ -522,19 +550,19 @@ export function energyStats(days = 90) {
   marks.forEach(d => {
     const ph = phaseOn(d);
     if (!ph) return;
-    (byPhase[ph] ||= []).push(S.energy[d]);
+    (byPhase[ph] ||= []).push(energyOn(d));
   });
 
   const active = new Set();
   liveLessons().forEach(l => lessonDates(l).forEach(d => active.add(d)));
   marks.forEach(d => { if (questsOn(d).some(q => q.done && q.sphere === 'sport')) active.add(d); });
 
-  const withMove = marks.filter(d => active.has(d)).map(d => S.energy[d]);
-  const without = marks.filter(d => !active.has(d)).map(d => S.energy[d]);
+  const withMove = marks.filter(d => active.has(d)).map(d => energyOn(d));
+  const without = marks.filter(d => !active.has(d)).map(d => energyOn(d));
 
   return {
     count: marks.length,
-    avg: mean(marks.map(d => S.energy[d])),
+    avg: mean(marks.map(d => energyOn(d))),
     phases: PHASE_ORDER.filter(p => byPhase[p]?.length).map(p => ({ name: p, avg: mean(byPhase[p]), n: byPhase[p].length })),
     move: { avg: mean(withMove), n: withMove.length },
     still: { avg: mean(without), n: without.length },
@@ -723,7 +751,7 @@ export function pearl() {
 /** Летописец без сети: правила поверх реальных данных. */
 export function chronicler(date) {
   const qs = questsOn(date);
-  const e = S.energy[date];
+  const e = energyOn(date);
   const t = todayISO();
   const out = [];
 
@@ -988,7 +1016,7 @@ export function chatDigest() {
     `Пол: ${isMale() ? 'мужской' : 'женский'} — обращайся в этом роде.`,
     `Хронотип ${S.user.chronotype}, пик энергии ${peakLabel()}. Уровень ${level(S.user.xp)}.`,
     S.user.traits?.length ? `Черты: ${S.user.traits.map(id => nameOf(traitById(id)) || id).join(', ')}.` : '',
-    `Энергия сегодня: ${S.energy[t] ?? 'не отмечена'}${e7.length ? `, в среднем за неделю ${Math.round(e7.reduce((a, x) => a + x.value, 0) / e7.length)}` : ''}.`,
+    `Энергия сегодня: ${energyOn(t) ?? 'не отмечена'}${e7.length ? `, в среднем за неделю ${Math.round(e7.reduce((a, x) => a + x.value, 0) / e7.length)}` : ''}.`,
     `Квесты сегодня: ${qs.length ? qs.map(x => `${x.title}${x.done ? ' (сделано)' : ''}`).join(', ') : 'нет'}.`,
     `За неделю закрыто ${w.done} из ${w.total}.`,
     goals.length ? `Цели: ${goals.map(g => `${g.title} — ${goalProgress(g)}%${g.struck ? ', вычеркнута' : ''}`).join('; ')}.` : 'Целей на месяц и год пока нет.',

@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 37;
+const VERSION = 38;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -90,6 +90,35 @@ export function nameTaken(list, name, selfId = null, key = 'name') {
   return (list || []).find(x => x && (x.id ?? x.key) !== selfId && normName(x[key]) === n) || null;
 }
 
+// ── отметки энергии ─────────────────────────────────────────────
+// Отметка привязана к блоку дня: одно число в сутки не говорит, когда оно
+// было, и кривая по нему учиться не может. Живёт здесь, а не в selectors,
+// потому что нужно и чертам — иначе получается кольцо импортов.
+
+export const energyRec = date => S.energy[date] || {};
+/** Отметка в конкретном блоке этого дня. */
+export const energyAt = (date, block) => {
+  const v = energyRec(date)[String(block)];
+  return v == null ? null : Number(v);
+};
+/** Значение дня: среднее по его отметкам, включая ночную вне блоков. */
+export function energyOn(date) {
+  const vals = Object.values(energyRec(date)).map(Number).filter(Number.isFinite);
+  return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+}
+
+/** Блок кривой дня по часам; ночью (1–7) — вне блоков. Живёт в хранилище,
+ *  потому что и отметка, и кривая, и подсказки считают его одинаково. */
+export function blockAt(hours = new Date().getHours()) {
+  if (hours >= 7 && hours < 10) return 0;
+  if (hours < 13) return 1;
+  if (hours < 16) return 2;
+  if (hours < 19) return 3;
+  if (hours < 22) return 4;
+  if (hours >= 22 || hours < 1) return 5;
+  return -1;
+}
+
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 function blank() {
@@ -123,7 +152,8 @@ function blank() {
                          // day — день работы (когда делаю), deadline — срок сдачи
       wins: [],          // опыт и победы: { id, date, title, note, jobId }
     },
-    energy: {},          // { 'YYYY-MM-DD': 0..100 }
+    energy: {},          // { 'YYYY-MM-DD': { '0'..'5': 0..100, d: 0..100 } }
+                         // ключ — блок кривой дня; 'd' — отметка вне блоков (ночью)
     goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
     tracker: { rows: [], values: {}, habitValues: {}, lessonValues: {}, exerciseValues: {}, tagValues: {} },  // свои строки и ручные правки
@@ -426,6 +456,21 @@ function migrate(s) {
         .map(([d, v]) => [d, v === true ? 1 : Math.max(0, Math.round(Number(v) || 0))])
         .filter(([, v]) => v > 0),
     ),
+  }));
+
+  // v37 → v38: отметка энергии привязывается к блоку дня, а не только к дате —
+  // иначе кривая не может учиться: одно число в сутки не говорит, когда оно было.
+  // Старым отметкам время не придумываем: они ложатся под 'd' — считаются
+  // средним за день, но кривую не формируют.
+  merged.energy = Object.fromEntries(Object.entries(merged.energy || {}).map(([d, v]) => {
+    if (typeof v === 'number') return [d, { d: Math.max(0, Math.min(100, v)) }];
+    if (!v || typeof v !== 'object') return [d, {}];
+    const out = {};
+    Object.entries(v).forEach(([k, n]) => {
+      const num = Math.max(0, Math.min(100, Number(n)));
+      if (Number.isFinite(num) && (k === 'd' || (Number(k) >= 0 && Number(k) <= 5))) out[k] = num;
+    });
+    return [d, out];
   }));
 
   // v36 → v37: день питания делится на приёмы пищи. Уже записанным блюдам

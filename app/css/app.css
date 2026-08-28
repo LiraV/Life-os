@@ -147,7 +147,9 @@ h1,h2,h3{margin:0; font-weight:400}
 /* ── энергия ────────────────────────────────────────────────── */
 .curve{display:flex; align-items:flex-end; gap:5px; height:54px}
 .curve div{flex:1; border-radius:6px 6px 3px 3px; background:var(--track); position:relative}
+.curve div.own{background:var(--caramel)}
 .curve div.hot{background:var(--accent)}
+.curve div.pre{opacity:.45}
 .curve div.now{outline:2px solid var(--deep); outline-offset:1px}
 .curve-x{display:flex; gap:5px; font-size:9px; color:var(--ink4)}
 .curve-x span{flex:1; text-align:center}

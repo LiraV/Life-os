@@ -4,7 +4,7 @@
 //
 // Эффекты описаны данными, а не кодом по экранам: так их видно все разом.
 
-import { S } from './store.js';
+import { S, energyOn } from './store.js';
 import { g } from './gender.js';
 import { todayISO, addDays, monthKey, addMonths, weekDates } from './dates.js';
 
@@ -123,7 +123,7 @@ export function effects() {
 // ── проверки заработанного ──────────────────────────────────────
 function energyStreak(min, days) {
   for (let i = 0; i < days; i++) {
-    const v = S.energy[addDays(todayISO(), -i)];
+    const v = energyOn(addDays(todayISO(), -i));
     if (v == null || v < min) return false;
   }
   return true;

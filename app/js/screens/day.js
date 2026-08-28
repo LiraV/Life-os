@@ -1,13 +1,13 @@
 // «День»: реальные даты, энергия дня, квесты с полным редактированием.
 
-import { S, update, updateQuiet, uid, XP, addXp, allSpheres, addDiary, tickHabit, touchTracker } from '../store.js';
+import { S, update, updateQuiet, uid, XP, addXp, allSpheres, addDiary, tickHabit, touchTracker, blockAt, energyAt, energyOn } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { effects } from '../traits.js';
 import { workoutSheet, workoutSetSheet, applyDone } from './sport.js';
 import { scheduleMark, occurrenceSheet } from '../schedule.js';
 import {
-  questsOn, energyCurve, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
+  questsOn, curveInfo, curveOwn, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
   workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName, inboxCount, dueOn,
   liveTasks, taskSubject,
@@ -18,29 +18,42 @@ import { taskSheet as studyTaskSheet } from './study.js';
 
 const curDate = () => S.ui.date || todayISO();
 
-/** Текущий блок кривой энергии по часам; ночью (1–7) — вне блоков. */
-function nowBlock() {
-  const hh = new Date().getHours();
-  if (hh >= 7 && hh < 10) return 0;
-  if (hh < 13) return 1;
-  if (hh < 16) return 2;
-  if (hh < 19) return 3;
-  if (hh < 22) return 4;
-  if (hh >= 22 || hh < 1) return 5;
-  return -1;
+const nowBlock = () => blockAt();
+
+/**
+ * Что показать на ползунке: своя отметка этого блока, иначе среднее по дню,
+ * иначе подсказка кривой. Подсказку не записываем — она не отметка.
+ */
+export function defaultEnergy(date) {
+  const nb = date === todayISO() ? nowBlock() : -1;
+  const mine = nb >= 0 ? energyAt(date, nb) : null;
+  if (mine != null) return mine;
+  const day = energyOn(date);
+  if (day != null) return day;
+  return curveInfo()[Math.max(0, nb)]?.value ?? 60;
 }
 
-export const defaultEnergy = date => S.energy[date] ?? energyCurve()[Math.max(0, nowBlock())] ?? 60;
+/**
+ * Отметка ложится в блок дня — по нему потом учится кривая. Ночью блока нет,
+ * такие отметки живут под «d»: день они считают, кривую не искажают.
+ */
+function markEnergy(s, date, val) {
+  const b = date === todayISO() ? blockAt() : -1;
+  const rec = s.energy[date] && typeof s.energy[date] === 'object' ? s.energy[date] : {};
+  rec[b >= 0 ? String(b) : 'd'] = val;
+  s.energy[date] = rec;
+}
 
 export function render() {
   const date = curDate();
   const qs = questsOn(date);
   const isToday = date === todayISO();
   const e = defaultEnergy(date);
-  const marked = S.energy[date] != null;
-  const curve = energyCurve();
-  const peak = peakBlock();
   const nb = isToday ? nowBlock() : -1;
+  const marked = (nb >= 0 ? energyAt(date, nb) : energyOn(date)) != null;
+  const curve = curveInfo();
+  const own = curveOwn();
+  const peak = peakBlock();
   const done = qs.filter(q => q.done).length;
 
   return h`
@@ -55,16 +68,17 @@ export function render() {
     ${!isToday ? raw('<button class="btn-ghost" data-act="today">вернуться к сегодня</button>') : ''}
 
     <div class="card">
-      <div class="row between"><div class="lab">Кривая дня · ${S.user.chronotype}</div><div class="lab">пик ${ENERGY_BLOCKS[peak]}</div></div>
+      <div class="row between"><div class="lab">Кривая дня · ${own ? (own === curve.length ? 'по твоим отметкам' : `твоих блоков ${own} из ${curve.length}`) : S.user.chronotype}</div><div class="lab">пик ${ENERGY_BLOCKS[peak]}</div></div>
       <div class="curve">
-        ${curve.map((v, i) => raw(h`<div class="${i === peak ? 'hot' : ''} ${i === nb ? 'now' : ''}" style="height:${Math.max(8, v)}%"></div>`))}
+        ${curve.map((x, i) => raw(h`<div class="${x.own ? 'own' : 'pre'} ${i === peak ? 'hot' : ''} ${i === nb ? 'now' : ''}"
+          style="height:${Math.max(8, x.value)}%" title="${x.own ? `${ENERGY_BLOCKS[i]} · ${x.value} · отметок ${x.n}` : `${ENERGY_BLOCKS[i]} · пока по хронотипу`}"></div>`))}
       </div>
       <div class="curve-x">${ENERGY_BLOCKS.map(b => raw(h`<span>${b}</span>`))}</div>
       <div class="fld" style="margin-top:2px">
         <span>Энергия сейчас <b id="e_out">${marked ? `${e} · ${energyLabel(e)}` : `${e} · не отмечена`}</b></span>
         <input type="range" min="0" max="100" value="${e}" data-act-input="energyLive" data-change="energy" aria-label="Энергия">
       </div>
-      ${!marked ? raw('<div class="lab">Пока это подсказка по хронотипу. Двинь ползунок — запишется как твоя отметка.</div>') : ''}
+      ${!marked ? raw(h`<div class="lab hint-energy">${nb >= 0 ? `Пока это подсказка. Двинь ползунок — запишется как отметка на «${ENERGY_BLOCKS[nb]}».` : 'Пока это подсказка. Двинь ползунок — запишется как отметка.'}</div>`) : ''}
       ${raw(energyHistory(date))}
     </div>
 
@@ -383,13 +397,13 @@ export const actions = {
   /** Пишем сразу, как только ползунок тронули: без перерисовки, чтобы не сорвать жест. */
   energyLive: (v, el) => {
     const val = Number(v.value);
-    updateQuiet(s => { s.energy[curDate()] = val; });
+    updateQuiet(s => { markEnergy(s, curDate(), val); });
     const out = document.getElementById('e_out');
     if (out) out.textContent = `${val} · ${energyLabel(val)}`;
     el?.closest('.card')?.querySelector('.lab.hint-energy')?.remove();
   },
   /** По отпусканию перерисовываем: совет Летописца и график должны догнать. */
-  energy: v => update(s => { s.energy[curDate()] = Number(v.value); }),
+  energy: v => update(s => { markEnergy(s, curDate(), Number(v.value)); }),
 
   toggle: v => {
     const date = curDate();
