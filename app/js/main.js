@@ -40,6 +40,10 @@ const NAV = [
   { key: 'me', label: 'Я' },
 ];
 
+/** Ноутбук: с этой ширины приложение перестаёт быть телефоном в рамке. */
+const DESK = window.matchMedia('(min-width: 900px)');
+export const isDesk = () => DESK.matches;
+
 const DRAWER = [
   { key: 'inbox', label: 'Инбокс' },
   { key: 'spheres', label: 'Сферы' },
@@ -165,14 +169,34 @@ function renderStatus() {
     : '<span></span><span></span>';
 }
 
+const DRAWER_KEYS = ['inbox', 'spheres', 'work', 'food', 'budget', 'edu', 'study', 'sport',
+  'habits', 'tracker', 'health', 'care', 'library', 'trips', 'settings'];
+
+/**
+ * Навигация. На телефоне — пять кнопок снизу и ящик «Ещё»: больше туда не
+ * влезает. На ноутбуке места хватает, поэтому боковая колонка показывает всё
+ * сразу и ящик не нужен — лишний тап ради того, что и так помещается.
+ */
 function renderNav() {
-  const cur = activeScreen();
-  const drawerScreens = ['inbox', 'spheres', 'work', 'food', 'budget', 'edu', 'study', 'sport', 'habits', 'tracker', 'health', 'care', 'library', 'trips', 'settings'];
+  const cur = route().join('/') || activeScreen();
   nav.hidden = !S.onboarded;
-  nav.innerHTML = NAV.map(n => {
-    const on = n.key === 'more' ? drawerScreens.includes(cur) : n.key === cur;
-    return `<button data-nav="${n.key}" class="${on ? 'on' : ''}">${n.label}</button>`;
-  }).join('');
+  if (!isDesk()) {
+    nav.innerHTML = NAV.map(n => {
+      const on = n.key === 'more' ? DRAWER_KEYS.includes(activeScreen()) : n.key === activeScreen();
+      return `<button data-nav="${n.key}" class="${on ? 'on' : ''}">${n.label}</button>`;
+    }).join('');
+    return;
+  }
+  const item = (key, label) => `<button data-nav="${key}" class="${cur === key ? 'on' : ''}">${label}</button>`;
+  nav.innerHTML = `
+    <div class="side-head">
+      ${avatarHtml(S.user, 30)}
+      <div><div class="ink" style="font-weight:500">${S.user.name || 'Персонаж'}</div>
+        <div class="lab">ур. ${level(S.user.xp)}</div></div>
+    </div>
+    ${NAV.filter(n => n.key !== 'more').map(n => item(n.key, n.label)).join('')}
+    <div class="side-sep"></div>
+    ${DRAWER.map(d => item(d.key, d.label)).join('')}`;
 }
 
 function renderDrawer() {
@@ -221,6 +245,13 @@ function syncTraits() {
     : `Новая черта: ${first.icon} ${first.name}`), 400);
 }
 
+/** Класс режима на оболочке: по нему всё остальное решает вёрстка. */
+function syncDesk() {
+  app.classList.toggle('desk', isDesk());
+  if (isDesk()) { drawerOpen = false; renderDrawer(); }
+}
+DESK.addEventListener('change', () => { syncDesk(); renderNav(); render(); });
+
 let lastKey = '';
 export function render() {
   // Сначала — не удалось ли прочитать данные. Иначе человека встретит
@@ -239,7 +270,10 @@ export function render() {
   const keep = key === lastKey ? scr.scrollTop : 0;
   // Доска работы — единственный экран, которому тесно в телефонной рамке:
   // на широком экране приложение раскрывается во всю ширину.
-  app.classList.toggle('wide', name === 'work' && (S.ui.workTab || 'now') === 'board');
+  syncDesk();
+  // Доска работы и трекер года шире прочего: им отдаём всю ширину без колонок.
+  app.classList.toggle('wide', name === 'tracker'
+    || (name === 'work' && (S.ui.workTab || 'now') === 'board'));
   scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
   stickHead();
   scr.classList.toggle('scrolled', scr.scrollTop > 2);

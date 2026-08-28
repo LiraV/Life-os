@@ -19,8 +19,12 @@
 </head>
 <body>
 <div class="app" id="app">
-  <div class="statusbar" id="statusbar"></div>
-  <main class="scr" id="scr" tabindex="-1"></main>
+  <!-- На телефоне обёртка прозрачна для раскладки (display:contents),
+       на ноутбуке становится колонкой справа от боковой навигации. -->
+  <div class="main" id="main">
+    <div class="statusbar" id="statusbar"></div>
+    <main class="scr" id="scr" tabindex="-1"></main>
+  </div>
   <nav class="nav" id="nav" hidden></nav>
 </div>
 <noscript><p style="padding:24px;font-family:sans-serif">Для работы приложения нужен JavaScript.</p></noscript>

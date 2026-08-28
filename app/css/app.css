@@ -529,3 +529,56 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
   .app.wide .kb-col{max-height:none}
   .app.wide .kb-cols{overflow-x:auto}
 }
+
+/* ── ноутбук ──────────────────────────────────────────────────
+   Телефонная раскладка остаётся нетронутой: обёртка .main прозрачна
+   для неё, а всё десктопное живёт внутри медиазапроса. */
+.main{display:contents}
+
+@media (min-width:900px){
+  body{align-items:stretch; padding:0}
+  .app.desk{max-width:none; height:100dvh; border-radius:0; box-shadow:none;
+            flex-direction:row; gap:16px; padding:14px 18px 14px 14px}
+  .app.desk .main{display:flex; flex-direction:column; gap:10px; flex:1; min-width:0;
+                  max-width:1180px; margin:0 auto; width:100%}
+  .app.desk.wide .main{max-width:none; margin:0}
+
+  /* Навигация уходит в колонку слева и показывает всё сразу — ящик не нужен. */
+  .app.desk .nav{order:-1; flex:none; width:208px; align-self:stretch; overflow-y:auto;
+                 flex-direction:column; justify-content:flex-start; gap:2px;
+                 border-radius:22px; padding:12px 10px}
+  .app.desk .nav::-webkit-scrollbar{display:none}
+  .app.desk .nav button{text-align:left; width:100%; padding:8px 12px; font-size:13px}
+  .side-head{display:flex; align-items:center; gap:9px; padding:2px 6px 10px; color:var(--drawer)}
+  .side-head .ink, .side-head .lab{color:var(--drawer)}
+  .side-sep{height:1px; background:rgba(255,255,255,.16); margin:8px 4px}
+
+  /* Карточки раскладываются в две колонки: одна на всю ширину читается плохо.
+     А вот списки — квесты, привычки, строки — остаются списками во всю строку:
+     читать перечисление слева направо неправильно. */
+  .app.desk .scr{display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start;
+                 align-content:start; padding:2px 4px 10px}
+  .app.desk .scr > .scr-head, .app.desk .scr > .title, .app.desk .scr > .sub,
+  .app.desk .scr > .pills, .app.desk .scr > .stepper, .app.desk .scr > .kb,
+  .app.desk .scr > .board, .app.desk .scr > .tr-wrap, .app.desk .scr > .grid2,
+  .app.desk .scr > .row, .app.desk .scr > .ai, .app.desk .scr > .chat-box,
+  .app.desk .scr > .quest, .app.desk .scr > .hab-row, .app.desk .scr > .chk-row,
+  .app.desk .scr > .cnt-row, .app.desk .scr > .dyn-row, .app.desk .scr > .care-row,
+  .app.desk .scr > .link-row, .app.desk .scr > .msg, .app.desk .scr > .add,
+  .app.desk .scr > .btn, .app.desk .scr > .btn-ghost, .app.desk .scr > .lab{grid-column:1 / -1}
+  .app.desk.wide .scr{display:flex}
+  .app.desk .scr-head{background:none; backdrop-filter:none; -webkit-backdrop-filter:none}
+  .app.desk .scr.scrolled .scr-head{background:var(--bg1)}
+}
+
+/* Третью колонку не вводим намеренно: карточки становятся узкими, а экран —
+   разреженным. Вместо этого на очень широком просто не растягиваем содержимое. */
+
+/* Шторка на ноутбуке — окно по центру, а не полоса снизу. */
+@media (min-width:900px){
+  /* Оболочка шторки — .overlay: на телефоне она прижата вниз, на ноутбуке
+     ставим окно по центру, как и ожидается от настольного приложения. */
+  .app.desk .overlay{justify-content:center; align-items:center; padding:24px}
+  .app.desk .sheet{max-width:620px; width:100%; border-radius:22px; max-height:84vh;
+                   padding-bottom:16px; box-shadow:0 20px 60px rgba(90,45,42,.32)}
+}
