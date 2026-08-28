@@ -412,7 +412,7 @@ const TEMPLATES = [
     hint: 'простой список с галочками и прогрессом' },
   { id: 'meas', name: 'Дневник числа', icon: '📈', art: 'note', mech: 'замеры', kinds: ['meas'], unit: 'баллов',
     hint: 'настроение, шаги, часы за рулём — важно, как меняется' },
-  { id: 'blank', name: 'С нуля', icon: '✦', art: 'city', mech: 'своя', kinds: ['steps'], unit: 'раз',
+  { id: 'blank', name: 'С нуля', icon: '✦', art: 'plan', mech: 'своя', kinds: ['steps'], unit: 'раз',
     hint: 'выберешь всё сам' },
 ];
 
