@@ -2,15 +2,18 @@
 // Летописец работает без сети — это правила поверх твоих данных, не языковая модель.
 
 import { S, update, uid, XP, addXp, addDiary } from '../store.js';
-import { todayISO, addDays, dayShort } from '../dates.js';
-import { h, raw, field, toast, openSheet } from '../ui.js';
-import { weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest } from '../selectors.js';
+import { todayISO, addDays, dayShort, monthKey, monthTitle, weekDates } from '../dates.js';
+import { h, raw, field, toast, openSheet, closeSheet } from '../ui.js';
+import { weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest,
+  mindLog, mindMinutes, mindDays, mindMonth, mindMonthMinutes, mindStreakWeek, mindShift } from '../selectors.js';
+import { PRACTICES, practiceById, practiceName, phaseAt, stepAt, cycleSecs } from '../mind.js';
+import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 import { questSheet } from './day.js';
 import { hasKey, chatChronicler } from '../ai.js';
 import { byId, nameOf } from '../traits.js';
 import { TESTS, testLength, scoreTest } from '../tests.js';
 
-const TABS = [['chat', 'Чат'], ['tests', 'Тесты'], ['diary', 'Дневник']];
+const TABS = [['chat', 'Чат'], ['mind', 'Осознанность'], ['tests', 'Тесты'], ['diary', 'Дневник']];
 const tab = params => params[0] || S.ui.insideTab || 'chat';
 
 export function render(params) {
@@ -18,7 +21,7 @@ export function render(params) {
   return h`
     <div class="title">Внутри</div>
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${t === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
-    ${raw({ chat: chatView, tests: testsView, diary: diaryView }[t]())}
+    ${raw({ chat: chatView, mind: mindView, tests: testsView, diary: diaryView }[t]())}
     <div style="height:4px"></div>`;
 }
 
@@ -239,6 +242,11 @@ export const stickBottom = params => tab(params) === 'chat';
 export const actions = {
   tab: v => { update(s => { s.ui.insideTab = v.v; }); location.hash = '#/inside/' + v.v; },
 
+  spheregoal: () => sphereGoalSheet('inside'),
+  togoal: () => { location.hash = '#/plans'; },
+  mindabout: v => aboutSheet(v.v),
+  mindstart: v => startSheet(v.v),
+
   /** Беседа: отправляем нить целиком, поэтому разговор помнит себя. */
   ask: async (v, el) => {
     if (S.ui.chatBusy) return;
@@ -352,4 +360,208 @@ async function talk(text) {
       s.chat.push({ id: uid(), who: 'ai', text: 'Не получилось ответить: ' + String(e.message || e).slice(0, 120), ts: Date.now() });
     });
   }
+}
+
+// ── осознанность ────────────────────────────────────────────────
+// Практики без аудио и без обещаний: круг, который дышит вместе с тобой,
+// таймер тишины и заземление. Приложение записывает то, что ты сама отметила
+// до и после, — и если разницы нет, так и будет видно.
+
+function mindView() {
+  const t = todayISO();
+  const week = weekDates(t);
+  const ym = monthKey(t);
+  const shift = mindShift();
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">За неделю</div>
+        <span class="lab">${mindMinutes(week[0], week[6])} мин · ${mindStreakWeek(t)} ${plural(mindStreakWeek(t), 'день', 'дня', 'дней')}</span></div>
+      <div class="lab">В ${monthTitle(ym).toLowerCase()} — ${mindMonth(ym)} ${plural(mindMonth(ym), 'день', 'дня', 'дней')},
+        ${mindMonthMinutes(ym)} минут. Ровного счёта тут нет и не нужно: пропуск ничего не обнуляет.</div>
+      ${shift ? raw(h`<div class="lab">По твоим отметкам «до → после»: ${shift.before} → ${shift.after}
+        из 100${shift.delta < 0 ? `, в среднем на ${-shift.delta} меньше` : shift.delta > 0 ? `, в среднем на ${shift.delta} больше` : ', без разницы'}.
+        Это среднее твоих же отметок по ${shift.n} ${plural(shift.n, 'записи', 'записям', 'записям')}, а не эффект практики.</div>`) : ''}
+    </div>
+
+    ${PRACTICES.map(p => raw(h`
+      <div class="card">
+        <div class="row between">
+          <div class="grow" data-act="mindabout" data-v="${p.key}" style="cursor:pointer">
+            <div class="ink"><b>${p.name}</b></div>
+            <div class="lab">${p.sub}</div>
+          </div>
+          <button class="pill" data-act="mindstart" data-v="${p.key}">начать</button>
+        </div>
+      </div>`))}
+
+    ${mindLog().length ? raw(h`
+      <div class="card mute">
+        <div class="caps">Последнее</div>
+        ${mindLog().slice(0, 8).map(x => raw(h`
+          <div class="row between">
+            <span class="lab grow">${dayShort(x.date)} · ${practiceName(x.key)}</span>
+            <span class="lab">${x.minutes} мин${x.before != null && x.after != null ? ` · ${x.before} → ${x.after}` : ''}</span>
+          </div>`))}
+      </div>`) : raw(h`
+      <div class="card dash"><div class="empty">Записей пока нет.<br>Двух минут достаточно, чтобы что-то заметить.</div></div>`)}
+
+    ${raw(sphereGoalsCard('inside'))}
+    ${raw(sphereGoalButton('inside'))}
+
+    <div class="card mute">
+      <div class="lab">Это не терапия и не лечение. Если от дыхательной практики кружится голова
+        или становится неприятно — остановись, это нормально и ничего не значит.</div>
+    </div>`;
+}
+
+/** О практике: что это, откуда и почему столько. */
+function aboutSheet(key) {
+  const p = practiceById(key);
+  if (!p) return;
+  openSheet({
+    title: p.name,
+    sub: p.sub,
+    body: [
+      `<p class="fld-note">${p.about}</p>`,
+      p.cycle ? field.note(`Один круг — ${cycleSecs(p)} ${plural(cycleSecs(p), 'секунда', 'секунды', 'секунд')}.`) : '',
+      field.note(`Источник: ${p.source}.`),
+      field.note('Это не назначение и не лечение. Если станет неприятно — остановись.'),
+    ].join(''),
+  });
+}
+
+/** Перед началом: сколько минут и как сейчас. Отметку можно не ставить. */
+function startSheet(key) {
+  const p = practiceById(key);
+  if (!p) return;
+  if (p.kind === 'senses') return sensesSheet(p, 0);
+  openSheet({
+    title: p.name,
+    sub: p.sub,
+    body: [
+      field.opts('minutes', 'Сколько', p.minutes.map(m => ({ value: String(m), label: `${m} мин` })), String(p.minutes[0])),
+      field.range('before', 'Насколько напряжена сейчас', 40, { min: 0, max: 100, left: 'спокойно', right: 'на пределе' }),
+      field.note('Отметку можно не двигать — тогда я её просто не запишу. Она нужна только для того, чтобы потом было видно, помогает ли тебе эта практика.'),
+    ].join(''),
+    primary: 'Начать',
+    onSave: (v, close) => {
+      const minutes = Math.max(1, Number(v.minutes) || p.minutes[0]);
+      const before = v.before == null ? null : Number(v.before);
+      close();
+      runSheet(p, minutes, before === 40 ? null : before);
+    },
+  });
+}
+
+/**
+ * Сам прогон. Таймер живёт вне состояния и пишет прямо в DOM: перерисовывать
+ * приложение двадцать раз в минуту незачем. Круг дышит средствами CSS —
+ * длительность перехода ставится на смене фазы, а не кадр за кадром.
+ */
+function runSheet(p, minutes, before) {
+  const total = minutes * 60;
+  const started = Date.now();
+  const isBreath = p.kind === 'breath';
+  openSheet({
+    title: p.name,
+    sub: `${minutes} мин · ${p.sub}`,
+    body: [
+      `<div class="breath-box">
+         ${isBreath ? '<div class="breath-circle" id="m_circle"></div>' : ''}
+         <div class="breath-label" id="m_phase">${isBreath ? 'приготовься' : p.kind === 'steps' ? p.steps[0] : 'просто сиди'}</div>
+       </div>`,
+      `<div class="row between"><span class="lab" id="m_left">${minutes}:00</span>
+         <span class="lab" id="m_hint">${isBreath ? 'дыши за кругом' : ''}</span></div>`,
+      field.note('Закончить можно в любой момент — записанным будет то, что успела.'),
+    ].join(''),
+    primary: 'Закончить',
+    onSave: (_v, close) => {
+      close();
+      const done = Math.round((Date.now() - started) / 60000 * 10) / 10;
+      finishSheet(p, Math.max(0, done), before);
+    },
+  });
+
+  const circle = document.getElementById('m_circle');
+  const label = document.getElementById('m_phase');
+  const left = document.getElementById('m_left');
+  let lastPhase = -1;
+  const tick = () => {
+    // Шторку могли закрыть крестиком или по фону — тогда таймер сам умирает.
+    if (!label || !document.body.contains(label)) return clearInterval(timer);
+    const t = (Date.now() - started) / 1000;
+    const rest = Math.max(0, Math.ceil(total - t));
+    if (left) left.textContent = `${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`;
+    if (isBreath) {
+      const ph = phaseAt(p, t);
+      if (ph && ph.i !== lastPhase) {
+        lastPhase = ph.i;
+        label.textContent = ph.phase.label;
+        if (circle) {
+          circle.style.transitionDuration = `${ph.phase.secs}s`;
+          circle.style.transform = `scale(${ph.phase.to})`;
+        }
+      }
+    } else if (p.kind === 'steps') {
+      const st = stepAt(p, t, total);
+      if (st.i !== lastPhase) { lastPhase = st.i; label.textContent = st.text; }
+    }
+    if (t >= total) {
+      clearInterval(timer);
+      closeSheet();
+      finishSheet(p, minutes, before);
+    }
+  };
+  const timer = setInterval(tick, 250);
+  tick();
+}
+
+/** После практики: отметка и заметка. Обе необязательны. */
+function finishSheet(p, minutes, before) {
+  openSheet({
+    title: 'Готово',
+    sub: `${p.name} · ${minutes} ${plural(Math.round(minutes), 'минута', 'минуты', 'минут')}`,
+    body: [
+      before != null ? field.range('after', 'А сейчас насколько напряжена', before, { min: 0, max: 100, left: 'спокойно', right: 'на пределе' })
+                     : field.note('Отметку «до» ты не ставила, поэтому и «после» не спрашиваю — сравнивать было бы не с чем.'),
+      field.text('note', 'Заметка — если есть что сказать', ''),
+      field.note('Запишу практику и минуты. Ничего больше не произойдёт: ни серий, ни обнулений.'),
+    ].join(''),
+    primary: 'Записать',
+    onSave: (v, close) => {
+      update(s => {
+        s.mind.push({
+          id: uid(), date: todayISO(), key: p.key,
+          minutes: Math.max(0, Math.round(minutes * 10) / 10),
+          before: before ?? null,
+          after: before != null && v.after != null ? Number(v.after) : null,
+          note: (v.note || '').trim(),
+        });
+        addXp(XP.reflection);
+      });
+      close();
+      toast('Записала');
+    },
+    secondary: 'Не записывать',
+    onSecondary: (_v, close) => close(),
+  });
+}
+
+/** Заземление: пять шагов в своём темпе, без таймера. */
+function sensesSheet(p, i) {
+  const last = i >= p.steps.length - 1;
+  openSheet({
+    title: p.name,
+    sub: `${i + 1} из ${p.steps.length}`,
+    body: [
+      `<p class="fld-note" style="font-size:15px">${p.steps[i]}</p>`,
+      field.note('Спешить некуда: следующий шаг подождёт столько, сколько нужно.'),
+    ].join(''),
+    primary: last ? 'Готово' : 'Дальше',
+    onSave: (_v, close) => {
+      close();
+      if (last) finishSheet(p, 2, null);
+      else sensesSheet(p, i + 1);
+    },
+  });
 }

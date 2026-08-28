@@ -1278,6 +1278,16 @@ export const SOURCES = {
     refName: key => customName(key),
     count: (ref, r) => sphereItems(ref).filter(i => i.done && inRange((i.doneAt || '').slice(0, 10), r)).length,
   },
+  // «Осознанность» — не сфера, поэтому цель на неё ставится из «Внутри»:
+  // источник живёт под ключом 'inside' и туда же приводит кнопка.
+  mindDays: {
+    sphere: 'inside', name: 'Дней с практикой', unit: 'дней', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => mindDays(r.from, r.to),
+  },
+  mindMinutes: {
+    sphere: 'inside', name: 'Минут практики', unit: 'мин', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => mindMinutes(r.from, r.to),
+  },
   workHours: {
     sphere: 'work', name: 'Отработано часов', unit: 'ч', horizons: ['year', 'quarter', 'month'],
     count: (_ref, r) => Math.round(workHours(r.from, r.to)),
@@ -1545,4 +1555,30 @@ export function careerGap(index) {
   }, '');
   if (!lastEnd || older.some(j => !j.end)) return 0;
   return Math.max(0, monthsBetween(lastEnd.slice(0, 7), newer.start.slice(0, 7)) - 1);
+}
+
+// ── осознанность ────────────────────────────────────────────────
+// Журнал практик. Приложение не обещает эффекта: оно кладёт рядом то, что
+// человек отметил до и после, — и если разницы нет, так и будет видно.
+
+export const mindLog = () => [...(S.mind || [])].sort((a, b) => (a.date < b.date ? 1 : -1));
+export const mindIn = (from, to) => (S.mind || []).filter(x => x.date >= from && x.date <= to);
+export const mindMinutes = (from, to) => mindIn(from, to).reduce((a, x) => a + (Number(x.minutes) || 0), 0);
+export const mindDays = (from, to) => new Set(mindIn(from, to).map(x => x.date)).size;
+export const mindMonth = ym => mindDays(`${ym}-01`, `${ym}-31`);
+export const mindMonthMinutes = ym => mindMinutes(`${ym}-01`, `${ym}-31`);
+export const mindStreakWeek = date => weekDates(date).filter(d => mindIn(d, d).length).length;
+
+/**
+ * Сдвиг «до → после» по практике: среднее по тем записям, где отмечено и то,
+ * и другое. Без обещаний: это среднее твоих же отметок, а не эффект практики.
+ */
+export function mindShift(key = null, n = 30) {
+  const list = (S.mind || [])
+    .filter(x => (key === null || x.key === key) && x.before != null && x.after != null)
+    .slice(-n);
+  if (!list.length) return null;
+  const avg = f => Math.round(list.reduce((a, x) => a + f(x), 0) / list.length);
+  return { n: list.length, before: avg(x => x.before), after: avg(x => x.after),
+    delta: avg(x => x.after - x.before) };
 }

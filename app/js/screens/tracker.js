@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth, shelfDoneIn, collIn, boardDoneIn, measIn, workMonth,
+import { liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth, shelfDoneIn, collIn, boardDoneIn, measIn, workMonth, mindMonth,
   sportTags, tagById, tagMonthCount, tagUsedIn, booksDoneIn, booksDoneYear } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
@@ -87,6 +87,11 @@ export function buildRows(y) {
       unit: 'дн.',
       cells: months.map(ym => habitCell(hb, ym)),
     })),
+    // Осознанность: дни с практикой за месяц — считается само.
+    ...(Array.isArray(S.mind) && S.mind.length ? [{
+      id: 'mind:days', name: 'Осознанность', unit: 'дн.',
+      cells: months.map(ym => ({ value: mindMonth(ym) })),
+    }] : []),
     // Работа: часы и дни в офисе — то, что и так отмечается на её экране.
     ...(workMonth(monthsOf(y)[0]).days || Object.keys(S.work.days).length ? [
       { id: 'work:hours', name: 'Работа · часы', unit: 'ч',

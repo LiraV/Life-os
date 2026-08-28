@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 34;
+const VERSION = 35;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -146,6 +146,8 @@ function blank() {
       targets: { kcal: 2000, prot: 90, fat: 70, carb: 220, water: 2000 },
       days: {},                                          // { 'YYYY-MM-DD': { water, entries: [] } }
     },
+    mind: [],            // осознанность: { id, date, key, minutes, before, after, note }
+                         // before/after — своя отметка напряжения 0..100, обе необязательны
     diary: [],
     chat: [],
     tests: {},
@@ -391,6 +393,17 @@ function migrate(s) {
         .filter(([, v]) => v > 0),
     ),
   }));
+
+  // v34 → v35: осознанность. Журнал практик: что делала, сколько минут и
+  // как было до и после. Отметки «до/после» необязательны — практика без них
+  // всё равно записывается, а выводы человек делает сам.
+  merged.mind = (Array.isArray(merged.mind) ? merged.mind : []).map(x => ({
+    id: x.id || uid(), date: x.date || todayISO(), key: x.key || 'quiet',
+    minutes: Math.max(0, Number(x.minutes) || 0),
+    before: x.before == null ? null : Number(x.before),
+    after: x.after == null ? null : Number(x.after),
+    note: x.note || '',
+  })).filter(x => x.minutes >= 0 && x.key);
 
   // v33 → v34: мест работы стало несколько. Раньше график, оклад и норма
   // офиса были одни на человека, а отметка дня не знала, к какому месту она

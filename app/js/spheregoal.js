@@ -7,7 +7,7 @@
 import { S, update, uid } from './store.js';
 import { todayISO, yearOf, monthKey, MONTHS } from './dates.js';
 import { h, raw, field, toast, openSheet } from './ui.js';
-import { sourcesOf, liveGoals, autoLabel } from './selectors.js';
+import { sourcesOf, liveGoals, autoLabel, SOURCES, sphereOf } from './selectors.js';
 
 const HZ = [
   { value: 'year', label: 'Год' },
@@ -61,7 +61,10 @@ export function sphereGoalSheet(sphere) {
       // У источника своей сферы уточнение не спрашивают: сфера и есть уточнение.
       const ref = src.ref ? (v.ref ?? '') : (src.fixedRef || '');
       const goal = {
-        id: uid(), title: '', horizon, period, parentId: '', sphere,
+        id: uid(), title: '', horizon, period, parentId: '',
+        // «Внутри» — не сфера, поэтому поле сферы у такой цели остаётся пустым:
+        // подставлять туда несуществующий ключ значило бы врать выбору сфер.
+        sphere: sphereOf(sphere) ? sphere : '',
         deadline: '', target, unit: src.unit, current: 0, steps: [], slots: [],
         src: { kind, ref },
       };
@@ -99,7 +102,13 @@ export const sphereGoalButton = sphere => (sourcesOf(sphere).length
 
 /** Готовые цели этой сферы — короткой строкой, чтобы было видно, что уже взято. */
 export function sphereGoalsCard(sphere) {
-  const list = liveGoals().filter(g => g.src && g.sphere === sphere);
+  // Ищем по источнику, а не по полю сферы: у целей из «Внутри» сферы нет,
+  // а у своих сфер источник общий и различается ссылкой.
+  const list = liveGoals().filter(g => {
+    const src = g.src && SOURCES[g.src.kind];
+    if (!src) return false;
+    return src.sphere === '*' ? g.src.ref === sphere : src.sphere === sphere;
+  });
   if (!list.length) return '';
   return h`
     <div class="card mute">
