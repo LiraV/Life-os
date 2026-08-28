@@ -1,6 +1,6 @@
 // «Ритм»: привычки без стриков. Неделя — тап по дню, месяц — реальные итоги.
 
-import { S, update, uid, tickHabit, habitStep, isWater, isMeals } from '../store.js';
+import { S, update, uid, tickHabit, habitStep, isWater, isMeals, nameTaken } from '../store.js';
 import { todayISO, addDays, weekDates, monthKey, addMonths, monthTitle, daysInMonth, DOW, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { habitMonthCount, habitTarget, habitCount, habitDone, liveHabits, habitUnit } from '../selectors.js';
@@ -112,6 +112,8 @@ function habitSheet(hb) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(S.habits, name, hb?.id);
+      if (twin) return toast(`«${twin.name}» уже есть в ритме`);
       const target = Math.max(1, Number(v.target) || 1);
       const step = Math.max(1, Math.min(target, Number(v.step) || 1));
       const unit = (v.unit || '').trim();

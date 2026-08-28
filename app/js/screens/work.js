@@ -9,7 +9,7 @@
 // тут не считается нигде: считаются часы, дни подряд, офис и отпуск — то,
 // что говорит, когда пора остановиться.
 
-import { S, update, uid, XP, addXp, WORK_KINDS, blankSched, touchTracker } from '../store.js';
+import { S, update, uid, XP, addXp, WORK_KINDS, blankSched, touchTracker, nameTaken } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, monthTitle, yearOf, MONTHS, weekDates, DOW, dowIndex, diffDays, relativeDay } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import {
@@ -532,6 +532,8 @@ function jobSheet(id) {
     onSave: (v, close) => {
       const company = (v.company || '').trim();
       if (!company) return toast('Нужно название места');
+      const twin = nameTaken(S.work.jobs, company, it.id, 'company');
+      if (twin) return toast(`«${twin.company}» уже есть на пути`);
       if (v.end && v.end < (v.start || it.start)) return toast('Конец раньше начала');
       update(s => {
         const next = {

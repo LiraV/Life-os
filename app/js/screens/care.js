@@ -2,7 +2,7 @@
 // дом и питомца. Ритм считается от последней отметки, а не от календаря:
 // сделала раньше или позже — план едет за жизнью, а не наоборот.
 
-import { S, update, uid, XP, addXp } from '../store.js';
+import { S, update, uid, XP, addXp, nameTaken } from '../store.js';
 import { todayISO, dayShort, monthTitle, monthKey, yearOf, MONTHS } from '../dates.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import {
@@ -255,6 +255,8 @@ function itemSheet(item, group) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(careItems(), name, it.id);
+      if (twin) return toast(`«${twin.name}» уже есть в заботе`);
       update(s => {
         const next = {
           ...it, name, group: v.group, every: Math.max(1, Number(v.every) || 1),

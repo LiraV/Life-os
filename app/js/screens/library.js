@@ -4,7 +4,7 @@
 //
 // Отложенная книга — не провал: это отдельный статус, а не удаление.
 
-import { S, update, uid, XP, addXp, touchTracker } from '../store.js';
+import { S, update, uid, XP, addXp, touchTracker, nameTaken } from '../store.js';
 import { todayISO, dayShort, monthKey, yearOf, MONTHS } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import {
@@ -166,6 +166,8 @@ function bookSheet(book) {
     onSave: (v, close) => {
       const title = (v.title || '').trim();
       if (!title) return toast('Нужно название');
+      const twin = nameTaken(books(), title, b.id, 'title');
+      if (twin) return toast(`«${twin.title}» уже на полке`);
       update(s => {
         const prev = s.library.books.find(x => x.id === b.id);
         const status = v.status || 'want';

@@ -2,7 +2,7 @@
 // практика — ритмом: сколько занятий в месяце и когда было последнее.
 // Проценты для практики не считаем: у вокала не бывает «80% пройдено».
 
-import { S, update, uid, XP, addXp, addDiary, touchTracker } from '../store.js';
+import { S, update, uid, XP, addXp, addDiary, touchTracker, nameTaken } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, dayShort, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { liveLessons, lessonMonth, lessonLast, lessonAgo, courseProgress, moduleDone, moduleFull } from '../selectors.js';
@@ -172,6 +172,8 @@ function lessonSheet(lesson) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(S.lessons, name, l.id);
+      if (twin) return toast(`«${twin.name}» уже на полке`);
       update(s => {
         const next = {
           ...l, name, kind: v.kind || l.kind,
@@ -270,6 +272,9 @@ export const actions = {
     onSave: (val, close) => {
       const t = (val.title || '').trim();
       if (!t) return toast('Нужно название');
+      const own = S.lessons.find(x => x.id === v.id);
+      const twin = nameTaken(own?.items, t, null, 'title');
+      if (twin) return toast(`Модуль «${twin.title}» уже есть`);
       update(s => {
         const l = s.lessons.find(x => x.id === v.id);
         if (l) (l.items ||= []).push({ id: uid(), title: t, done: false, lessons: [] });
@@ -325,6 +330,9 @@ export const actions = {
     onSave: (val, close) => {
       const t = (val.title || '').trim();
       if (!t) return toast('Нужно название');
+      const mod = S.lessons.find(x => x.id === v.id)?.items?.find(x => x.id === v.i);
+      const twin = nameTaken(mod?.lessons, t, null, 'title');
+      if (twin) return toast(`Урок «${twin.title}» уже есть в модуле`);
       update(s => {
         const m = s.lessons.find(x => x.id === v.id)?.items.find(x => x.id === v.i);
         if (!m) return;

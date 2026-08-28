@@ -5,7 +5,7 @@
 // Упражнение меряется не количеством походов, а результатом — и у шпагата
 // «лучше» значит меньше, а не больше.
 
-import { S, update, uid, XP, addXp, addDiary, touchTracker } from '../store.js';
+import { S, update, uid, XP, addXp, addDiary, touchTracker, nameTaken } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { scheduleBlock, scheduleActions } from '../schedule.js';
@@ -337,6 +337,8 @@ function tplSheet(tpl) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(S.sport.templates, name, k.id);
+      if (twin) return toast(`Шаблон «${twin.name}» уже есть`);
       update(s => {
         const tags = tagsFrom(v, s);
         const i = s.sport.templates.findIndex(x => x.id === k.id);
@@ -374,6 +376,8 @@ function exSheet(ex) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(S.sport.exercises, name, e.id);
+      if (twin) return toast(`Упражнение «${twin.name}» уже есть`);
       update(s => {
         const next = { ...e, name, unit: (v.unit || 'раз').trim(), dir: ['up', 'down', 'both'].includes(v.dir) ? v.dir : 'up' };
         const i = s.sport.exercises.findIndex(x => x.id === e.id);
@@ -457,6 +461,8 @@ function tagSheet(tag) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(S.sport.tags, name, t.id);
+      if (twin) return toast(`Пилюля «${twin.name}» уже есть`);
       update(s => {
         const i = s.sport.tags.findIndex(x => x.id === t.id);
         if (i >= 0) s.sport.tags[i].name = name; else s.sport.tags.push({ ...t, name });

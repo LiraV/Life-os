@@ -68,6 +68,28 @@ export const blankSched = () => ({ days: [0, 1, 2, 3, 4], start: '09:00', end: '
 
 export const XP = { quest: 10, boss: 40, habit: 3, step: 15, measure: 5, reflection: 8, test: 25 };
 
+/**
+ * Проверка на тёзку. Сравниваем без учёта регистра, лишних пробелов и «ё»:
+ * «Вода», «вода » и «Приемы» с «Приёмы» — это одно и то же имя, а не два.
+ *
+ * Заводится не везде. Каталоги — привычки, сферы, места работы, дела заботы,
+ * книги, занятия, предметы, упражнения, статьи бюджета — это наборы разных
+ * вещей, и тёзка там всегда ошибка. А квесты, блюда, карточки доски и поездки
+ * повторяются законно: «овсянка» бывает каждое утро, и мешать этому нельзя.
+ */
+export const normName = x => String(x || '').trim().toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ');
+
+/**
+ * Кто из списка уже носит это имя. Себя не считаем — правка не тёзка.
+ * Опознаём и по id, и по key: у сфер идентификатор называется key, и без
+ * этого сфера считала тёзкой саму себя, а править её было нельзя.
+ */
+export function nameTaken(list, name, selfId = null, key = 'name') {
+  const n = normName(name);
+  if (!n) return null;
+  return (list || []).find(x => x && (x.id ?? x.key) !== selfId && normName(x[key]) === n) || null;
+}
+
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 function blank() {

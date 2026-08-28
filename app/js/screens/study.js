@@ -4,7 +4,7 @@
 // Этап живёт на доске и двигается по стадиям. Стадия «у преподавателя»
 // считает дни ожидания: в учёбе больно не «сделать», а «отправила и жду».
 
-import { S, update, uid, XP, addXp } from '../store.js';
+import { S, update, uid, XP, addXp, nameTaken } from '../store.js';
 import { todayISO, dayShort, diffDays, monthKey, weekKey } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { scheduleBlock, scheduleActions } from '../schedule.js';
@@ -204,6 +204,9 @@ export function taskSheet(task, subjectId) {
     onSave: (v, close) => {
       const title = (v.title || '').trim();
       if (!title) return toast('Нужно название');
+      // Тёзка ищется в пределах предмета: «Глава 2» бывает и у диплома, и у курсовой.
+      const twin = nameTaken(tasksOf(v.subjectId || t.subjectId), title, t.id, 'title');
+      if (twin) return toast(`«${twin.title}» уже есть у этого предмета`);
       update(s => {
         const prev = s.study.tasks.find(x => x.id === t.id);
         const stage = v.stage || t.stage;
@@ -251,6 +254,8 @@ export const actions = {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(livePlaces(), name);
+      if (twin) return toast(`«${twin.name}» уже заведено`);
       update(s => { s.study.places.push({ id: uid(), name }); s.ui.studyTab = 'subjects'; });
       close();
     },
@@ -318,6 +323,8 @@ function subjectSheet(subject, placeId) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(liveSubjects(), name, sb.id);
+      if (twin) return toast(`Предмет «${twin.name}» уже есть`);
       update(s => {
         const next = { ...sb, name, teacher: (v.teacher || '').trim(), from: v.from || '', to: v.to || '', grade: (v.grade || '').trim() };
         const i = s.study.subjects.findIndex(x => x.id === sb.id);

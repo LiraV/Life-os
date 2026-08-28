@@ -1,7 +1,7 @@
 // «Сферы»: плитки и разбор одной сферы. У каждой — этапы с прогрессом,
 // у блога стадии идей, у бюджета копилка, у спорта — статистика из квестов.
 
-import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere } from '../store.js';
+import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken } from '../store.js';
 import { todayISO, addDays, monthKey, monthTitle, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions,
@@ -477,6 +477,8 @@ function sphereSheet(key, tpl) {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!key && !name) return toast('Нужно название');
+      const twin = name && nameTaken(allSpheres(), name, key);
+      if (twin) return toast(`Сфера «${twin.name}» уже есть`);
       const picked = KINDS.map(([k]) => (v[k] ? k : null)).filter(Boolean);
       if (!key && !picked.length) return toast('Выбери хотя бы одну механику');
       const id = key || ('c' + uid());
@@ -638,6 +640,8 @@ export const actions = {
       onSave: (v, close) => {
         const t = (v.title || '').trim();
         if (!t) return toast('Нужно название');
+        const twin = nameTaken(sphereItems(key), t, null, 'title');
+        if (twin) return toast(`«${twin.title}» уже есть`);
         update(s => rec(s, key).items.push({ id: uid(), title: t, done: false, stage: 0 }));
         close();
       },

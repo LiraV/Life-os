@@ -4,7 +4,7 @@
 // Единственный источник правды — список операций. Балансы и итоги считаются
 // из него, чтобы нигде не разошлись две копии одной суммы.
 
-import { S, update, uid, touchBudget } from '../store.js';
+import { S, update, uid, touchBudget, nameTaken } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
@@ -289,6 +289,8 @@ export const actions = {
     onSave: (val, close) => {
       const name = (val.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(B().cats[v.k], name);
+      if (twin) return toast(`Статья «${twin.name}» уже есть`);
       upd(s => s.budget.cats[v.k].push({ id: uid(), name }));
       close();
     },
@@ -308,6 +310,8 @@ export const actions = {
       ].join(''),
       onSave: (val, close) => {
         const name = (val.name || '').trim();
+        const twin = nameTaken(B().cats[v.k], name, cat.id);
+        if (twin) return toast(`Статья «${twin.name}» уже есть`);
         upd(s => {
           const c = s.budget.cats[v.k].find(x => x.id === cat.id);
           if (c && name) c.name = name;
@@ -347,6 +351,8 @@ export const actions = {
     onSave: (v, close) => {
       const name = (v.name || '').trim();
       if (!name) return toast('Нужно название');
+      const twin = nameTaken(B().vaults, name);
+      if (twin) return toast(`Копилка «${twin.name}» уже есть`);
       upd(s => s.budget.vaults.push({ id: uid(), name, start: num(v.start) }));
       close();
     },
