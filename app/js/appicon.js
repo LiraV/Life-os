@@ -14,9 +14,14 @@ export const APP_ICONS = [
   { key: 'pearl',  name: 'Жемчужина', theme: '#ac4439', note: 'та, что была с самого начала' },
   { key: 'spiral', name: 'Спираль',   theme: '#a93a3b', note: 'свет в глубине' },
   { key: 'moon',   name: 'Полумесяц', theme: '#f8bdb2', note: 'месяц и солнце' },
-  { key: 'gate',   name: 'Врата',     theme: '#c95767', note: 'ступени к рассвету' },
+  { key: 'gate',   name: 'Врата',     theme: '#c95767', note: 'ступени к свету' },
   { key: 'petals', name: 'Лепестки',  theme: '#f39575', note: 'четыре доли' },
   { key: 'lotus',  name: 'Лотос',     theme: '#e89391', note: 'на воде' },
+  { key: 'butterfly',name: 'Бабочка',  theme: '#f68d71', note: 'лёгкость' },
+  { key: 'orbit',   name: 'Орбита',   theme: '#863855', note: 'жемчужина в кольцах' },
+  { key: 'heart',   name: 'Сердце',   theme: '#ac375c', note: 'в тёплом круге' },
+  { key: 'sunrise', name: 'Рассвет',  theme: '#f9c198', note: 'дорога к солнцу' },
+  { key: 'citrus',  name: 'Долька',   theme: '#e85858', note: 'восемь частей' },
 ];
 
 export const DEFAULT_ICON = 'pearl';
