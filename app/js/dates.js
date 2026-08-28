@@ -63,6 +63,10 @@ export const dowIndex = s => (parseISO(s).getDay() + 6) % 7;
 export const dayTitle = s => `${DOW_FULL[dowIndex(s)]}, ${parseISO(s).getDate()}`;
 export const dayShort = s => `${parseISO(s).getDate()} ${MONTHS_GEN[Number(s.slice(5, 7)) - 1]}`;
 export const monthTitle = ym => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+/** Предложный падеж: «в августе», а не «в август». */
+export const MONTHS_PRE = ['январе', 'феврале', 'марте', 'апреле', 'мае', 'июне',
+  'июле', 'августе', 'сентябре', 'октябре', 'ноябре', 'декабре'];
+export const monthIn = ym => MONTHS_PRE[Number(ym.slice(5, 7)) - 1];
 
 /** «сегодня» / «вчера» / «завтра» — иначе null. */
 export function relativeDay(s) {

@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 39;
+const VERSION = 40;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -22,12 +22,13 @@ export const ROLE_SEED = {
 };
 
 import { artSrc } from './sphereart.js';
+import { BLOG_STAGES, BLOG_PLACES } from './blog.js';
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
   { key: 'study', name: 'Учёба',    mech: 'курсы',      img: 'assets/illustration_03.png' },
   { key: 'work',  name: 'Работа',   mech: 'квесты',     img: 'assets/illustration_02.png' },
-  { key: 'blog',  name: 'Блог',     mech: 'ферма идей', img: 'assets/illustration_06.png' },
+  { key: 'blog',  name: 'Блог',     mech: 'редакция',    img: 'assets/illustration_06.png' },
   { key: 'sport', name: 'Спорт',    mech: 'статы',      img: 'assets/illustration_05.png' },
   { key: 'food',  name: 'Питание',  mech: 'зелья',      img: 'assets/illustration_04.png' },
   { key: 'money', name: 'Бюджет',   mech: 'казна',      img: 'assets/illustration_10.png' },
@@ -216,6 +217,10 @@ function blank() {
                                                          // блюдо: { id, meal, title, kcal, prot, fat, carb, time, source }
     },
     mind: [],            // осознанность: { id, date, key, minutes, before, after, note }
+    blog: {              // блог: конвейер постов и отметки подписчиков
+      posts: [],         // { id, title, place: 'ig'|'tg'|'both', stage, day, link, views, tags: [], note, movedAt }
+      subs: [],          // { id, date, ig, tg } — сколько было на эту дату
+    },
                          // before/after — своя отметка напряжения 0..100, обе необязательны
     diary: [],
     chat: [],
@@ -592,6 +597,44 @@ function migrate(s) {
     log: r?.log && typeof r.log === 'object' ? r.log : {},
     shelf: arr(r?.shelf), coll: arr(r?.coll), board: arr(r?.board), meas: arr(r?.meas),
   }]));
+  // v39 → v40: у блога появился свой конвейер. Прежние «идеи» лежали общим
+  // списком этапов сферы — переносим их как посты, ничего не выдумывая:
+  // закрытая идея была публикацией, её дата закрытия и есть день выхода.
+  const STAGE_KEYS = BLOG_STAGES.map(x => x.key);
+  const PLACE_KEYS = BLOG_PLACES.map(x => x.key);
+  const b0 = merged.blog && typeof merged.blog === 'object' ? merged.blog : {};
+  merged.blog = {
+    posts: (Array.isArray(b0.posts) ? b0.posts : []).map(x => ({
+      id: x.id || uid(), title: String(x.title || '').trim() || 'Пост',
+      place: PLACE_KEYS.includes(x.place) ? x.place : 'both',
+      stage: STAGE_KEYS.includes(x.stage) ? x.stage : 'idea',
+      day: typeof x.day === 'string' ? x.day : '',
+      link: typeof x.link === 'string' ? x.link : '',
+      views: x.views == null || x.views === '' ? null : Math.max(0, Math.round(Number(x.views) || 0)),
+      tags: Array.isArray(x.tags) ? x.tags.map(String) : [],
+      note: typeof x.note === 'string' ? x.note : '',
+      movedAt: typeof x.movedAt === 'string' ? x.movedAt : '',
+    })),
+    subs: (Array.isArray(b0.subs) ? b0.subs : [])
+      .filter(x => x && typeof x.date === 'string')
+      .map(x => ({ id: x.id || uid(), date: x.date,
+        ig: x.ig == null || x.ig === '' ? null : Math.max(0, Math.round(Number(x.ig) || 0)),
+        tg: x.tg == null || x.tg === '' ? null : Math.max(0, Math.round(Number(x.tg) || 0)) }))
+      .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
+  };
+  const oldIdeas = merged.spheres?.blog?.items;
+  if (Array.isArray(oldIdeas) && oldIdeas.length && !merged.blog.posts.length) {
+    merged.blog.posts = oldIdeas.map(i => ({
+      id: i.id || uid(), title: String(i.title || '').trim() || 'Пост',
+      place: 'both',
+      stage: i.done ? 'out' : (i.stage || 0) >= 2 ? 'ready' : (i.stage || 0) >= 1 ? 'draft' : 'idea',
+      day: i.done && typeof i.doneAt === 'string' ? i.doneAt.slice(0, 10) : '',
+      link: '', views: null, tags: [], note: '',
+      movedAt: typeof i.doneAt === 'string' ? i.doneAt.slice(0, 10) : '',
+    }));
+    merged.spheres.blog = { ...merged.spheres.blog, items: [] };
+  }
+
   merged.customSpheres = (Array.isArray(merged.customSpheres) ? merged.customSpheres : []).map(sp => ({
     key: sp.key, name: sp.name || 'Сфера', icon: sp.icon || '✦', mech: sp.mech || 'своя',
     // v38 → v39: у своих сфер появилась обложка. Старым её не придумываем —

@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth, shelfDoneIn, collIn, boardDoneIn, measIn, workMonth, mindMonth,
+import { blogMonth, blogYear, liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth, shelfDoneIn, collIn, boardDoneIn, measIn, workMonth, mindMonth,
   sportTags, tagById, tagMonthCount, tagUsedIn, booksDoneIn, booksDoneYear } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
@@ -121,6 +121,11 @@ export function buildRows(y) {
     ...(booksDoneYear(y).length ? [{
       name: 'Книги', book: true, unit: 'шт.',
       cells: months.map(ym => ({ value: booksDoneIn(ym).length || null })),
+    }] : []),
+    // Посты — как книги: строка появляется, только если за год что-то вышло.
+    ...(blogYear(y) ? [{
+      name: 'Посты', unit: 'шт.',
+      cells: months.map(ym => ({ value: blogMonth(ym) || null })),
     }] : []),
     // Энергия — среднее за месяц, поэтому за год у неё тоже среднее, а не сумма.
     { name: 'Энергия', avg: true, unit: 'сред.', cells: months.map(ym => ({ value: energyMonth(ym) })) },

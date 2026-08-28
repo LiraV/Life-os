@@ -1,6 +1,7 @@
 // Производные значения. Ничего не хранят — считают из состояния,
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
+import { BLOG_PLACES, BLOG_FEEDS, atPlace, isOut } from './blog.js';
 import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS, energyRec, energyAt, energyOn } from './store.js';
 export { energyRec, energyAt, energyOn };
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
@@ -684,9 +685,9 @@ export function sphereParts(key, days) {
   // Своя сфера приносит закрытые этапы с датой и отметки журнала.
   // У блога закрытый этап — это опубликованный пост, так его и называем.
   const inDays = d => days.includes((d || '').slice(0, 10));
+  if (key === 'blog') return [quests, { label: 'посты', n: blogPosts().filter(p => isOut(p) && inDays(p.day)).length }];
   return [quests,
-    { label: key === 'blog' ? 'посты' : 'этапы',
-      n: sphereItems(key).filter(i => i.done && inDays(i.doneAt)).length },
+    { label: 'этапы', n: sphereItems(key).filter(i => i.done && inDays(i.doneAt)).length },
     { label: 'отметки', n: days.filter(d => Number(sphereLog(key)[d]) > 0).length },
     { label: 'закрыто', n: shelfBy(key, 'done').filter(x => inDays(x.finished)).length },
     { label: 'собрано', n: sphereColl(key).filter(x => inDays(x.date)).length },
@@ -1286,6 +1287,12 @@ export const SOURCES = {
     sphere: 'trips', name: 'Стран за жизнь', unit: 'стран', horizons: ['year'], lifetime: true,
     count: () => countriesEver().length,
   },
+  posts: {
+    sphere: 'blog', name: 'Постов', unit: 'постов', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'везде' }, ...BLOG_PLACES.filter(p => p.key !== 'both').map(p => ({ value: p.key, label: p.name }))],
+    refName: id => BLOG_PLACES.find(p => p.key === id)?.name || '',
+    count: (ref, r) => blogOutIn(r.from, r.to, ref).length,
+  },
   workouts: {
     sphere: 'sport', name: 'Тренировок', unit: 'тренировок', horizons: ['year', 'quarter', 'month'],
     count: (_ref, r) => doneWorkouts(r).length,
@@ -1643,6 +1650,57 @@ export const mindLog = () => [...(S.mind || [])].sort((a, b) => (a.date < b.date
 export const mindIn = (from, to) => (S.mind || []).filter(x => x.date >= from && x.date <= to);
 export const mindMinutes = (from, to) => mindIn(from, to).reduce((a, x) => a + (Number(x.minutes) || 0), 0);
 export const mindDays = (from, to) => new Set(mindIn(from, to).map(x => x.date)).size;
+// ── блог ────────────────────────────────────────────────────────
+// Ритм и отклик — разные вещи. Ритм считается сам из постов, доехавших до
+// «опубликовано»; отклик человек вписывает руками, и только если хочет.
+
+export const blogPosts = () => S.blog?.posts || [];
+export const blogBy = stage => blogPosts().filter(p => p.stage === stage);
+/** Вышедшие: сначала свежие. Без дня выхода пост в ритм не попадает —
+ *  дату публикации мы не выдумываем, но из списка он не исчезает. */
+export const blogOut = (place = '') => blogBy('out').filter(p => atPlace(p, place))
+  .sort((a, b) => ((a.day || '') < (b.day || '') ? 1 : -1));
+export const blogOutIn = (from, to, place = '') =>
+  blogOut(place).filter(p => p.day && p.day >= from && p.day <= to);
+export const blogMonth = (ym, place = '') => blogOutIn(`${ym}-01`, `${ym}-31`, place).length;
+export const blogYear = (y, place = '') => blogOutIn(`${y}-01-01`, `${y}-12-31`, place).length;
+export const blogTotal = (place = '') => blogOut(place).filter(p => p.day).length;
+
+/** Ближайшие выходы: тихо, на экране сферы — в «День» они не лезут. */
+export const blogAhead = (within = 30) => blogPosts()
+  .filter(p => !isOut(p) && p.day && p.day >= todayISO() && diffDays(p.day, todayISO()) <= within)
+  .sort((a, b) => (a.day < b.day ? -1 : 1));
+
+/** Лучший по просмотрам: за отрезок и за всё время. Без чисел — null. */
+const bestBy = list => list.filter(p => p.views != null)
+  .reduce((best, p) => (!best || p.views > best.views ? p : best), null);
+export const viewsBest = (from, to) => bestBy(blogOutIn(from, to));
+export const viewsRecord = () => bestBy(blogOut());
+export const viewsMonth = ym => viewsBest(`${ym}-01`, `${ym}-31`);
+
+/** Подписчики: отметки по датам, последняя и разница с предыдущей. */
+export const subsMarks = () => (S.blog?.subs || []).filter(x => x.ig != null || x.tg != null);
+export const subsLast = () => subsMarks().slice(-1)[0] || null;
+export function subsDelta(feed) {
+  const marks = subsMarks().filter(x => x[feed] != null);
+  if (marks.length < 2) return null;
+  return marks[marks.length - 1][feed] - marks[marks.length - 2][feed];
+}
+export const subsSeries = feed => subsMarks().filter(x => x[feed] != null).map(x => x[feed]);
+export const subsTotal = () => {
+  const last = subsLast();
+  if (!last) return null;
+  const n = BLOG_FEEDS.map(f => last[f.key]).filter(v => v != null);
+  return n.length ? n.reduce((a, b) => a + b, 0) : null;
+};
+
+/** Рубрики: метка и сколько постов под ней. */
+export function blogTags() {
+  const n = {};
+  blogPosts().forEach(p => (p.tags || []).forEach(t => { n[t] = (n[t] || 0) + 1; }));
+  return Object.entries(n).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+}
+
 export const mindMonth = ym => mindDays(`${ym}-01`, `${ym}-31`);
 export const mindMonthMinutes = ym => mindMinutes(`${ym}-01`, `${ym}-31`);
 export const mindStreakWeek = date => weekDates(date).filter(d => mindIn(d, d).length).length;

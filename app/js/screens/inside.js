@@ -2,7 +2,7 @@
 // Летописец работает без сети — это правила поверх твоих данных, не языковая модель.
 
 import { S, update, uid, XP, addXp, addDiary } from '../store.js';
-import { todayISO, addDays, dayShort, monthKey, monthTitle, weekDates } from '../dates.js';
+import { todayISO, addDays, dayShort, monthKey, monthTitle, monthIn, weekDates } from '../dates.js';
 import { h, raw, field, toast, openSheet, closeSheet } from '../ui.js';
 import { weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest,
   mindLog, mindMinutes, mindDays, mindMonth, mindMonthMinutes, mindStreakWeek, mindShift } from '../selectors.js';
@@ -376,7 +376,7 @@ function mindView() {
     <div class="card">
       <div class="row between"><div class="caps">За неделю</div>
         <span class="lab">${mindMinutes(week[0], week[6])} мин · ${mindStreakWeek(t)} ${plural(mindStreakWeek(t), 'день', 'дня', 'дней')}</span></div>
-      <div class="lab">В ${monthTitle(ym).toLowerCase()} — ${mindMonth(ym)} ${plural(mindMonth(ym), 'день', 'дня', 'дней')},
+      <div class="lab">В ${monthIn(ym)} — ${mindMonth(ym)} ${plural(mindMonth(ym), 'день', 'дня', 'дней')},
         ${mindMonthMinutes(ym)} минут. Ровного счёта тут нет и не нужно: пропуск ничего не обнуляет.</div>
       ${shift ? raw(h`<div class="lab">По твоим отметкам «до → после»: ${shift.before} → ${shift.after}
         из 100${shift.delta < 0 ? `, в среднем на ${-shift.delta} меньше` : shift.delta > 0 ? `, в среднем на ${shift.delta} больше` : ', без разницы'}.

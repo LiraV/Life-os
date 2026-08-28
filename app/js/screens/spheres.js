@@ -2,9 +2,12 @@
 // у блога стадии идей, у бюджета копилка, у спорта — статистика из квестов.
 
 import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken } from '../store.js';
-import { todayISO, addDays, monthKey, monthTitle, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
+import { todayISO, addDays, monthKey, monthTitle, monthIn, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import { SPHERE_ART, DEFAULT_ART, artSrc } from '../sphereart.js';
+import { BLOG_STAGES, BLOG_PLACES, BLOG_FEEDS, placeShort, placeName } from '../blog.js';
+import { blogPosts, blogBy, blogMonth, blogYear, blogTotal, blogAhead, viewsMonth, viewsRecord,
+  subsLast, subsDelta, subsTotal, blogTags } from '../selectors.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions,
   sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleOfSphere,
   SHELF_STATUS, sphereShelf, shelfBy, BOARD_STAGES, sphereBoard, boardBy,
@@ -14,7 +17,6 @@ import { balanceAt, money } from './budget.js';
 import { studyNow, workoutsIn } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 
-const STAGES = ['росток', 'бутон', 'готов ✦'];
 const rec = (s, key) => (s.spheres[key] ||= blankSphere());
 
 export function render(params) {
@@ -32,6 +34,7 @@ function grid() {
         const bal = sp.key === 'money' ? balanceAt(todayISO().slice(0, 7)) : null;
         const stu = sp.key === 'study' ? studyNow() : null;
         const wk = sp.key === 'work' ? { ...workWeek(todayISO()), jobs: jobsNow().length } : null;
+        const bl = sp.key === 'blog' ? { month: blogMonth(todayISO().slice(0, 7)), ideas: blogBy('idea').length } : null;
         const edu = sp.key === 'edu'
           ? liveLessons().filter(l => !l.paused).reduce((a, l) => a + lessonMonth(l, todayISO().slice(0, 7)), 0)
           : null;
@@ -40,7 +43,9 @@ function grid() {
             ${sp.img ? raw(h`<img src="${sp.img}" alt="">`) : raw(h`<div class="tile-emoji">${sp.icon}</div>`)}
             <span class="tile-badge">${sp.mech}</span>
             <b>${sp.name}</b>
-            <span>${wk ? (!wk.jobs ? 'место не заведено' : wk.days ? `${wk.hours} ч за неделю` : 'неделя не отмечена')
+            <span>${bl ? (bl.month ? `${bl.month} ${plural(bl.month, 'пост', 'поста', 'постов')} за месяц`
+                : bl.ideas ? `${bl.ideas} ${plural(bl.ideas, 'идея', 'идеи', 'идей')} в банке` : 'пока пусто')
+              : wk ? (!wk.jobs ? 'место не заведено' : wk.days ? `${wk.hours} ч за неделю` : 'неделя не отмечена')
               : food ? `сегодня ${food.kcal} ккал`
               : bal != null ? `остаток ${money(bal)}`
               : edu != null ? (edu ? `${edu} занятий за месяц` : 'полка занятий')
@@ -90,7 +95,7 @@ function detail(key) {
     ${pct != null ? raw(h`<div class="card"><div class="row">${raw(bar(pct, pct >= 100))}<span class="lab">${pct}%</span></div>
       <div class="lab">${items.filter(i => i.done).length} из ${items.length} закрыто</div></div>`) : ''}
 
-    ${raw(key === 'blog' ? blogBody(items) : key === 'money' ? vaultBody(r) : key === 'sport' ? sportBody() : '')}
+    ${raw(key === 'blog' ? blogBody() : key === 'money' ? vaultBody(r) : key === 'sport' ? sportBody() : '')}
     ${raw(kinds.includes('log') ? logBody(key, sp) : '')}
     ${raw(kinds.includes('shelf') ? shelfBody(key, sp) : '')}
     ${raw(kinds.includes('coll') ? collBody(key, sp) : '')}
@@ -100,12 +105,12 @@ function detail(key) {
     ${raw(sphereGoalsCard(key))}
     ${raw(sphereGoalButton(key))}
 
-    ${kinds.includes('steps') ? raw(h`
+    ${kinds.includes('steps') && key !== 'blog' ? raw(h`
       <div class="card">
-        <div class="caps">${key === 'blog' ? 'Идеи' : 'Этапы'}</div>
+        <div class="caps">Этапы</div>
         ${items.length ? raw(h`<div class="list">${items.map(i => raw(itemRow(key, i)))}</div>`)
           : raw('<div class="empty">Пока пусто. Добавь первый шаг — он и будет прогрессом.</div>')}
-        <button class="add" data-act="itemadd">+ ${key === 'blog' ? 'Идея' : 'Этап'}</button>
+        <button class="add" data-act="itemadd">+ Этап</button>
       </div>`) : ''}
 
     <div class="card">
@@ -127,7 +132,7 @@ function logBody(key, sp) {
   return h`
     <div class="card">
       <div class="row between"><div class="caps">Журнал</div>
-        <span class="lab">${sphereLogMonth(key, ym)} ${plural(sphereLogMonth(key, ym), 'день', 'дня', 'дней')} в ${monthTitle(ym).toLowerCase()}</span></div>
+        <span class="lab">${sphereLogMonth(key, ym)} ${plural(sphereLogMonth(key, ym), 'день', 'дня', 'дней')} в ${monthIn(ym)}</span></div>
       <div class="hab-grid">
         ${week.map(d => {
           const n = sphereLogOn(key, d);
@@ -518,16 +523,6 @@ function sphereSheet(key, tpl) {
 }
 
 function itemRow(key, i) {
-  if (key === 'blog' && !i.done) {
-    const st = i.stage || 0;
-    return h`
-      <div class="chk-row">
-        <button class="pill" data-act="stage" data-id="${i.id}">${STAGES[st]}</button>
-        <span class="grow">${i.title}</span>
-        ${st >= 2 ? raw(h`<button class="q-edit" data-act="publish" data-id="${i.id}">опубликовать ›</button>`)
-                  : raw(h`<button class="q-edit" data-act="itemdel" data-id="${i.id}">×</button>`)}
-      </div>`;
-  }
   return h`
     <div class="chk-row ${i.done ? 'done' : ''}">
       <button class="check ${i.done ? 'on' : ''}" data-act="item" data-id="${i.id}">✓</button>
@@ -536,13 +531,149 @@ function itemRow(key, i) {
     </div>`;
 }
 
-function blogBody(items) {
-  const ready = items.filter(i => !i.done && (i.stage || 0) >= 2).length;
-  const published = items.filter(i => i.done).length;
-  return h`<div class="card">
-    <div class="ink"><b>Ферма идей</b></div>
-    <div class="lab">Идея растёт: росток → бутон → готов. Созревших сейчас: ${ready}. Опубликовано: ${published}.</div>
-  </div>`;
+/**
+ * Блог. Ритм и отклик разведены: ритм приложение считает само из вышедших
+ * постов, отклик человек вписывает руками и только если хочет. Серий и
+ * «ты пропустила неделю» здесь нет и не будет — это ровно тот механизм
+ * вины, ради отсутствия которого всё и затевалось.
+ */
+function blogBody() {
+  const t = todayISO();
+  const ym = monthKey(t);
+  const y = yearOf(t);
+  const month = blogMonth(ym);
+  const ahead = blogAhead();
+  const subs = subsLast();
+  const best = viewsMonth(ym);
+  const rec2 = viewsRecord();
+  const tags = blogTags();
+
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Ритм</div>
+        <span class="lab">всего ${blogTotal()} ${plural(blogTotal(), 'пост', 'поста', 'постов')}</span></div>
+      <div class="ink"><b>${month}</b> ${plural(month, 'пост', 'поста', 'постов')} в ${monthIn(ym)} · за год ${blogYear(y)}</div>
+      <div class="lab">${BLOG_FEEDS.map(f => `${f.name} ${blogMonth(ym, f.key)}`).join(' · ')} за месяц</div>
+      ${month ? '' : raw('<div class="lab">В этом месяце пока ничего не выходило. Это не упрёк — просто число.</div>')}
+    </div>
+
+    ${ahead.length ? raw(h`<div class="card mute">
+      <div class="caps">Скоро выходит</div>
+      ${ahead.map(p => raw(h`<button class="link-row" data-act="postedit" data-id="${p.id}">
+        <span class="ink grow ellip">${p.title}</span>
+        <span class="lab">${dayShort(p.day)} · ${placeShort(p.place)} ›</span></button>`))}
+      <div class="lab">Лежит здесь, а не в «Дне»: незачем маячить перед глазами раньше времени.</div>
+    </div>`) : ''}
+
+    <div class="card">
+      <div class="row between"><div class="caps">Подписчики</div>
+        <button class="q-edit" data-act="subsmark">отметить ›</button></div>
+      ${subs ? raw(h`
+        <div class="ink"><b>${subsTotal() ?? '—'}</b> всего · на ${dayShort(subs.date)}</div>
+        <div class="lab">${BLOG_FEEDS.map(f => {
+          const d = subsDelta(f.key);
+          const dd = d == null ? '' : d > 0 ? ` (+${d})` : d < 0 ? ` (${d})` : ' (без изменений)';
+          return `${f.name} ${subs[f.key] ?? '—'}${dd}`;
+        }).join(' · ')}</div>`)
+        : raw('<div class="lab">Ещё не отмечено. Отмечать можно когда угодно — хоть раз в месяц, хоть раз в полгода.</div>')}
+    </div>
+
+    ${best || rec2 ? raw(h`<div class="card">
+      <div class="caps">Просмотры</div>
+      ${best ? raw(h`<div class="link-row"><span class="ink grow ellip">${best.title}</span>
+        <span class="lab">${best.views} · лучший за месяц</span></div>`) : ''}
+      ${rec2 ? raw(h`<div class="link-row"><span class="ink grow ellip">${rec2.title}</span>
+        <span class="lab">${rec2.views} · рекорд</span></div>`) : ''}
+    </div>`) : ''}
+
+    ${BLOG_STAGES.map(st => {
+      const all = blogBy(st.key);
+      const list = st.key === 'out' ? all.slice().sort((a, b) => ((a.day || '') < (b.day || '') ? 1 : -1)).slice(0, 8) : all;
+      return raw(h`
+        <div class="card">
+          <div class="row between"><div class="caps">${st.name}</div>
+            <span class="lab">${all.length || ''}</span></div>
+          ${list.length ? raw(h`<div class="list">${list.map(p => raw(postRow(p, st.key)))}</div>`)
+            : raw(h`<div class="lab">${st.key === 'idea' ? 'Пусто. Идея может прийти из инбокса или прямо отсюда.' : 'Пусто.'}</div>`)}
+          ${all.length > list.length ? raw(h`<div class="lab">и ещё ${all.length - list.length}</div>`) : ''}
+        </div>`);
+    })}
+    <button class="add" data-act="postadd">+ Пост</button>
+
+    ${tags.length ? raw(h`<div class="card mute">
+      <div class="caps">Рубрики</div>
+      <div class="pills">${tags.map(x => raw(h`<span class="pill">${x.name} · ${x.count}</span>`))}</div>
+      <div class="lab">О чём ты пишешь на самом деле, а не о чём кажется.</div>
+    </div>`) : ''}`;
+}
+
+/**
+ * Пост целиком. Просмотры и ссылка нужны только вышедшему, но поля не
+ * прячем: человек знает лучше, что у него уже есть.
+ */
+function postSheet(id) {
+  const p = id ? blogPosts().find(x => x.id === id) : null;
+  const base = p || { title: '', place: 'both', stage: 'idea', day: '', link: '', views: null, tags: [], note: '' };
+  openSheet({
+    title: p ? 'Пост' : 'Новый пост',
+    sub: p ? placeName(p.place) : 'идея, черновик или уже готовое',
+    body: [
+      field.text('title', 'О чём', base.title, 'коротко'),
+      field.opts('place', 'Куда', BLOG_PLACES.map(x => ({ value: x.key, label: x.name })), base.place),
+      field.opts('stage', 'Стадия', BLOG_STAGES.map(x => ({ value: x.key, label: x.name })), base.stage),
+      field.date('day', 'День выхода', base.day),
+      field.note('День выхода — это когда пост выходит, а не дедлайн. В «Дне» он не появится: незачем маячить перед глазами раньше времени.'),
+      field.text('tags', 'Рубрики', (base.tags || []).join(', '), 'через запятую'),
+      field.number('views', 'Просмотры', base.views ?? '', { min: 0, step: 1 }),
+      field.text('link', 'Ссылка', base.link, 'после публикации'),
+      field.area('note', 'Заметка', base.note, 'мысли, план, что зашло'),
+    ].join(''),
+    primary: p ? 'Сохранить' : 'Добавить',
+    onSave: (v, close) => {
+      const title = (v.title || '').trim();
+      if (!title) return toast('Нужно название');
+      const twin = nameTaken(blogPosts(), title, id, 'title');
+      if (twin) return toast(`«${twin.title}» уже есть`);
+      const next = {
+        title,
+        place: BLOG_PLACES.some(x => x.key === v.place) ? v.place : 'both',
+        stage: BLOG_STAGES.some(x => x.key === v.stage) ? v.stage : 'idea',
+        day: (v.day || '').trim().slice(0, 10),
+        link: (v.link || '').trim(),
+        views: String(v.views ?? '').trim() === '' ? null : Math.max(0, Math.round(Number(v.views) || 0)),
+        tags: (v.tags || '').split(',').map(x => x.trim()).filter(Boolean),
+        note: (v.note || '').trim(),
+      };
+      // Дата выхода нужна, чтобы пост попал в ритм. Ставим сегодняшнюю только
+      // тогда, когда человек сам двинул пост в «опубликовано» и дня не назвал.
+      if (next.stage === 'out' && !next.day) next.day = todayISO();
+      update(s => {
+        const was = s.blog.posts.find(x => x.id === id);
+        if (was) Object.assign(was, next, { movedAt: was.stage !== next.stage ? todayISO() : was.movedAt });
+        else s.blog.posts.push({ id: uid(), ...next, movedAt: todayISO() });
+      });
+      close();
+      toast(p ? 'Сохранено' : 'Добавлено');
+    },
+    danger: p ? 'Удалить' : null,
+    onDanger: (_v, close) => {
+      close();
+      confirmSheet(`Удалить «${p.title}»?`, 'Пост исчезнет вместе с просмотрами и заметкой.', 'Удалить',
+        () => update(s => { s.blog.posts = s.blog.posts.filter(x => x.id !== id); }));
+    },
+  });
+}
+
+/** Строка поста: стадия двигается тапом по пилюле, остальное — в шторке. */
+function postRow(p, stage) {
+  const next = BLOG_STAGES[(BLOG_STAGES.findIndex(s2 => s2.key === stage) + 1) % BLOG_STAGES.length];
+  return h`
+    <div class="chk-row">
+      <button class="pill" data-act="postmove" data-id="${p.id}" title="дальше: ${next.name}">${placeShort(p.place)}</button>
+      <span class="grow ellip" data-act="postedit" data-id="${p.id}" style="cursor:pointer">${p.title}</span>
+      <span class="lab">${p.stage === 'out' && p.views != null ? `${p.views} просм.` : p.day ? dayShort(p.day) : ''}</span>
+      <button class="q-edit" data-act="postedit" data-id="${p.id}">›</button>
+    </div>`;
 }
 
 function vaultBody(r) {
@@ -669,23 +800,57 @@ export const actions = {
 
   itemdel: v => update(s => { rec(s, curKey()).items = rec(s, curKey()).items.filter(x => x.id !== v.id); }),
 
-  stage: v => update(s => {
-    const it = rec(s, 'blog').items.find(x => x.id === v.id);
-    if (it) it.stage = ((it.stage || 0) + 1) % 3;
-  }),
+  // ── блог
+  postadd: () => postSheet(null),
+  postedit: v => postSheet(v.id),
 
-  publish: v => {
-    let title = '';
+  /** Тап по пилюле двигает пост на следующую стадию. Вышедшему ставим день
+   *  выхода — но только если он не задан: свою дату не перетираем. */
+  postmove: v => {
+    let msg = '';
     update(s => {
-      const it = rec(s, 'blog').items.find(x => x.id === v.id);
-      if (!it) return;
-      it.done = true;
-      it.doneAt = todayISO();
-      title = it.title;
-      addXp(XP.step);
-      addDiary(s, `опубликовано: ${title}`, 'Блог', 'sphere');
+      const p = s.blog.posts.find(x => x.id === v.id);
+      if (!p) return;
+      const i = BLOG_STAGES.findIndex(x => x.key === p.stage);
+      const next = BLOG_STAGES[(i + 1) % BLOG_STAGES.length];
+      p.stage = next.key;
+      p.movedAt = todayISO();
+      if (next.key === 'out') {
+        p.day ||= todayISO();
+        addXp(XP.step);
+        addDiary(s, `опубликовано: ${p.title}`, 'Блог', 'sphere');
+        msg = `«${p.title}» опубликовано ✦`;
+      } else msg = `${p.title} → ${next.name.toLowerCase()}`;
     });
-    toast(`«${title}» опубликовано ✦`);
+    toast(msg);
+  },
+
+  subsmark: () => {
+    const last = subsLast();
+    openSheet({
+      title: 'Подписчики',
+      sub: 'сколько сейчас — отмечать можно когда угодно',
+      body: [
+        field.date('date', 'Дата', todayISO()),
+        ...BLOG_FEEDS.map(f => field.number(f.key, f.name, last?.[f.key] ?? '', { min: 0, step: 1 })),
+        field.note('Пустое поле — просто не отмечено. Число не придумывается и разницу не портит.'),
+      ].join(''),
+      primary: 'Записать',
+      onSave: (v, close) => {
+        const date = (v.date || todayISO()).trim().slice(0, 10);
+        const num = x => (String(x ?? '').trim() === '' ? null : Math.max(0, Math.round(Number(x) || 0)));
+        const ig = num(v.ig), tg = num(v.tg);
+        if (ig == null && tg == null) return toast('Впиши хотя бы одно число');
+        update(s => {
+          const was = s.blog.subs.find(x => x.date === date);
+          if (was) { was.ig = ig; was.tg = tg; }
+          else s.blog.subs.push({ id: uid(), date, ig, tg });
+          s.blog.subs.sort((a, b) => (a.date < b.date ? -1 : 1));
+        });
+        close();
+        toast('Отмечено');
+      },
+    });
   },
 
   note: () => {
