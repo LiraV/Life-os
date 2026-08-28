@@ -1,7 +1,7 @@
 // Роутер и оболочка: рисует активный экран, нижний бар и drawer,
 // раздаёт клики экрану через data-act.
 
-import { S, onChange, update, updateQuiet, level } from './store.js';
+import { S, onChange, update, updateQuiet, level, loadError, rescueRaw, acceptFreshStart } from './store.js';
 import { todayISO } from './dates.js';
 import { closeSheet, toast } from './ui.js';
 import { reconcile } from './traits.js';
@@ -72,6 +72,46 @@ const route = () => location.hash.replace(/^#\/?/, '').split('/').filter(Boolean
  * же элементов, и их достаточно завернуть в один липкий блок. Несколько
  * липких соседей налезали бы друг на друга — поэтому именно обёртка.
  */
+
+/**
+ * Экран спасения. Появляется, только если сохранение не удалось прочитать.
+ * Ничего не пишется на диск, пока человек не решил: выгрузить старые данные
+ * и разобраться или начать заново. Молча стирать — не вариант.
+ */
+function renderRescue() {
+  nav.hidden = true;
+  scr.innerHTML = `
+    <div class="title">Данные не прочитались</div>
+    <div class="card">
+      <div class="ink">Приложение не смогло открыть сохранение и пока ничего не записывает —
+        чтобы не затереть то, что есть.</div>
+      <div class="lab" style="margin-top:8px">Твои данные не удалены: они лежат отложенной копией.
+        Скачай её — из этого файла всё восстанавливается.</div>
+      <div class="lab">Причина: ${loadError}</div>
+      <button class="btn" data-rescue="save">Скачать копию данных</button>
+      <button class="btn-ghost" data-rescue="fresh">Начать заново — копию удалить</button>
+    </div>`;
+  scr.onclick = e => {
+    const b = e.target.closest('[data-rescue]');
+    if (!b) return;
+    if (b.dataset.rescue === 'save') {
+      const raw = rescueRaw();
+      if (!raw) return toast('Копии нет');
+      const a2 = document.createElement('a');
+      a2.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+      a2.download = `life-os-rescue-${todayISO()}.json`;
+      a2.click();
+      URL.revokeObjectURL(a2.href);
+      toast('Копия скачана');
+      return;
+    }
+    if (confirm('Начать заново? Отложенная копия будет удалена без возврата.')) {
+      acceptFreshStart();
+      location.reload();
+    }
+  };
+}
+
 const HEAD = ['title', 'sub', 'pills', 'row', 'stepper', 'lab'];
 
 // Стекло под шапкой нужно только когда под неё что-то уехало: на нетронутом
@@ -183,6 +223,9 @@ function syncTraits() {
 
 let lastKey = '';
 export function render() {
+  // Сначала — не удалось ли прочитать данные. Иначе человека встретит
+  // онбординг поверх целых, но непрочитанных данных: выглядит как «всё стёрлось».
+  if (loadError) return renderRescue();
   syncTraits();
   renderStatus();
   if (!S.onboarded) {

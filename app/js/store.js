@@ -3,8 +3,12 @@
 // оповещает подписчиков.
 
 import { todayISO, monthKey, yearOf } from './dates.js';
+import { KCOLUMNS, KTYPES } from './kanban.js';
 
 const KEY = 'lifeos.state';
+// Куда откладывается сырой текст, если его не удалось прочитать: из него
+// всё можно вернуть, поэтому он не должен пропасть вместе со сбоем.
+const RESCUE = 'lifeos.state.rescue';
 const VERSION = 36;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
@@ -575,18 +579,38 @@ function migrate(s) {
 // Ставится в load(), если на диске лежит не текущий формат — тогда после
 // запуска сразу перезаписываем, чтобы старый формат не уехал в экспорт.
 let needsRewrite = false;
+// Пока сохранение заблокировано, приложение не пишет на диск ни байта:
+// поверх нечитаемых данных писать нельзя, пока человек не решил, что с ними делать.
+let saveBlocked = false;
+
+/**
+ * Ошибка чтения не должна стоить человеку данных. Раньше любой сбой в
+ * миграции молча подставлял чистое состояние и сохранял его поверх — одна
+ * забытая строка импорта стирала всё. Теперь при сбое сохранение
+ * блокируется, сырой текст откладывается рядом, и приложение об этом
+ * говорит вслух, а не делает вид, что всё хорошо.
+ */
+export let loadError = null;
+export const rescueRaw = () => { try { return localStorage.getItem(RESCUE); } catch { return null; } };
+export const dropRescue = () => { try { localStorage.removeItem(RESCUE); } catch {} };
 
 function load() {
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch { /* хранилище недоступно */ }
+  // Через migrate проходит и чистое состояние: там же заводятся статьи бюджета.
+  if (!raw) { needsRewrite = true; return migrate(blank()); }
   try {
-    const raw = localStorage.getItem(KEY);
-    // Через migrate проходит и чистое состояние: там же заводятся статьи бюджета.
-    if (!raw) { needsRewrite = true; return migrate(blank()); }
     const parsed = JSON.parse(raw);
     if (parsed.v !== VERSION) needsRewrite = true;
     return migrate(parsed);
   } catch (e) {
-    console.warn('[lifeos] не удалось прочитать сохранение, начинаем заново', e);
-    needsRewrite = true;
+    console.error('[lifeos] не удалось прочитать сохранение', e);
+    loadError = String(e?.message || e);
+    // Сырой текст кладём рядом — из него всё можно вернуть.
+    try { localStorage.setItem(RESCUE, raw); } catch { /* нет места — хоть не затрём */ }
+    // Главное: ничего не пишем поверх и не помечаем состояние к перезаписи.
+    needsRewrite = false;
+    saveBlocked = true;
     return migrate(blank());
   }
 }
@@ -598,6 +622,9 @@ export const onChange = fn => { listeners.add(fn); return () => listeners.delete
 
 let saveTimer = null;
 export function save() {
+  // Данные не прочитались — значит, писать поверх них нельзя ничем и никогда,
+  // пока человек не решит: вернуть из отложенной копии или начать заново.
+  if (saveBlocked) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try {
@@ -609,6 +636,15 @@ export function save() {
 }
 
 if (needsRewrite) save();
+
+/** Начать заново осознанно: отложенная копия убирается, запись разрешается.
+ *  Пишем сразу, а не отложенно: следом идёт перезагрузка страницы. */
+export function acceptFreshStart() {
+  dropRescue();
+  loadError = null;
+  saveBlocked = false;
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { console.error('[lifeos]', e); }
+}
 
 /**
  * Сохранить, не перерисовывая экран. Нужно там, где перерисовка сломала бы
