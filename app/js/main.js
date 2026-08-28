@@ -63,6 +63,52 @@ let drawerOpen = false;
 export const go = path => { location.hash = '#/' + path; };
 const route = () => location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
 
+/**
+ * Шапка экрана прилипает к верху при прокрутке: заголовок, вкладки и стрелки
+ * дат должны быть под рукой, а не уезжать вверх.
+ *
+ * Делается здесь, а не в девятнадцати экранах: экраны начинаются с одних и тех
+ * же элементов, и их достаточно завернуть в один липкий блок. Несколько
+ * липких соседей налезали бы друг на друга — поэтому именно обёртка.
+ */
+const HEAD = ['title', 'sub', 'pills', 'row', 'stepper', 'lab'];
+
+// Стекло под шапкой нужно только когда под неё что-то уехало: на нетронутом
+// экране сплошная заливка читалась бы как приклеенная панель ни к чему.
+scr.addEventListener('scroll', () => {
+  scr.classList.toggle('scrolled', scr.scrollTop > 2);
+}, { passive: true });
+
+function stickHead() {
+  const kids = [...scr.children];
+  // Подсказка экрана остаётся прокручиваемой: она читается один раз.
+  let i = kids[0]?.classList.contains('tip') ? 1 : 0;
+  const head = [];
+  for (; i < kids.length; i++) {
+    if (!HEAD.some(c => kids[i].classList.contains(c))) break;
+    head.push(kids[i]);
+  }
+  if (!head.length) return;
+
+  const box = document.createElement('div');
+  box.className = 'scr-head';
+  scr.insertBefore(box, head[0]);
+  head.forEach(el => box.appendChild(el));
+
+  // Высокая шапка съедала бы экран. Лишнее сверху возвращаем в поток:
+  // вкладки и стрелки полезнее заголовка, поэтому убираем с начала.
+  const max = scr.clientHeight * 0.45;
+  while (box.children.length > 1 && box.offsetHeight > max) {
+    scr.insertBefore(box.firstElementChild, box);
+  }
+  // Если и одна строка не влезает — липкой шапки на этом экране не будет.
+  if (box.offsetHeight > max) {
+    scr.insertBefore(box.firstElementChild, box);
+    box.remove();
+  }
+}
+
+
 function activeScreen() {
   const [name] = route();
   return SCREENS[name] ? name : 'day';
@@ -140,6 +186,8 @@ export function render() {
   const key = name + '/' + params.join('/');
   const keep = key === lastKey ? scr.scrollTop : 0;
   scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
+  stickHead();
+  scr.classList.toggle('scrolled', scr.scrollTop > 2);
   // Переписка открывается снизу: видно поле ввода и последние сообщения.
   if (SCREENS[name].stickBottom?.(params)) {
     scr.scrollTop = scr.scrollHeight;
