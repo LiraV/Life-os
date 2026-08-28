@@ -13,7 +13,6 @@ import {
 } from '../selectors.js';
 import { gv } from '../gender.js';
 import { inboxSheet } from './inbox.js';
-import { taskSheet as workTaskSheet } from './work.js';
 import { taskSheet as studyTaskSheet } from './study.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -107,9 +106,9 @@ function energyHistory(date) {
 /** По расписанию: не записи, а правила — считаются на лету для этого дня. */
 
 /**
- * Сроки на этот день: задачи работы и задания учёбы. Запись остаётся там, где
- * заведена, — день её только показывает и отмечает. Просроченное показывается
- * на сегодня, иначе оно пропадает из виду совсем.
+ * Сроки на этот день — только учёба. Рабочие задачи сюда не попадают
+ * намеренно: они не должны отвлекать в личном дне, у них свой экран.
+ * Просроченное показывается на сегодня, иначе оно пропадает из виду совсем.
  */
 function dueBlock(date) {
   const list = dueOn(date);
@@ -357,27 +356,16 @@ function reflectionSheet(q) {
 export const actions = {
   inbox: () => inboxSheet(),
 
-  /** Отметка срока: сама задача живёт в своей сфере, день её только закрывает. */
+  /** Отметка срока: само задание живёт в «Учёбе», день его только закрывает. */
   duedone: v => update(s => {
-    if (v.k === 'work') {
-      const t = s.work.tasks.find(x => x.id === v.id);
-      if (!t) return;
-      const done = t.stage === 'done';
-      t.stage = done ? 'doing' : 'done';
-      t.stageAt = todayISO();
-      addXp(done ? -XP.step : XP.step);
-    } else {
-      const t = s.study.tasks.find(x => x.id === v.id);
-      if (!t) return;
-      const done = t.stage === 'done';
-      t.stage = done ? 'draft' : 'done';
-      addXp(done ? -XP.step : XP.step);
-    }
+    const t = s.study.tasks.find(x => x.id === v.id);
+    if (!t) return;
+    const done = t.stage === 'done';
+    t.stage = done ? 'draft' : 'done';
+    addXp(done ? -XP.step : XP.step);
     touchTracker(s);
   }),
-  dueopen: v => (v.k === 'work'
-    ? workTaskSheet(v.id)
-    : studyTaskSheet(S.study.tasks.find(x => x.id === v.id))),
+  dueopen: v => studyTaskSheet(S.study.tasks.find(x => x.id === v.id)),
   toinbox: () => { location.hash = '#/inbox'; },
   prev: () => update(s => { s.ui.date = addDays(curDate(), -1); }),
   next: () => update(s => { s.ui.date = addDays(curDate(), 1); }),

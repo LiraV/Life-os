@@ -16,7 +16,7 @@ import {
   workJobs, jobsNow, jobById, jobName, soleJob, jobDayNorm, jobWeekNorm, weekNormAll, isJobDay,
   dayOfJob, dayEntries, workHours, workedDays, officeDays, workMonth, workWeek, workStreak,
   workOver, jobRate, salaryAll, jobVacation, workProjects, workProjectName, workTasks,
-  tasksInStage, workDue, workDoneIn, workWins, winsIn, careerLine, jobSpan, spanLabel,
+  tasksInStage, workToday, workAhead, workDoneIn, workWins, winsIn, careerLine, jobSpan, spanLabel,
   careerTotal, careerGap,
 } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
@@ -74,7 +74,8 @@ function nowView() {
   const week = workWeek(t);
   const norm = weekNormAll();
   const streak = workStreak();
-  const due = workDue(7, curJob());
+  const today = workToday(curJob());
+  const ahead = workAhead(14, curJob());
   const doing = tasksInStage('doing', null, curJob());
 
   return h`
@@ -112,14 +113,31 @@ function nowView() {
         ${doing.map(x => raw(taskRow(x)))}
       </div>`) : ''}
 
-    ${due.length ? raw(h`
+    ${today.length ? raw(h`
       <div class="card">
-        <div class="caps">Со сроком</div>
-        ${due.slice(0, 5).map(x => raw(h`
+        <div class="row between"><div class="caps">На сегодня</div><span class="lab">${today.length}</span></div>
+        ${today.map(x => raw(h`
+          <div class="quest">
+            <button class="check" data-act="movedone" data-id="${x.id}" aria-label="Сделано">✓</button>
+            <div class="grow" data-act="task" data-id="${x.id}" style="cursor:pointer">
+              <div class="q-title">${x.title}</div>
+              <div class="q-meta">
+                ${x.projectId ? raw(h`<span class="tag">${workProjectName(x.projectId)}</span>`) : ''}
+                <span class="q-time">${x.due < todayISO() ? `с ${dayShort(x.due)}` : 'сегодня'}</span>
+              </div>
+            </div>
+          </div>`))}
+      </div>`) : ''}
+
+    ${ahead.length ? raw(h`
+      <div class="card mute">
+        <div class="row between"><div class="caps">Дальше</div><span class="lab">${ahead.length}</span></div>
+        ${ahead.slice(0, 6).map(x => raw(h`
           <button class="link-row" data-act="task" data-id="${x.id}">
-            <span class="ink grow ellip">${x.title}</span>
-            <span class="lab">${dueLabel(x.due)} ›</span>
+            <span class="lab grow ellip">${x.title}</span>
+            <span class="lab">${dayShort(x.due)} ›</span>
           </button>`))}
+        <div class="lab">Это не сегодняшнее — просто чтобы не забыть.</div>
       </div>`) : ''}
 
     <button class="add" data-act="taskadd">+ Задача</button>
@@ -506,9 +524,9 @@ export function taskSheet(id) {
       field.select('projectId', 'Проект', [{ value: '', label: 'без проекта' },
         ...workProjects(it.jobId || jid).map(p => ({ value: p.id, label: p.name }))], it.projectId || ''),
       field.opts('stage', 'Стадия', WORK_STAGES.map(st => ({ value: st.key, label: st.name })), it.stage),
-      field.date('due', 'Срок — если он есть', it.due || ''),
+      field.date('due', 'Когда делаю — если день известен', it.due || ''),
       field.area('note', 'Заметка', it.note || ''),
-      field.note('Проект необязателен: часть задач ни к какому проекту не относится, и это нормально.'),
+      field.note('Дата — это день, когда задача делается, а не дедлайн. Задача с датой появится в «На сегодня» в этот день, а до него будет лежать в «Дальше» и не мозолить глаза. Проект необязателен.'),
     ].join(''),
     primary: t ? 'Сохранить' : 'Добавить',
     onSave: (v, close) => {
@@ -647,6 +665,16 @@ export const actions = {
     if (next === 'done' && t.stage !== 'done') addXp(XP.step);
     t.stage = next;
     t.stageAt = todayISO();
+    touchTracker(s);
+  }),
+
+  /** Отметка «сделано» из списка на сегодня — та же стадия, что и на доске. */
+  movedone: v => update(s => {
+    const t = s.work.tasks.find(x => x.id === v.id);
+    if (!t) return;
+    t.stage = 'done';
+    t.stageAt = todayISO();
+    addXp(XP.step);
     touchTracker(s);
   }),
 

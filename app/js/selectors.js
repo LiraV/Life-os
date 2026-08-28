@@ -1484,10 +1484,21 @@ export const tasksInStage = (stage, projectId = null, jobId = null) => workTasks
   .filter(t => t.stage === stage && (projectId === null || (t.projectId || '') === projectId));
 export const workDoneIn = (from, to, jobId = null) => workTasks(jobId)
   .filter(t => t.stage === 'done' && t.stageAt && t.stageAt >= from && t.stageAt <= to);
-/** Задачи со сроком, который уже прошёл или подходит. Без красного — просто список. */
-export const workDue = (within = 7, jobId = null) => workTasks(jobId)
-  .filter(t => t.stage !== 'done' && t.due && diffDays(t.due, todayISO()) <= within)
+/**
+ * Дата у задачи — это день, когда она делается, а не дедлайн. Поэтому «на
+ * сегодня» и «дальше» разведены: сегодняшнее нужно видеть, будущее не должно
+ * маячить заранее.
+ */
+export const workToday = (jobId = null) => workTasks(jobId)
+  .filter(t => t.stage !== 'done' && t.due && t.due <= todayISO())
   .sort((a, b) => (a.due < b.due ? -1 : 1));
+/** Ближайшие дни — свёрнутым списком, чтобы знать, что впереди. */
+export const workAhead = (within = 14, jobId = null) => workTasks(jobId)
+  .filter(t => t.stage !== 'done' && t.due && t.due > todayISO()
+    && diffDays(t.due, todayISO()) <= within)
+  .sort((a, b) => (a.due < b.due ? -1 : 1));
+/** Сколько запланировано на сегодня — тихий счётчик в меню. */
+export const workTodayCount = () => workToday().length;
 
 export const workWins = jobId => S.work.wins
   .filter(x => jobId == null || (x.jobId || '') === jobId)
@@ -1584,30 +1595,16 @@ export function mindShift(key = null, n = 30) {
 }
 
 // ── сроки на день ───────────────────────────────────────────────
-// У задач работы и заданий учёбы есть срок, но жили они только на своих
-// экранах: поставила задачу на 8 сентября — и на «Дне» её нет. Здесь они
-// сводятся в один список, чтобы день показывал всё, что на него назначено.
+// Сюда попадают только задания учёбы. Работа на «Дне» не показывается
+// намеренно: рабочие задачи не должны маячить в личном дне и отвлекать —
+// у них своё место, экран «Работа», и там же тихое напоминание на сегодня.
 //
 // Запись остаётся там, где заведена: день её только показывает и отмечает.
 
-/** Что назначено на этот день: задачи работы и задания учёбы со сроком. */
+/** Что назначено на этот день из учёбы. */
 export function dueOn(date) {
   const t = todayISO();
   const out = [];
-
-  (S.work.tasks || []).forEach(x => {
-    if (!x.due) return;
-    const done = x.stage === 'done';
-    // На сегодня показываем и просроченное: иначе оно пропадает из виду совсем.
-    const overdue = !done && date === t && x.due < t;
-    if (x.due !== date && !overdue) return;
-    out.push({
-      kind: 'work', id: x.id, title: x.title, due: x.due, done, overdue,
-      sub: [jobsNow().length > 1 ? jobName(x.jobId) : '', x.projectId ? workProjectName(x.projectId) : '']
-        .filter(Boolean).join(' · '),
-      tag: 'работа',
-    });
-  });
 
   liveTasks().forEach(x => {
     if (!x.due) return;

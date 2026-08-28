@@ -27,6 +27,7 @@ import * as care from './screens/care.js';
 import * as library from './screens/library.js';
 import * as trips from './screens/trips.js';
 import { tipCard, tipActions, offerTips } from './tips.js';
+import { workTodayCount } from './selectors.js';
 import { avatarHtml } from './avatars.js';
 
 const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport, care, library, trips, inbox, work };
@@ -149,7 +150,13 @@ function renderDrawer() {
           <div class="lab">${S.user.chronotype} · ур. ${level(S.user.xp)}</div>
         </div>
       </div>
-      ${DRAWER.map(d => `<button class="item ${cur === d.key ? 'on' : ''}" data-drawer="${d.key}">${d.label}</button>`).join('')}
+      ${DRAWER.map(d => {
+        // Тихий счётчик: рабочее на сегодня видно, только когда открываешь меню.
+        // На «Дне» рабочих задач нет намеренно — они не должны отвлекать.
+        const n = d.key === 'work' ? workTodayCount() : 0;
+        return `<button class="item ${cur === d.key ? 'on' : ''}" data-drawer="${d.key}">${d.label}${
+          n ? `<span class="item-n">${n}</span>` : ''}</button>`;
+      }).join('')}
     </div>`;
   app.appendChild(wrap);
   wrap.addEventListener('click', e => {
