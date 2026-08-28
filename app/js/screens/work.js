@@ -9,16 +9,20 @@
 // тут не считается нигде: считаются часы, дни подряд, офис и отпуск — то,
 // что говорит, когда пора остановиться.
 
-import { S, update, uid, XP, addXp, WORK_STAGES, WORK_KINDS, blankSched, touchTracker } from '../store.js';
+import { S, update, uid, XP, addXp, WORK_KINDS, blankSched, touchTracker } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, monthTitle, yearOf, MONTHS, weekDates, DOW, dowIndex, diffDays, relativeDay } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import {
   workJobs, jobsNow, jobById, jobName, soleJob, jobDayNorm, jobWeekNorm, weekNormAll, isJobDay,
   dayOfJob, dayEntries, workHours, workedDays, officeDays, workMonth, workWeek, workStreak,
-  workOver, jobRate, salaryAll, jobVacation, workProjects, workProjectName, workTasks,
-  tasksInStage, workToday, workAhead, workDoneIn, workWins, winsIn, careerLine, jobSpan, spanLabel,
-  careerTotal, careerGap,
+  workOver, jobRate, salaryAll, jobVacation, workTasks, taskById, cardsIn, boardMonths,
+  checkDone, deadlineInfo, workToday, workAhead, workDoneIn, workWins, winsIn,
+  careerLine, jobSpan, spanLabel, careerTotal, careerGap,
 } from '../selectors.js';
+import {
+  KGROUPS, KCOLUMNS, KZONES, KTYPES, PLATFORMS, KTEMPLATES, kColumn, kColumnName,
+  platformById, isDoneColumn, weeksOfMonth, weeklyText, monthLabel, monthShift,
+} from '../kanban.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 
 const TABS = [['now', 'Сейчас'], ['board', 'Доска'], ['road', 'Путь'], ['year', 'Год']];
@@ -76,7 +80,6 @@ function nowView() {
   const streak = workStreak();
   const today = workToday(curJob());
   const ahead = workAhead(14, curJob());
-  const doing = tasksInStage('doing', null, curJob());
 
   return h`
     ${list.map(j => raw(jobToday(j, t)))}
@@ -107,23 +110,17 @@ function nowView() {
 
     ${raw(jobPills())}
 
-    ${doing.length ? raw(h`
-      <div class="card">
-        <div class="row between"><div class="caps">В работе</div><span class="lab">${doing.length}</span></div>
-        ${doing.map(x => raw(taskRow(x)))}
-      </div>`) : ''}
-
     ${today.length ? raw(h`
       <div class="card">
         <div class="row between"><div class="caps">На сегодня</div><span class="lab">${today.length}</span></div>
         ${today.map(x => raw(h`
           <div class="quest">
-            <button class="check" data-act="movedone" data-id="${x.id}" aria-label="Сделано">✓</button>
-            <div class="grow" data-act="task" data-id="${x.id}" style="cursor:pointer">
+            <button class="check" data-act="carddone" data-id="${x.id}" aria-label="Сделано">✓</button>
+            <div class="grow" data-act="card" data-id="${x.id}" style="cursor:pointer">
               <div class="q-title">${x.title}</div>
               <div class="q-meta">
-                ${x.projectId ? raw(h`<span class="tag">${workProjectName(x.projectId)}</span>`) : ''}
-                <span class="q-time">${x.due < todayISO() ? `с ${dayShort(x.due)}` : 'сегодня'}</span>
+                <span class="tag">${x.type}</span>
+                <span class="q-time">${x.day < todayISO() ? `с ${dayShort(x.day)}` : 'сегодня'}</span>
               </div>
             </div>
           </div>`))}
@@ -133,14 +130,14 @@ function nowView() {
       <div class="card mute">
         <div class="row between"><div class="caps">Дальше</div><span class="lab">${ahead.length}</span></div>
         ${ahead.slice(0, 6).map(x => raw(h`
-          <button class="link-row" data-act="task" data-id="${x.id}">
+          <button class="link-row" data-act="card" data-id="${x.id}">
             <span class="lab grow ellip">${x.title}</span>
-            <span class="lab">${dayShort(x.due)} ›</span>
+            <span class="lab">${dayShort(x.day)} ›</span>
           </button>`))}
         <div class="lab">Это не сегодняшнее — просто чтобы не забыть.</div>
       </div>`) : ''}
 
-    <button class="add" data-act="taskadd">+ Задача</button>
+    <button class="add" data-act="cardadd" data-col="ot-todo">+ Задача</button>
     ${raw(winsCard(5))}
     ${raw(sphereGoalsCard('work'))}
     ${raw(sphereGoalButton('work'))}`;
@@ -197,50 +194,116 @@ const dueLabel = due => {
 };
 
 // ── доска ───────────────────────────────────────────────────────
+// Процесс перенесён из отдельного канбана целиком: девятнадцать колонок в
+// трёх зонах. На ноутбуке это настоящая доска с перетаскиванием, на телефоне —
+// те же колонки, но листаются вбок, а фильтры уезжают в шторку.
+
+const F = () => (S.ui.wboard ||= { search: '', type: '', platform: '', month: '', urgent: false });
+const filtersOn = () => { const f = F(); return !!(f.search || f.type || f.platform || f.month || f.urgent); };
+
 function boardView() {
-  const p = proj();
   const jid = curJob();
-  const list = workProjects(jid);
+  const f = F();
   return h`
     ${raw(jobPills())}
-    <div class="pills">
-      <button class="pill ${p === null ? 'on' : ''}" data-act="proj" data-v="all">Все</button>
-      <button class="pill ${p === '' ? 'on' : ''}" data-act="proj" data-v="">Без проекта</button>
-      ${list.map(x => raw(h`<button class="pill ${p === x.id ? 'on' : ''}" data-act="proj" data-v="${x.id}">${x.name}</button>`))}
-      <button class="pill" data-act="projadd">+ проект</button>
+    ${raw(filterBar())}
+    <div class="kb">
+      ${KZONES.map(zone => raw(zoneView(zone, jid, f)))}
     </div>
-
-    <div class="board">
-      ${WORK_STAGES.map(st => {
-        const items = tasksInStage(st.key, p, jid);
-        return raw(h`
-          <div class="board-col">
-            <div class="board-head">${st.name}<span class="lab"> ${items.length}</span></div>
-            ${items.length ? items.map(x => raw(taskCard(x))) : raw('<div class="lab">пусто</div>')}
-          </div>`);
-      })}
-    </div>
-
-    <button class="add" data-act="taskadd">+ Задача</button>
-    ${p !== null && p !== '' ? raw(h`<button class="btn-ghost" data-act="projedit" data-v="${p}">Изменить проект</button>`) : ''}`;
+    ${S.work.tasks.length ? '' : raw(h`<div class="card dash">
+      <div class="empty">Доска пуста.<br>Можно завести первую задачу или перенести доску из выгрузки.</div>
+      <button class="add" data-act="kimport">Перенести из файла</button>
+    </div>`)}
+    <button class="btn-ghost" data-act="kimport">Перенести доску из файла</button>`;
 }
 
-function taskCard(t) {
+/** Фильтры: на широком экране полосой, на телефоне одной кнопкой. */
+function filterBar() {
+  const f = F();
+  const chips = [
+    f.type && f.type, f.platform && (platformById(f.platform)?.name || ''),
+    f.month && monthLabel(f.month), f.urgent && 'срочные', f.search && `«${f.search}»`,
+  ].filter(Boolean);
   return h`
-    <div class="board-card ${t.stage === 'done' ? 'done' : ''}">
-      <div class="ink" data-act="task" data-id="${t.id}" style="cursor:pointer">${t.title}</div>
-      <div class="lab">${[many() ? jobName(t.jobId) : '', t.projectId ? workProjectName(t.projectId) : 'без проекта',
-        t.due ? dueLabel(t.due) : ''].filter(Boolean).join(' · ')}</div>
-      <button class="pill" data-act="move" data-id="${t.id}">дальше ›</button>
+    <div class="kb-filters">
+      <input type="search" class="kb-search" data-field="q" data-act-input="search"
+             value="${f.search}" placeholder="Поиск по названию, заметкам, запросу…" autocomplete="off">
+      <select class="kb-sel" data-change="ftype">
+        <option value="" ${raw(f.type ? '' : 'selected')}>Тип: все</option>
+        ${KTYPES.map(t => raw(h`<option value="${t}" ${raw(f.type === t ? 'selected' : '')}>${t}</option>`))}
+      </select>
+      <select class="kb-sel" data-change="fplatform">
+        <option value="" ${raw(f.platform ? '' : 'selected')}>Площадка: все</option>
+        ${PLATFORMS.map(p => raw(h`<option value="${p.id}" ${raw(f.platform === p.id ? 'selected' : '')}>${p.name}</option>`))}
+      </select>
+      <select class="kb-sel" data-change="fmonth">
+        <option value="" ${raw(f.month ? '' : 'selected')}>Месяц: все</option>
+        ${boardMonths().map(m => raw(h`<option value="${m}" ${raw(f.month === m ? 'selected' : '')}>${monthLabel(m)}</option>`))}
+      </select>
+      <label class="kb-check"><input type="checkbox" data-change="furgent" ${raw(f.urgent ? 'checked' : '')}> только срочные</label>
+      ${filtersOn() ? raw(h`<button class="btn-ghost" data-act="freset">сбросить</button>`) : ''}
+    </div>
+    <div class="kb-filters-sm">
+      <button class="pill ${filtersOn() ? 'on' : ''}" data-act="fsheet">Фильтры${chips.length ? ` · ${chips.length}` : ''}</button>
+      ${chips.map(c => raw(h`<span class="tag">${c}</span>`))}
+      ${filtersOn() ? raw(h`<button class="pill" data-act="freset">сбросить</button>`) : ''}
     </div>`;
 }
 
-function taskRow(t) {
+function zoneView(groupIds, jid, f) {
+  const cols = KCOLUMNS.filter(c => groupIds.includes(c.group));
   return h`
-    <button class="link-row" data-act="task" data-id="${t.id}">
-      <span class="ink grow ellip">${t.title}</span>
-      <span class="lab">${t.projectId ? workProjectName(t.projectId) : ''} ›</span>
-    </button>`;
+    <div class="kb-zone">
+      <div class="kb-heads">
+        ${groupIds.map(g => raw(h`<div class="kb-group ${KGROUPS[g].cls}"
+          style="flex:${KCOLUMNS.filter(c => c.group === g).length}">
+          <span>${KGROUPS[g].name}</span><span class="kb-line"></span></div>`))}
+      </div>
+      <div class="kb-cols">
+        ${cols.map(col => {
+          const list = cardsIn(col.id, jid, f);
+          return raw(h`
+            <div class="kb-col kb-${col.group}" data-col="${col.id}">
+              <div class="kb-col-head">
+                <div class="kb-col-title">${col.emoji} ${col.title}<span class="kb-n">${list.length}</span></div>
+                <div class="kb-col-hint">${col.hint}</div>
+              </div>
+              <div class="kb-body">${list.map(c => raw(cardView(c)))}</div>
+              <button class="kb-add" data-act="cardadd" data-col="${col.id}">＋ добавить</button>
+            </div>`);
+        })}
+      </div>
+    </div>`;
+}
+
+function cardView(c) {
+  const dl = deadlineInfo(c.deadline);
+  const total = (c.checklist || []).length;
+  const done = checkDone(c);
+  const typeCls = c.type === 'МП' ? 'k-mp' : c.type === 'РК' ? 'k-rk' : 'k-ot';
+  return h`
+    <div class="kb-card" draggable="true" data-card="${c.id}">
+      <div class="kb-badges">
+        <span class="badge ${typeCls}">${c.type}</span>
+        ${c.urgent ? raw('<span class="badge k-fire">🔥 срочно</span>') : ''}
+        ${c.month ? raw(h`<span class="badge k-month">${monthLabel(c.month)}</span>`) : ''}
+        ${(c.platforms || []).map(pid => {
+          const p = platformById(pid);
+          return p ? raw(h`<span class="pf ${p.cls}">${p.name}</span>`) : '';
+        })}
+      </div>
+      <div class="kb-title" data-act="card" data-id="${c.id}">${c.title}</div>
+      ${c.split ? raw(h`<div class="kb-split">◫ ${c.split}</div>`) : ''}
+      <div class="kb-meta">
+        ${dl ? raw(h`<span class="chip ${dl.cls}">📅 ${dl.label}</span>`) : ''}
+        ${c.day ? raw(h`<span class="chip">🗓 делаю ${dayShort(c.day)}</span>`) : ''}
+        ${total ? raw(h`<span class="chip ${done === total ? 'ok' : ''}">☑ ${done}/${total}</span>`) : ''}
+        ${c.request ? raw(h`<span class="chip">🔗 ${c.request}</span>`) : ''}
+        ${c.budget ? raw(h`<span class="chip">💰 ${c.budget}</span>`) : ''}
+        ${c.notes ? raw('<span class="chip">📝</span>') : ''}
+      </div>
+      <button class="kb-move" data-act="cardmove" data-id="${c.id}">перенести ›</button>
+    </div>`;
 }
 
 // ── путь ────────────────────────────────────────────────────────
@@ -506,92 +569,205 @@ function jobSheet(id) {
   });
 }
 
-/** Задача: место, проект, стадия, срок. Место спрашивается, когда их много. */
-export function taskSheet(id) {
-  const t = workTasks().find(x => x.id === id);
-  const jid = curJob() || jobsNow()[0]?.id || '';
+/**
+ * Карточка доски — та же, что была в отдельном канбане: тип, колонка,
+ * площадки, месяц, дедлайн, код запроса, бюджет, сплит, ссылки, срочность
+ * и чек-лист. Плюс «когда делаю» — это то, что связывает карточку с днём.
+ */
+export function taskSheet(id, column = 'l1') {
+  const t = taskById(id);
+  const col = t ? t.column : column;
+  const g = kColumn(col).group;
   const it = t || {
-    id: uid(), title: '', projectId: proj() && proj() !== '' ? proj() : '', jobId: jid,
-    stage: 'queue', stageAt: '', due: '', note: '', createdAt: todayISO(),
+    id: uid(), jobId: curJob() || jobsNow()[0]?.id || '', column: col,
+    type: g === 'rk' ? 'РК' : g === 'other' ? 'Прочее' : 'МП',
+    title: '', platforms: [], month: monthKey(todayISO()), day: '', deadline: '',
+    request: '', budget: '', split: '', urgent: false, links: '', notes: '',
+    checklist: [], movedAt: '',
   };
+  draft = { checklist: it.checklist.map(x => ({ ...x })), platforms: [...(it.platforms || [])] };
+
   openSheet({
     title: t ? 'Задача' : 'Новая задача',
-    sub: t ? [many() ? jobName(t.jobId) : '', workProjectName(t.projectId)].filter(Boolean).join(' · ') : '',
+    sub: t ? kColumnName(t.column) : kColumnName(col),
     body: [
-      field.text('title', 'Что сделать', it.title, 'коротко'),
-      many() ? field.select('jobId', 'Место работы',
-        jobsNow().map(j => ({ value: j.id, label: jobName(j.id) })), it.jobId || jid) : '',
-      field.select('projectId', 'Проект', [{ value: '', label: 'без проекта' },
-        ...workProjects(it.jobId || jid).map(p => ({ value: p.id, label: p.name }))], it.projectId || ''),
-      field.opts('stage', 'Стадия', WORK_STAGES.map(st => ({ value: st.key, label: st.name })), it.stage),
-      field.date('due', 'Когда делаю — если день известен', it.due || ''),
-      field.area('note', 'Заметка', it.note || ''),
-      field.note('Дата — это день, когда задача делается, а не дедлайн. Задача с датой появится в «На сегодня» в этот день, а до него будет лежать в «Дальше» и не мозолить глаза. Проект необязателен.'),
+      field.text('title', 'Название', it.title, 'РК Озон — баннеры на главной, сентябрь'),
+      field.opts('type', 'Тип', KTYPES.map(x => ({ value: x, label: x })), it.type),
+      field.select('column', 'Колонка', KCOLUMNS.map(c => ({ value: c.id, label: `${c.emoji} ${c.title}` })), it.column),
+      platformPicker(),
+      field.month('month', 'Месяц РК', it.month),
+      field.date('day', 'Когда делаю', it.day || ''),
+      field.date('deadline', 'Дедлайн', it.deadline || ''),
+      field.text('request', 'Код запроса', it.request, 'OZN-SEP — связывает карточки одного запроса'),
+      field.text('budget', 'Бюджет', it.budget, '1 200 000 ₽'),
+      field.text('split', 'Сплит', it.split, 'ГЕО Москва · статичный баннер'),
+      field.area('notes', 'Заметки', it.notes),
+      field.area('links', 'Ссылки', it.links, 'по одной на строку'),
+      `<label class="row tight" style="font-size:13px"><input type="checkbox" name="urgent" ${it.urgent ? 'checked' : ''}> 🔥 Срочная</label>`,
+      checklistBlock(),
+      field.note('«Когда делаю» — день, в который задача попадёт в «На сегодня». Дедлайн — срок сдачи, он только подсвечивается на карточке. При переходе в новую колонку чек-лист этапа добавляется сам.'),
     ].join(''),
     primary: t ? 'Сохранить' : 'Добавить',
+    onAct: (name, data, close, vals) => {
+      if (name === 'pf') {
+        draft.platforms = draft.platforms.includes(data.v)
+          ? draft.platforms.filter(x => x !== data.v) : [...draft.platforms, data.v];
+        return redrawDraft();
+      }
+      if (name === 'cltoggle') {
+        const x = draft.checklist.find(i => i.id === data.v);
+        if (x) x.done = !x.done;
+        return redrawDraft();
+      }
+      if (name === 'cldel') {
+        draft.checklist = draft.checklist.filter(i => i.id !== data.v);
+        return redrawDraft();
+      }
+      if (name === 'cladd') {
+        const box = document.querySelector('.sheet [data-field="clnew"]');
+        const text = (box?.value || '').trim();
+        if (!text) return;
+        draft.checklist.push({ id: uid(), text, done: false });
+        box.value = '';
+        return redrawDraft();
+      }
+      if (name === 'cltpl') return addTemplate(document.querySelector('.sheet select[name="column"]')?.value || it.column);
+      if (name === 'clweek') return addWeekly(document.querySelector('.sheet input[name="month"]')?.value || it.month);
+      if (name === 'dup') { const v = collect(vals, it); close(); return duplicate(v, false); }
+      if (name === 'dupnext') { const v = collect(vals, it); close(); return duplicate(v, true); }
+    },
     onSave: (v, close) => {
-      const title = (v.title || '').trim();
-      if (!title) return toast('Нужно название');
-      update(s => {
-        const stage = WORK_STAGES.some(x => x.key === v.stage) ? v.stage : 'queue';
-        const next = {
-          ...it, title, projectId: v.projectId || '', jobId: v.jobId ?? it.jobId,
-          stage, due: v.due || '', note: (v.note || '').trim(),
-          stageAt: stage === it.stage ? it.stageAt : todayISO(),
-        };
-        const i = s.work.tasks.findIndex(x => x.id === it.id);
-        if (i >= 0) s.work.tasks[i] = next; else s.work.tasks.push(next);
-        if (stage === 'done' && t?.stage !== 'done') addXp(XP.step);
-        touchTracker(s);
+      const next = collect(v, it);
+      if (!next.title) return toast('Нужно название');
+      update(s2 => {
+        const moved = t && t.column !== next.column;
+        if (!t || moved) next.movedAt = todayISO();
+        if (!t || moved) applyTemplate(next);
+        const i = s2.work.tasks.findIndex(x => x.id === it.id);
+        if (i >= 0) s2.work.tasks[i] = next; else s2.work.tasks.push(next);
+        if (isDoneColumn(next.column) && (!t || !isDoneColumn(t.column))) addXp(XP.step);
+        touchTracker(s2);
       });
       close();
     },
-    danger: t ? 'Убрать задачу' : null,
+    danger: t ? 'Удалить задачу' : null,
     onDanger: (_v, close) => {
-      update(s => { s.work.tasks = s.work.tasks.filter(x => x.id !== it.id); touchTracker(s); });
       close();
-      toast('Убрала');
+      confirmSheet(`Удалить «${it.title}»?`, 'Карточка исчезнет вместе с чек-листом.', 'Удалить',
+        () => update(s2 => { s2.work.tasks = s2.work.tasks.filter(x => x.id !== it.id); touchTracker(s2); }));
     },
   });
 }
 
-/** Проект: имя и место работы. Архивный не исчезает — задачи остаются. */
-function projectSheet(id) {
-  const p = id ? workProjects().find(x => x.id === id) : null;
-  const jid = curJob() || jobsNow()[0]?.id || '';
-  const it = p || { id: uid(), name: '', jobId: jid, archived: false };
-  openSheet({
-    title: p ? p.name : 'Новый проект',
-    body: [
-      field.text('name', 'Название', it.name, 'например, «Кампании для X»'),
-      many() ? field.select('jobId', 'Место работы',
-        jobsNow().map(j => ({ value: j.id, label: jobName(j.id) })), it.jobId || jid) : '',
-      p ? field.note(`Задач в проекте: ${workTasks().filter(t => t.projectId === it.id).length}. Убранный проект уходит из фильтра, а его задачи остаются.`) : '',
-    ].join(''),
-    primary: p ? 'Сохранить' : 'Добавить',
-    onSave: (v, close) => {
-      const name = (v.name || '').trim();
-      if (!name) return toast('Нужно название');
-      update(s => {
-        const next = { ...it, name, jobId: v.jobId ?? it.jobId };
-        const i = s.work.projects.findIndex(x => x.id === it.id);
-        if (i >= 0) s.work.projects[i] = { ...s.work.projects[i], ...next };
-        else s.work.projects.push(next);
-        s.ui.workProj = it.id;
-      });
-      close();
-    },
-    danger: p ? 'Убрать проект' : null,
-    onDanger: (_v, close) => {
-      update(s => {
-        const x = s.work.projects.find(y => y.id === it.id);
-        if (x) x.archived = true;
-        s.ui.workProj = null;
-      });
-      close();
-      toast('Убрала — задачи остались');
-    },
+/** Черновик карточки: площадки и чек-лист живут вне формы, их правят кнопками. */
+let draft = { checklist: [], platforms: [] };
+
+const platformPicker = () => h`
+  <div class="fld"><span>Площадки</span>
+    <div class="pf-pick" id="pf_pick">
+      ${PLATFORMS.map(p => raw(h`<button type="button" class="pf-opt ${draft.platforms.includes(p.id) ? 'on' : ''}"
+        data-act="pf" data-v="${p.id}">${p.name}</button>`))}
+    </div>
+  </div>`;
+
+const checklistBlock = () => {
+  const done = draft.checklist.filter(x => x.done).length;
+  return h`
+    <div class="fld" id="cl_block">
+      <div class="row between"><span>Чек-лист${draft.checklist.length ? ` · ${done} из ${draft.checklist.length}` : ''}</span></div>
+      <div class="pills">
+        <button type="button" class="pill" data-act="cltpl">📋 Чек-лист этапа</button>
+        <button type="button" class="pill" data-act="clweek">📅 Отчёты по неделям</button>
+      </div>
+      <div class="cl-list">
+        ${draft.checklist.map(i => raw(h`
+          <div class="cl-item ${i.done ? 'done' : ''}">
+            <button type="button" class="check sm ${i.done ? 'on' : ''}" data-act="cltoggle" data-v="${i.id}">✓</button>
+            <span class="grow">${i.text}</span>
+            <button type="button" class="q-edit" data-act="cldel" data-v="${i.id}">×</button>
+          </div>`))}
+      </div>
+      <div class="row">
+        <input type="text" class="grow" data-field="clnew" data-act-enter="cladd" placeholder="Добавить пункт и Enter">
+        <button type="button" class="pill" data-act="cladd">+</button>
+      </div>
+    </div>`;
+};
+
+/** Перерисовать только те части шторки, которые живут вне формы. */
+function redrawDraft() {
+  const pf = document.getElementById('pf_pick');
+  if (pf) pf.innerHTML = PLATFORMS.map(p =>
+    `<button type="button" class="pf-opt ${draft.platforms.includes(p.id) ? 'on' : ''}" data-act="pf" data-v="${p.id}">${p.name}</button>`).join('');
+  const cl = document.getElementById('cl_block');
+  if (cl) cl.outerHTML = checklistBlock();
+}
+
+function collect(v, it) {
+  return {
+    ...it,
+    title: (v.title || '').trim(),
+    type: KTYPES.includes(v.type) ? v.type : it.type,
+    column: KCOLUMNS.some(c => c.id === v.column) ? v.column : it.column,
+    platforms: [...draft.platforms],
+    month: v.month || '', day: v.day || '', deadline: v.deadline || '',
+    request: (v.request || '').trim(), budget: (v.budget || '').trim(),
+    split: (v.split || '').trim(), notes: v.notes || '', links: (v.links || '').trim(),
+    urgent: !!v.urgent, checklist: draft.checklist.map(x => ({ ...x })),
+  };
+}
+
+/** Чек-лист этапа добавляется без дублей — по тексту пункта. */
+function applyTemplate(card) {
+  const tpl = KTEMPLATES[card.column];
+  if (!tpl) return;
+  const have = new Set(card.checklist.map(i => i.text));
+  tpl.filter(x => !have.has(x)).forEach(x => card.checklist.push({ id: uid(), text: x, done: false }));
+}
+
+function addTemplate(column) {
+  const tpl = KTEMPLATES[column];
+  if (!tpl) return toast('Для этого этапа шаблона нет');
+  const have = new Set(draft.checklist.map(i => i.text));
+  const fresh = tpl.filter(x => !have.has(x));
+  if (!fresh.length) return toast('Чек-лист этапа уже добавлен');
+  fresh.forEach(x => draft.checklist.push({ id: uid(), text: x, done: false }));
+  redrawDraft();
+  toast(`Добавлено: ${fresh.length}`);
+}
+
+function addWeekly(ym) {
+  if (!ym) return toast('Сначала укажи месяц РК');
+  const have = new Set(draft.checklist.map(i => i.text));
+  let n = 0;
+  weeksOfMonth(ym).forEach(([a, b], i) => {
+    const text = weeklyText(i, a, b);
+    if (!have.has(text)) { draft.checklist.push({ id: uid(), text, done: false }); n++; }
   });
+  redrawDraft();
+  toast(n ? `Добавлено отчётов: ${n}` : 'Отчёты этого месяца уже в списке');
+}
+
+/**
+ * Дубликат: для сплитов по гео и креативам — копия рядом; для многомесячных
+ * РК — копия на следующий месяц, которая начинает путь заново с проверки
+ * заявки, а дедлайн и день работы у неё сбрасываются.
+ */
+function duplicate(v, nextMonth) {
+  const copy = {
+    ...v, id: uid(), movedAt: todayISO(),
+    checklist: v.checklist.map(x => ({ id: uid(), text: x.text, done: false })),
+  };
+  if (nextMonth && copy.month) {
+    copy.month = monthShift(copy.month, 1);
+    copy.column = 'rk-check';
+    copy.deadline = ''; copy.day = '';
+  } else {
+    copy.title = `${copy.title} · копия`;
+  }
+  update(s2 => { s2.work.tasks.push(copy); touchTracker(s2); });
+  toast(nextMonth ? `Копия на ${monthLabel(copy.month)} — в «Проверке заявки»` : 'Дубликат создан — задай сплит');
+  taskSheet(copy.id);
 }
 
 /** Запись в опыт: что получилось или чему научилась. */
@@ -628,10 +804,86 @@ function winSheet(id) {
   });
 }
 
+/**
+ * Перетаскивание на ноутбуке. Слушатели вешаются на доску один раз после
+ * отрисовки: карточек много, и по обработчику на каждую было бы расточительно.
+ */
+export function afterRender() {
+  const board = document.querySelector('.kb');
+  if (!board || board.dataset.dnd) return;
+  board.dataset.dnd = '1';
+  let dragId = '';
+  board.addEventListener('dragstart', e => {
+    const card = e.target.closest('.kb-card');
+    if (!card) return;
+    dragId = card.dataset.card;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragId);
+  });
+  board.addEventListener('dragend', e => e.target.closest('.kb-card')?.classList.remove('dragging'));
+  board.addEventListener('dragover', e => {
+    const col = e.target.closest('.kb-col');
+    if (!col) return;
+    e.preventDefault();
+    col.classList.add('over');
+  });
+  board.addEventListener('dragleave', e => e.target.closest('.kb-col')?.classList.remove('over'));
+  board.addEventListener('drop', e => {
+    const col = e.target.closest('.kb-col');
+    if (!col) return;
+    e.preventDefault();
+    col.classList.remove('over');
+    const id = e.dataTransfer.getData('text/plain') || dragId;
+    if (id) moveCard(id, col.dataset.col);
+  });
+}
+
+/** Перенос доски из отдельного канбана: файл выгрузки читается как есть. */
+function importSheet() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json';
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try { data = JSON.parse(reader.result); } catch { return toast('Это не похоже на выгрузку доски'); }
+      if (!Array.isArray(data.cards)) return toast('В файле нет карточек');
+      const jid = curJob() || jobsNow()[0]?.id || '';
+      // Уже перенесённое не двоим: сверяем по названию и колонке.
+      const have = new Set(S.work.tasks.map(t => `${t.title}|${t.column}`));
+      const fresh = data.cards.filter(c => c.title && !have.has(`${c.title}|${c.column}`));
+      if (!fresh.length) return toast('Всё из этого файла уже на доске');
+      update(s2 => {
+        fresh.forEach(c => s2.work.tasks.push({
+          id: uid(), jobId: jid,
+          column: KCOLUMNS.some(x => x.id === c.column) ? c.column : 'ot-todo',
+          type: KTYPES.includes(c.type) ? c.type : 'Прочее',
+          title: c.title, platforms: Array.isArray(c.platforms) ? c.platforms : [],
+          month: c.month || '', day: '', deadline: c.deadline || '',
+          request: c.request || '', budget: c.budget || '', split: c.split || '',
+          urgent: !!c.urgent, links: c.links || '', notes: c.notes || '',
+          checklist: (Array.isArray(c.checklist) ? c.checklist : [])
+            .map(i => ({ id: uid(), text: String(i.text || ''), done: !!i.done })).filter(i => i.text),
+          movedAt: todayISO(),
+        }));
+        touchTracker(s2);
+      });
+      toast(`Перенесено задач: ${fresh.length}`);
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 export const actions = {
   back: () => { location.hash = '#/spheres'; },
-  tab: v => update(s => { s.ui.workTab = v.v; }),
-  job: v => update(s => { s.ui.workJob = v.v === 'all' ? null : v.v; }),
+  kimport: () => importSheet(),
+  tab: v => update(s2 => { s2.ui.workTab = v.v; }),
+  job: v => update(s2 => { s2.ui.workJob = v.v === 'all' ? null : v.v; }),
 
   jobadd: () => jobSheet(null),
   job2: v => jobSheet(v.id),
@@ -639,48 +891,120 @@ export const actions = {
   /** Один тап: рабочий день по норме своего места. */
   quick: v => {
     const j = jobById(v.j);
-    update(s => {
-      (s.work.days[todayISO()] ||= {})[v.j] = {
+    update(s2 => {
+      (s2.work.days[todayISO()] ||= {})[v.j] = {
         type: 'work', hours: jobDayNorm(j), where: v.w === 'home' ? 'home' : 'office', note: '',
       };
-      touchTracker(s);
+      touchTracker(s2);
     });
     toast(`Отмечено · ${hrs(jobDayNorm(j))}`);
   },
   mark: v => daySheet(v.d, v.j),
   markday: v => pickJobForDay(v.d),
 
-  proj: v => update(s => { s.ui.workProj = v.v === 'all' ? null : v.v; }),
-  projadd: () => projectSheet(null),
-  projedit: v => projectSheet(v.v),
-
-  taskadd: () => taskSheet(null),
-  task: v => taskSheet(v.id),
-  /** Тап двигает по канбану дальше, с последней стадии — в начало. */
-  move: v => update(s => {
-    const t = s.work.tasks.find(x => x.id === v.id);
-    if (!t) return;
-    const order = WORK_STAGES.map(x => x.key);
-    const next = order[(order.indexOf(t.stage) + 1) % order.length];
-    if (next === 'done' && t.stage !== 'done') addXp(XP.step);
-    t.stage = next;
-    t.stageAt = todayISO();
-    touchTracker(s);
-  }),
-
-  /** Отметка «сделано» из списка на сегодня — та же стадия, что и на доске. */
-  movedone: v => update(s => {
-    const t = s.work.tasks.find(x => x.id === v.id);
-    if (!t) return;
-    t.stage = 'done';
-    t.stageAt = todayISO();
+  // ── доска
+  cardadd: v => taskSheet(null, v.col || 'l1'),
+  card: v => taskSheet(v.id),
+  cardmove: v => moveSheet(v.id),
+  /** Отметка «сделано» из списка на сегодня: карточка уходит в закрытую колонку. */
+  carddone: v => update(s2 => {
+    const c = s2.work.tasks.find(x => x.id === v.id);
+    if (!c) return;
+    c.column = c.type === 'Прочее' ? 'ot-done' : 'done';
+    c.movedAt = todayISO();
     addXp(XP.step);
-    touchTracker(s);
+    touchTracker(s2);
   }),
+  /** Перетаскивание на ноутбуке — то же перемещение, что и через шторку. */
+  drop: (id, col) => moveCard(id, col),
+
+  search: v => update(s2 => { F().search = v.value; }),
+  ftype: v => update(s2 => { F().type = v.value; }),
+  fplatform: v => update(s2 => { F().platform = v.value; }),
+  fmonth: v => update(s2 => { F().month = v.value; }),
+  furgent: v => update(s2 => { F().urgent = !!v.checked; }),
+  freset: () => update(s2 => { s2.ui.wboard = { search: '', type: '', platform: '', month: '', urgent: false }; }),
+  fsheet: () => filterSheet(),
 
   winadd: () => winSheet(null),
   win: v => winSheet(v.id),
 
+  posadd: () => jobSheet(null),
+  pos: v => jobSheet(v.id),
+
   spheregoal: () => sphereGoalSheet('work'),
   togoal: () => { location.hash = '#/plans'; },
 };
+
+/** Перенос карточки в колонку: чек-лист этапа добавляется сам, без дублей. */
+export function moveCard(id, col) {
+  if (!KCOLUMNS.some(c => c.id === col)) return;
+  let name = '';
+  update(s2 => {
+    const c = s2.work.tasks.find(x => x.id === id);
+    if (!c || c.column === col) return;
+    const before = c.checklist.length;
+    c.column = col;
+    c.movedAt = todayISO();
+    applyTemplate(c);
+    if (isDoneColumn(col)) addXp(XP.step);
+    name = c.checklist.length > before ? `Чек-лист этапа: +${c.checklist.length - before}` : '';
+    touchTracker(s2);
+  });
+  if (name) toast(name);
+}
+
+/** Перенос с телефона: списком колонок, без перетаскивания. */
+function moveSheet(id) {
+  const c = taskById(id);
+  if (!c) return;
+  openSheet({
+    title: c.title,
+    sub: `сейчас — ${kColumnName(c.column)}`,
+    body: [
+      KZONES.flatMap(z => KCOLUMNS.filter(x => z.includes(x.group)))
+        .map(x => h`<button class="link-row" data-act="to" data-v="${x.id}">
+          <span class="${x.id === c.column ? 'ink' : 'lab'} grow">${x.emoji} ${x.title}</span>
+          <span class="lab">${x.id === c.column ? 'сейчас' : '›'}</span>
+        </button>`).join(''),
+      field.note('При переходе в новую колонку чек-лист этапа добавляется сам.'),
+    ].join(''),
+    onAct: (name, data, close) => {
+      if (name !== 'to') return;
+      close();
+      moveCard(id, data.v);
+    },
+  });
+}
+
+/** Фильтры на телефоне — одной шторкой, чтобы не занимать полэкрана пилюлями. */
+function filterSheet() {
+  const f = F();
+  openSheet({
+    title: 'Фильтры доски',
+    body: [
+      field.text('search', 'Поиск', f.search, 'по названию, заметкам, запросу'),
+      field.opts('type', 'Тип', [{ value: '', label: 'все' }, ...KTYPES.map(t => ({ value: t, label: t }))], f.type),
+      field.select('platform', 'Площадка', [{ value: '', label: 'все' },
+        ...PLATFORMS.map(p => ({ value: p.id, label: p.name }))], f.platform),
+      field.select('month', 'Месяц', [{ value: '', label: 'все' },
+        ...boardMonths().map(m => ({ value: m, label: monthLabel(m) }))], f.month),
+      `<label class="row tight" style="font-size:13px"><input type="checkbox" name="urgent" ${f.urgent ? 'checked' : ''}> только срочные</label>`,
+    ].join(''),
+    primary: 'Показать',
+    onSave: (v, close) => {
+      update(s2 => {
+        s2.ui.wboard = {
+          search: (v.search || '').trim(), type: v.type || '', platform: v.platform || '',
+          month: v.month || '', urgent: !!v.urgent,
+        };
+      });
+      close();
+    },
+    secondary: 'Сбросить',
+    onSecondary: (_v, close) => {
+      update(s2 => { s2.ui.wboard = { search: '', type: '', platform: '', month: '', urgent: false }; });
+      close();
+    },
+  });
+}

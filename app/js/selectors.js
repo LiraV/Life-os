@@ -5,6 +5,7 @@ import { S, SPHERES, allSpheres, level, levelFloor, isWater } from './store.js';
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
 import { COUNTRIES, countryBy, REGIONS } from './countries.js';
 import { isMale } from './gender.js';
+import { isDoneColumn } from './kanban.js';
 import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
@@ -1473,32 +1474,59 @@ export function jobVacation(job, year = todayISO().slice(0, 4)) {
   return { used, total, left: Math.max(0, total - used) };
 }
 
-// ── проекты, задачи, победы ─────────────────────────────────────
-export const workProjects = jobId => S.work.projects
-  .filter(p => !p.archived && (jobId == null || (p.jobId || '') === jobId));
-export const workProject = id => S.work.projects.find(p => p.id === id) || null;
-export const workProjectName = id => workProject(id)?.name || 'без проекта';
-
+// ── доска, задачи, победы ───────────────────────────────────────
 export const workTasks = jobId => S.work.tasks.filter(t => jobId == null || (t.jobId || '') === jobId);
-export const tasksInStage = (stage, projectId = null, jobId = null) => workTasks(jobId)
-  .filter(t => t.stage === stage && (projectId === null || (t.projectId || '') === projectId));
-export const workDoneIn = (from, to, jobId = null) => workTasks(jobId)
-  .filter(t => t.stage === 'done' && t.stageAt && t.stageAt >= from && t.stageAt <= to);
+export const taskById = id => S.work.tasks.find(t => t.id === id) || null;
+
+/** Подходит ли карточка под фильтры доски. */
+export function cardMatches(c, f) {
+  if (f.type && c.type !== f.type) return false;
+  if (f.platform && !(c.platforms || []).includes(f.platform)) return false;
+  if (f.month && c.month !== f.month) return false;
+  if (f.urgent && !c.urgent) return false;
+  if (f.search) {
+    const q = f.search.toLowerCase();
+    const hay = [c.title, c.notes, c.request, c.split, c.budget].join(' ').toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+export const cardsIn = (column, jobId, f) => workTasks(jobId)
+  .filter(c => c.column === column && cardMatches(c, f));
+
+/** Месяцы, которые встречаются на доске, — для фильтра. */
+export const boardMonths = () => [...new Set(S.work.tasks.map(c => c.month).filter(Boolean))].sort();
+
+/** Готовность чек-листа: сколько из скольких. */
+export const checkDone = c => (c.checklist || []).filter(x => x.done).length;
+
 /**
- * Дата у задачи — это день, когда она делается, а не дедлайн. Поэтому «на
- * сегодня» и «дальше» разведены: сегодняшнее нужно видеть, будущее не должно
- * маячить заранее.
+ * Дата у карточки — это день, когда её делают. Поэтому «на сегодня» и
+ * «дальше» разведены: сегодняшнее нужно видеть, будущее не должно маячить.
+ * Закрытые колонки не считаются.
  */
 export const workToday = (jobId = null) => workTasks(jobId)
-  .filter(t => t.stage !== 'done' && t.due && t.due <= todayISO())
-  .sort((a, b) => (a.due < b.due ? -1 : 1));
-/** Ближайшие дни — свёрнутым списком, чтобы знать, что впереди. */
+  .filter(t => !isDoneColumn(t.column) && t.day && t.day <= todayISO())
+  .sort((a, b) => (a.day < b.day ? -1 : 1));
 export const workAhead = (within = 14, jobId = null) => workTasks(jobId)
-  .filter(t => t.stage !== 'done' && t.due && t.due > todayISO()
-    && diffDays(t.due, todayISO()) <= within)
-  .sort((a, b) => (a.due < b.due ? -1 : 1));
-/** Сколько запланировано на сегодня — тихий счётчик в меню. */
+  .filter(t => !isDoneColumn(t.column) && t.day && t.day > todayISO()
+    && diffDays(t.day, todayISO()) <= within)
+  .sort((a, b) => (a.day < b.day ? -1 : 1));
 export const workTodayCount = () => workToday().length;
+
+/** Дедлайн: просрочен, сегодня, скоро — как на исходной доске. */
+export function deadlineInfo(dl) {
+  if (!dl) return null;
+  const d = diffDays(dl, todayISO());
+  if (d < 0) return { cls: 'dl-over', label: `просрочен ${dayShort(dl)}` };
+  if (d === 0) return { cls: 'dl-today', label: 'сегодня' };
+  if (d <= 3) return { cls: 'dl-soon', label: dayShort(dl) };
+  return { cls: '', label: dayShort(dl) };
+}
+
+export const workDoneIn = (from, to, jobId = null) => workTasks(jobId)
+  .filter(t => isDoneColumn(t.column) && t.movedAt && t.movedAt >= from && t.movedAt <= to);
 
 export const workWins = jobId => S.work.wins
   .filter(x => jobId == null || (x.jobId || '') === jobId)

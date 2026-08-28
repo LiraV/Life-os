@@ -5,7 +5,7 @@
 import { todayISO, monthKey, yearOf } from './dates.js';
 
 const KEY = 'lifeos.state';
-const VERSION = 35;
+const VERSION = 36;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -36,15 +36,6 @@ export const visibleSpheres = () => allSpheres().filter(sp => !(S.spheresHidden 
 export const isCustomSphere = key => (S.customSpheres || []).some(sp => sp.key === key);
 /** Механики сферы: у встроенных они зашиты, у своих выбираются при создании. */
 export const sphereKinds = key => (S.customSpheres || []).find(sp => sp.key === key)?.kinds || [];
-
-/** Канбан работы. «На проверке» — про согласование, без него доска врёт:
- *  сделанное и ждущее ответа — разные состояния. */
-export const WORK_STAGES = [
-  { key: 'queue', name: 'Очередь' },
-  { key: 'doing', name: 'В работе' },
-  { key: 'review', name: 'На проверке' },
-  { key: 'done', name: 'Готово' },
-];
 
 /** Виды найма. Фриланса и своего дела тут нет намеренно: сфера про наём,
  *  а остальное станет отдельными сферами со своей механикой. */
@@ -86,8 +77,10 @@ function blank() {
                          // без end — значит, работаю там сейчас
       days: {},          // { 'YYYY-MM-DD': { <id места>: { type, hours, where, note } } }
                          // type: 'work' | 'vacation' | 'sick' | 'off'; where: 'office' | 'home'
-      projects: [],      // { id, name, jobId, archived } — задача может быть и без проекта
-      tasks: [],         // { id, title, projectId, jobId, stage, stageAt, due, note, createdAt }
+      tasks: [],         // карточки доски: процесс МП → РК перенесён из отдельного канбана
+                         // { id, jobId, column, type, title, platforms: [], month, day, deadline,
+                         //   request, budget, split, urgent, links, notes, checklist: [], movedAt }
+                         // day — день работы (когда делаю), deadline — срок сдачи
       wins: [],          // опыт и победы: { id, date, title, note, jobId }
     },
     energy: {},          // { 'YYYY-MM-DD': 0..100 }
@@ -459,11 +452,25 @@ function migrate(s) {
       (r && typeof r.type === 'string')
         ? { [mainJob]: { type: r.type, hours: Number(r.hours) || 0, where: r.where === 'home' ? 'home' : 'office', note: r.note || '' } }
         : (r && typeof r === 'object' ? r : {})]).filter(([, r]) => Object.keys(r).length)),
-    projects: (Array.isArray(w.projects) ? w.projects : []).map(x => ({ ...x, jobId: x.jobId || mainJob })),
-    tasks: (Array.isArray(w.tasks) ? w.tasks : []).map(t => ({
-      ...t, projectId: t.projectId || '', jobId: t.jobId || mainJob,
-      stage: WORK_STAGES.some(x => x.key === t.stage) ? t.stage : 'queue',
-    })),
+    // v35 → v36: доска стала настоящим процессом — четыре общие стадии
+    // заменены колонками канбана. Старые задачи переезжают в «прочие»: они
+    // и были прочими, придумывать им место в цепочке РК было бы неправдой.
+    tasks: (Array.isArray(w.tasks) ? w.tasks : []).map(t => {
+      const col = KCOLUMNS.some(c => c.id === t.column) ? t.column
+        : ({ queue: 'ot-todo', doing: 'ot-progress', review: 'ot-progress', done: 'ot-done' }[t.stage] || 'ot-todo');
+      return {
+        id: t.id, jobId: t.jobId || mainJob, column: col,
+        type: KTYPES.includes(t.type) ? t.type : 'Прочее',
+        title: t.title || '', platforms: Array.isArray(t.platforms) ? t.platforms : [],
+        month: t.month || '', day: t.day || t.due || '', deadline: t.deadline || '',
+        request: t.request || '', budget: t.budget || '', split: t.split || '',
+        urgent: !!t.urgent, links: t.links || '', notes: t.notes || t.note || '',
+        checklist: (Array.isArray(t.checklist) ? t.checklist : [])
+          .map(i => ({ id: i.id || uid(), text: String(i.text || ''), done: !!i.done }))
+          .filter(i => i.text),
+        movedAt: t.movedAt || t.stageAt || '',
+      };
+    }),
     wins: (Array.isArray(w.wins) ? w.wins : []).map(x => ({ ...x, jobId: x.jobId || mainJob })),
   };
 

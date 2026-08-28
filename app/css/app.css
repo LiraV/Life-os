@@ -447,3 +447,85 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .item-n{margin-left:8px; font-size:11px; min-width:18px; height:18px; padding:0 5px;
         display:inline-flex; align-items:center; justify-content:center;
         border-radius:99px; background:var(--accent); color:var(--on-accent)}
+
+/* ── доска работы ─────────────────────────────────────────────
+   На телефоне колонки листаются вбок, на ноутбуке зона раскладывается
+   во всю ширину. Ширина колонки одна и та же — меняется только то,
+   сколько их помещается. */
+.kb{display:flex; flex-direction:column; gap:18px}
+.kb-zone{display:flex; flex-direction:column; gap:4px; min-width:0}
+.kb-heads{display:none}
+.kb-cols{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;
+         scrollbar-width:none; touch-action:pan-x pan-y; scroll-snap-type:x proximity}
+.kb-cols::-webkit-scrollbar{display:none}
+.kb-col{flex:0 0 262px; scroll-snap-align:start; background:var(--card-mute);
+        border-radius:var(--r-card); display:flex; flex-direction:column; max-height:74vh}
+.kb-col-head{padding:9px 11px 7px; border-top:3px solid transparent; border-radius:var(--r-card) var(--r-card) 0 0}
+.kb-mp .kb-col-head{border-top-color:#7a6ad8}
+.kb-rk .kb-col-head{border-top-color:#2e9e6b}
+.kb-ar .kb-col-head{border-top-color:var(--ink4)}
+.kb-other .kb-col-head{border-top-color:var(--caramel)}
+.kb-col-title{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--ink)}
+.kb-n{margin-left:auto; font-size:11px; color:var(--ink3); background:var(--card); border-radius:99px; padding:1px 7px}
+.kb-col-hint{font-size:10.5px; color:var(--ink4); margin-top:3px; line-height:1.35}
+.kb-body{flex:1; overflow-y:auto; padding:4px 7px 7px; display:flex; flex-direction:column; gap:7px; min-height:48px}
+.kb-add{font:inherit; font-size:12px; color:var(--ink4); background:none; border:1px dashed var(--line);
+        border-radius:12px; padding:6px; margin:0 7px 7px; cursor:pointer}
+.kb-col.over{outline:2px dashed var(--accent); outline-offset:-2px}
+
+.kb-card{background:var(--card); border-radius:12px; box-shadow:var(--shadow); padding:9px 10px;
+         display:flex; flex-direction:column; gap:5px; cursor:pointer; border:1px solid transparent}
+.kb-card.dragging{opacity:.45}
+.kb-badges{display:flex; flex-wrap:wrap; gap:4px; align-items:center}
+.kb-title{font-size:13px; font-weight:600; color:var(--ink); line-height:1.35}
+.kb-split{font-size:11px; color:var(--ink3)}
+.kb-meta{display:flex; flex-wrap:wrap; gap:5px; align-items:center}
+.kb-move{align-self:flex-start; font:inherit; font-size:11px; color:var(--deep);
+         background:none; border:0; padding:2px 0; cursor:pointer}
+.badge{font-size:10px; font-weight:700; border-radius:5px; padding:2px 6px; line-height:1.4; white-space:nowrap}
+.k-mp{background:#e7e3fa; color:#4b3fa8} .k-rk{background:#dff2e8; color:#1d7a4f}
+.k-ot{background:var(--tag-bg); color:#8a5a24} .k-fire{background:#ffe0d2; color:#c1440f}
+.k-month{background:var(--track); color:var(--ink3)}
+.chip{display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:600;
+      color:var(--ink3); background:var(--track); border-radius:5px; padding:2px 6px}
+.chip.ok{color:#1d7a4f} .dl-over{background:#c1440f; color:#fff}
+.dl-today{background:#d9812a; color:#fff} .dl-soon{background:#f7e6bf; color:#7a6207}
+.pf{display:inline-flex; font-size:10px; font-weight:700; border-radius:5px; padding:2px 6px;
+    line-height:1.4; color:#fff; white-space:nowrap}
+.pf-ozon{background:#005bff} .pf-wb{background:#cb11ab} .pf-ue-market{background:#e2b400; color:#2b2400}
+.pf-ue-lavka{background:#17b26a} .pf-ue-go{background:#2b2b2b; color:#ffd60a}
+.pf-ue-eda{background:#f04b23} .pf-other{background:var(--ink4)}
+
+.pf-pick{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px}
+.pf-opt{font:inherit; font-size:12px; border:1.5px solid var(--line); background:var(--card);
+        color:var(--ink3); border-radius:99px; padding:5px 11px; cursor:pointer}
+.pf-opt.on{border-color:var(--accent); background:var(--tag-bg); color:var(--deep)}
+.cl-list{display:flex; flex-direction:column; gap:2px; margin:4px 0}
+.cl-item{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink)}
+.cl-item.done span{text-decoration:line-through; color:var(--ink4)}
+
+/* Фильтры: полосой на широком, кнопкой на телефоне */
+.kb-filters{display:none; flex-wrap:wrap; gap:8px; align-items:center}
+.kb-filters-sm{display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.kb-search{font:inherit; font-size:13px; color:var(--ink); background:var(--card);
+           border:1px solid var(--line); border-radius:10px; padding:7px 10px; width:280px; max-width:100%}
+.kb-sel{font:inherit; font-size:13px; color:var(--ink); background:var(--card);
+        border:1px solid var(--line); border-radius:10px; padding:7px 10px}
+.kb-check{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink3)}
+
+/* ── ноутбук: доска во всю ширину ─────────────────────────────── */
+@media (min-width:900px){
+  .app.wide{max-width:none; height:100dvh; border-radius:0; padding:10px 18px 8px; box-shadow:none}
+  .app.wide .statusbar, .app.wide .nav{max-width:520px; width:100%; align-self:center}
+  .app.wide .scr{padding-right:6px}
+  .app.wide .kb-filters{display:flex}
+  .app.wide .kb-filters-sm{display:none}
+  .app.wide .kb-heads{display:flex; gap:10px; padding:2px 0 2px}
+  .app.wide .kb-group{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700;
+                      letter-spacing:.06em; text-transform:uppercase; color:var(--ink4); min-width:0}
+  .app.wide .kb-line{flex:1; height:3px; border-radius:2px; background:currentColor; opacity:.3}
+  .app.wide .kg-mp{color:#4b3fa8} .app.wide .kg-rk{color:#1d7a4f}
+  .app.wide .kg-ar{color:var(--ink4)} .app.wide .kg-ot{color:#8a5a24}
+  .app.wide .kb-col{max-height:none}
+  .app.wide .kb-cols{overflow-x:auto}
+}

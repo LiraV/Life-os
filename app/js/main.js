@@ -194,9 +194,13 @@ export function render() {
   const params = route().slice(1);
   const key = name + '/' + params.join('/');
   const keep = key === lastKey ? scr.scrollTop : 0;
+  // Доска работы — единственный экран, которому тесно в телефонной рамке:
+  // на широком экране приложение раскрывается во всю ширину.
+  app.classList.toggle('wide', name === 'work' && (S.ui.workTab || 'now') === 'board');
   scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
   stickHead();
   scr.classList.toggle('scrolled', scr.scrollTop > 2);
+  SCREENS[name].afterRender?.();
   // Переписка открывается снизу: видно поле ввода и последние сообщения.
   if (SCREENS[name].stickBottom?.(params)) {
     scr.scrollTop = scr.scrollHeight;

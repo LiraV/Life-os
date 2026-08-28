@@ -131,6 +131,8 @@ export const field = {
 
   date: (name, label, value = '') => h`
     <label class="fld"><span>${label}</span><input type="date" name="${name}" value="${value}"></label>`,
+  month: (name, label, value = '') => h`
+    <label class="fld"><span>${label}</span><input type="month" name="${name}" value="${value}"></label>`,
 
   time: (name, label, value = '') => h`
     <label class="fld"><span>${label}</span><input type="time" name="${name}" value="${value}"></label>`,
