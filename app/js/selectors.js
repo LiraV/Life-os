@@ -1634,8 +1634,12 @@ export function dueOn(date) {
   const t = todayISO();
   const out = [];
 
+  // Задание, которое уже стоит квестом на этот день, в «Сроках» не повторяем:
+  // одна и та же работа не должна встречаться на экране дважды.
+  const asQuest = new Set(questsOn(date).map(q => q.studyId).filter(Boolean));
+
   liveTasks().forEach(x => {
-    if (!x.due) return;
+    if (!x.due || asQuest.has(x.id)) return;
     const done = x.stage === 'done';
     const overdue = !done && date === t && x.due < t;
     if (x.due !== date && !overdue) return;

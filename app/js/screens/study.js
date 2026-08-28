@@ -12,6 +12,7 @@ import {
   STAGES, stageOf, stageIndex, livePlaces, liveSubjects, subjectsOf, subjectById,
   tasksOf, liveTasks, taskSubject, waitingDays, subjectProgress, studyNow,
 } from '../selectors.js';
+import { questSheet } from './day.js';
 
 const TABS = [['now', 'Сейчас'], ['board', 'Доска'], ['subjects', 'Предметы']];
 const tab = () => S.ui.studyTab || 'now';
@@ -188,8 +189,17 @@ export function taskSheet(task, subjectId) {
       field.select('stage', 'Стадия', STAGES.map(x => ({ value: x.id, label: x.name })), t.stage),
       field.date('due', 'Срок — если есть', t.due || ''),
       field.area('note', 'Заметка', t.note || ''),
-      isNew ? '' : field.note('Этап можно вынести выше: сделать целью месяца или боссом недели — тогда он попадёт в Планы и будет двигать общий прогресс.'),
+      isNew ? '' : h`<div class="pills"><button type="button" class="pill" data-act="toDay">Поставить на день</button></div>`,
+      isNew ? '' : field.note('«Поставить на день» заводит квест, связанный с этим этапом: отметишь квест — этап перейдёт в «Сдано», и закрывать его здесь второй раз не нужно. А ещё этап можно вынести выше — сделать целью месяца.'),
     ].join(''),
+    onAct: (name, _d, close) => {
+      if (name !== 'toDay') return;
+      close();
+      questSheet({
+        id: uid(), title: t.title, time: '', minutes: 45, sphere: 'study',
+        boss: false, goalId: '', lessonId: '', studyId: t.id, done: false,
+      }, todayISO());
+    },
     primary: isNew ? 'Добавить' : 'Сохранить',
     onSave: (v, close) => {
       const title = (v.title || '').trim();

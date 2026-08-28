@@ -567,6 +567,10 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
   .app.desk .scr > .link-row, .app.desk .scr > .msg, .app.desk .scr > .add,
   .app.desk .scr > .btn, .app.desk .scr > .btn-ghost, .app.desk .scr > .lab{grid-column:1 / -1}
   .app.desk.wide .scr{display:flex}
+  /* Плитки сфер и круг ролей: на всю ширину они растягиваются в полосы,
+     поэтому колонок столько, сколько влезает при разумной ширине плитки. */
+  .app.desk .scr > .grid2{display:grid; grid-template-columns:repeat(auto-fill, minmax(232px, 1fr))}
+  .app.desk .tile img{height:112px}
   .app.desk .scr-head{background:none; backdrop-filter:none; -webkit-backdrop-filter:none}
   .app.desk .scr.scrolled .scr-head{background:var(--bg1)}
 }
