@@ -102,8 +102,11 @@ function habitSheet(hb) {
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="water" ${water ? 'checked' : ''}> Это вода из «Питания»</label>`,
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="meals" ${meals ? 'checked' : ''}> Это приёмы пищи из «Питания»</label>`,
       meals ? field.note('Число берётся из «Питания»: считаются приёмы, в которых есть хоть одно блюдо. Отметить такую привычку руками нельзя — её отмечает еда.') : '',
-      water ? field.note(`Норма и выпитое берутся из «Питания» — сейчас ${habitTarget(hb)} мл в день. Число одно: стакан, отмеченный здесь, виден там, и наоборот. Свой журнал привычки сохранён и вернётся, если снять галочку.`)
-            : field.number('target', 'Норма за день', hb ? habitTarget(hb) : 1, { min: 1 }),
+      field.number('target', water ? 'Норма воды за день, мл' : 'Норма за день', hb ? habitTarget(hb) : 1, { min: 1 }),
+      water ? field.note(`Норма и выпитое — одно число с «Питанием»: изменишь здесь, изменится и там. Стакан, отмеченный тут, виден в «Питании», и наоборот. Свой журнал привычки сохранён и вернётся, если снять галочку.`) : '',
+      water && Number(hb?.target) >= 1 && Number(hb.target) !== habitTarget(hb)
+        ? field.note(`Раньше у этой привычки была своя норма ${hb.target} ${hb.unit || 'мл'}. Когда она связалась с «Питанием», считать стало «Питание» — а его норма ${habitTarget(hb)} мл. Если нужна прежняя, впиши её сюда: поменяется в обоих местах.`)
+        : '',
       water ? '' : field.text('unit', 'В чём считаем', hb?.unit || '', 'раз, мл, минут — необязательно'),
       field.number('step', 'Сколько добавляет один тап', hb ? habitStep(hb) : 1, { min: 1 }),
       field.note('Норма больше одного превращает привычку в счётчик: «таблетки 0/3». Для крупных величин задай шаг — «вода 2000 мл» с шагом 250 закрывается восемью тапами.'),
@@ -121,13 +124,23 @@ function habitSheet(hb) {
       // В режиме воды поля нормы и единицы на экране нет, поэтому их нельзя
       // перезаписывать тем, чего не спрашивали: своя норма привычки лежит
       // нетронутой и возвращается вместе со снятой связью.
+      // Норма всегда одна и принадлежит тому, кто её считает: у воды это
+      // «Питание», у остальных — сама привычка. Единственное исключение —
+      // снятие связи: там поле показывало чужую норму, поэтому свою не трогаем,
+      // и она возвращается такой, какой была.
+      const wasWater = isWater(hb);
       const asked = v.target !== undefined;
       update(s => {
-        if (isNew) s.habits.push({ id: uid(), name, target, step, unit, link, log: {}, createdAt: todayISO() });
-        else {
-          const x = s.habits.find(y => y.id === hb.id);
-          if (x) { x.name = name; x.step = step; x.link = link; if (asked) { x.target = target; x.unit = unit; } }
+        if (isNew) {
+          s.habits.push({ id: uid(), name, target, step, unit, link, log: {}, createdAt: todayISO() });
+          if (link === 'water' && asked) s.food.targets.water = target;
+          return;
         }
+        const x = s.habits.find(y => y.id === hb.id);
+        if (!x) return;
+        x.name = name; x.step = step; x.link = link;
+        if (link === 'water') { if (asked) s.food.targets.water = target; }
+        else if (!wasWater && asked) { x.target = target; x.unit = unit; }
       });
       close();
     },

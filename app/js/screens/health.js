@@ -5,7 +5,7 @@
 import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
-import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, energyNeed, waistRisk, age,
+import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, build, energyNeed, waistRisk, age,
   sleepAvg, sleepMarks } from '../selectors.js';
 import { g } from '../gender.js';
 
@@ -103,15 +103,24 @@ function cycleCard() {
 `;
 }
 
-/** Сложение: ИМТ, талия и суточный расход. Всё — ориентиры, а не оценки. */
+/** Тип сложения. Строка доступна всегда: запястье ни от чего не зависит,
+ *  и просить его после веса и роста незачем. */
+const wristRow = bd => h`
+  <button class="link-row" data-act="wrist">
+    <span class="ink grow">Тип сложения</span>
+    <span class="lab">${bd ? `${bd.name} · ${bd.note} ›` : 'указать запястье ›'}</span>
+  </button>`;
+
+/** Сложение: ИМТ, талия, тип кости и суточный расход. Всё — ориентиры, а не оценки. */
 function buildCard() {
-  const b = bmi(), w = waistRisk(), en = energyNeed(), yr = age();
-  if (!b && !w && !en) {
+  const b = bmi(), bd = build(), w = waistRisk(), en = energyNeed(), yr = age();
+  if (!b && !bd && !w && !en) {
     return h`
       <div class="card dash">
         <div class="caps">Сложение</div>
         <div class="lab">Заполни в «Я» рост и дату рождения — посчитаю ИМТ и суточный расход.
           Пол там же: от него зависят порог талии и формула расхода.</div>
+        ${raw(wristRow(null))}
       </div>`;
   }
   return h`
@@ -121,6 +130,7 @@ function buildCard() {
         <span class="ink">${b.value} <i class="lab">${b.band}</i></span></div>`) : ''}
       ${w ? raw(h`<div class="row between"><span class="ink">Талия</span>
         <span class="ink">${w.cm} см <i class="lab">${w.level === 'ok' ? `ниже ${w.warn}` : w.level === 'warn' ? `выше ${w.warn}` : `выше ${w.high}`}</i></span></div>`) : ''}
+      ${raw(wristRow(bd))}
 
       ${en ? raw(h`<div class="row between"><span class="ink">Расход в сутки</span>
         <span class="ink">${en.tdee} ккал <i class="lab">покой ${en.bmr}</i></span></div>`) : ''}
@@ -320,6 +330,22 @@ function formView() {
 }
 
 export const actions = {
+  /** Запястье спрашиваем здесь, а не в анкете: оно объясняет одну строку
+   *  на этом экране и больше нигде не участвует. */
+  wrist: () => openSheet({
+    title: 'Обхват запястья',
+    sub: 'по нему считается тип сложения',
+    body: [
+      field.number('wrist', 'Обхват запястья', S.user.wrist || '', { min: 0, max: 30, suffix: 'см' }),
+      field.note('Индекс Соловьёва описывает костяк — и только его. Ни норм веса, ни рекомендаций отсюда не выводится. Пустое поле — строка просто не показывается.'),
+    ].join(''),
+    onSave: (v, close) => {
+      update(s => { s.user.wrist = Math.max(0, Math.min(30, Number(v.wrist) || 0)); });
+      close();
+      toast(S.user.wrist ? 'Сохранено' : 'Убрала');
+    },
+  }),
+
   tab: v => update(s => { s.ui.bodyTab = v.v; }),
   span: v => update(s => { s.ui.formDays = Number(v.v); }),
   noticeoff: () => update(s => { delete s.health.startsOnlyNotice; }),

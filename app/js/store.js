@@ -134,6 +134,7 @@ function blank() {
     onboarded: false,
     user: {
       name: '', chronotype: 'сова', sleep: 10, introversion: 55, activity: 55,
+      wrist: 0,                                          // обхват запястья, см — тип сложения; спрашивается в «Теле»
       traits: [], xp: 0, createdAt: t,
       avatar: '',                                        // 'a1'…'a5' из assets/avatars или пусто — буква имени
       sex: 'f',                                          // 'f' | 'm' — род обращения и нормы тела
@@ -240,6 +241,7 @@ function migrate(s) {
   merged.user = { ...base.user, ...(s.user || {}) };
   // v22 → v23: аватар профиля. Пусто — рисуем букву имени, как раньше.
   merged.user.avatar = typeof merged.user.avatar === 'string' ? merged.user.avatar : '';
+  merged.user.wrist = Number(merged.user.wrist) || 0;
   // v27 → v28: пол и мерки. Приложение всё время говорило в женском роде, поэтому
   // старым данным ставим 'f' — это сохраняет то, что человек уже видел, а не
   // навязывает новое. Цикл включён отдельным тумблером: пол задаёт ему значение
