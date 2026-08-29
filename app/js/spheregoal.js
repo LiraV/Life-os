@@ -7,7 +7,7 @@
 import { S, update, uid } from './store.js';
 import { todayISO, yearOf, monthKey, MONTHS } from './dates.js';
 import { h, raw, field, toast, openSheet } from './ui.js';
-import { sourcesOf, liveGoals, autoLabel, SOURCES, sphereOf } from './selectors.js';
+import { sourcesOf, liveGoals, autoLabel, SOURCES, sphereOf, periodRange } from './selectors.js';
 
 const HZ = [
   { value: 'year', label: 'Год' },
@@ -48,7 +48,7 @@ export function sphereGoalSheet(sphere) {
     body: [
       field.select('kind', 'Что считаем', list.map(x => ({ value: x.key, label: x.name })), first.key),
       `<div id="sg_opts">${optsBlock(first)}</div>`,
-      field.number('target', 'Сколько', '', { min: 1 }),
+      field.number('target', 'Сколько', '', { min: 0 }),
       field.text('title', 'Как назвать', '', 'можно не заполнять — придумаю сама'),
       field.note('Число набранного будет считаться из отметок в этой сфере: отдельно вести его не нужно. Цель появится в «Планах» и там же правится или удаляется.'),
     ].join(''),
@@ -56,19 +56,27 @@ export function sphereGoalSheet(sphere) {
     onSave: (v, close) => {
       const kind = v.kind || first.key;
       const src = list.find(x => x.key === kind) || first;
-      const target = Math.max(1, Number(v.target) || 0);
-      if (!target) return toast('Нужно число');
-      const horizon = src.horizons.includes(v.horizon) ? v.horizon : src.horizons[0];
-      const period = periodFor(horizon);
       // У источника своей сферы уточнение не спрашивают: сфера и есть уточнение.
       const ref = src.ref ? (v.ref ?? '') : (src.fixedRef || '');
+      // У цели «вниз» ноль — законная цель: «0 см до шпагата». Поэтому нижнюю
+      // границу опускаем и пустое поле от нуля отличаем по самому вводу.
+      const down = src.dirOf?.(ref) === 'down';
+      const typed = String(v.target ?? '').trim();
+      const target = down ? Math.max(0, Number(typed) || 0) : Math.max(1, Number(typed) || 0);
+      if (!typed || (!down && !target)) return toast('Нужно число');
+      const horizon = src.horizons.includes(v.horizon) ? v.horizon : src.horizons[0];
+      const period = periodFor(horizon);
       const goal = {
         id: uid(), title: '', horizon, period, parentId: '',
         // «Внутри» — не сфера, поэтому поле сферы у такой цели остаётся пустым:
         // подставлять туда несуществующий ключ значило бы врать выбору сфер.
         sphere: sphereOf(sphere) ? sphere : '',
-        deadline: '', target, unit: src.unit, current: 0, steps: [], slots: [],
-        src: { kind, ref },
+        // Единица бывает своя у каждого уточнения: у планки секунды, у шпагата
+        // сантиметры. Точку отсчёта запоминаем сразу — по ней потом считается
+        // движение цели «вниз»; позже её уже не восстановить.
+        deadline: '', target, unit: (src.unitOf ? src.unitOf(ref) : src.unit) || src.unit,
+        current: 0, steps: [], slots: [],
+        src: { kind, ref, ...(down ? { from: src.count(ref, periodRange('year', String(yearOf(todayISO()))), '', null) || 0 } : {}) },
       };
       goal.title = (v.title || '').trim() || defaultTitle(goal, src, target, horizon, period);
       // Такая же цель уже есть — второй счётчик про то же самое не заводим.

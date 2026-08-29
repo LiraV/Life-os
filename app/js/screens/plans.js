@@ -216,12 +216,14 @@ const num = n => Number(n).toLocaleString('ru-RU');
 /** Счётчик: «7 из 12 книг» и кнопки прибавления.
  *  Для мелких величин удобны шаги по единице, для крупных — только сумма. */
 function counterRow(g) {
-  const { current, target, unit, auto } = counterOf(g);
+  const { current, target, unit, auto, down, from } = counterOf(g);
   const small = target <= 200;
-  const reached = current >= target;
+  const reached = down ? current <= target : current >= target;
   return h`
     <div class="cnt-row">
-      <div class="grow ink"><b>${num(current)}</b> из ${num(target)}${unit ? ' ' + unit : ''}${reached ? ' ✦' : ''}</div>
+      <div class="grow ink">${down
+        ? raw(h`<b>${num(current)}</b>${unit ? ' ' + unit : ''} · цель ${num(target)}${from != null ? `, было ${num(from)}` : ''}${reached ? ' ✦' : ''}`)
+        : raw(h`<b>${num(current)}</b> из ${num(target)}${unit ? ' ' + unit : ''}${reached ? ' ✦' : ''}`)}</div>
       <div class="row tight" style="flex:none">
         ${auto ? '' : raw(h`
           ${raw(small ? h`<button class="pill" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус один">−1</button>
@@ -234,13 +236,13 @@ function counterRow(g) {
 
 /** Динамичная цель — одна строка: набрано, норма и плюс в один тап. */
 function dynRow(g) {
-  const { current, target, unit, auto } = counterOf(g);
-  const full = current >= target;
+  const { current, target, unit, auto, down } = counterOf(g);
+  const full = down ? current <= target : current >= target;
   return h`
     <div class="dyn-row ${full ? 'done' : ''}">
       <div class="grow" data-act="goaledit" data-id="${g.id}" style="cursor:pointer">
         <div class="ink">${g.title}</div>
-        <div class="lab">${current} / ${target}${unit ? ' ' + unit : ''}${full ? ' ✦' : ''}${auto ? ' · сама' : ''}</div>
+        <div class="lab">${down ? `${current}${unit ? ' ' + unit : ''} · цель ${target}` : `${current} / ${target}${unit ? ' ' + unit : ''}`}${full ? ' ✦' : ''}${auto ? ' · сама' : ''}</div>
       </div>
       ${auto ? '' : raw(h`
         ${raw(current ? h`<button class="hab-plus" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус">−</button>` : '')}

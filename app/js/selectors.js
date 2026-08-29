@@ -89,7 +89,9 @@ export const goalsIn = (horizon, period) => liveGoals().filter(g => g.horizon ==
 export const goalById = id => S.goals.find(g => g.id === id);
 export const goalChildren = id => liveGoals().filter(g => g.parentId === id);
 
-export const isCounter = g => Number(g?.target) > 0;
+// Цель «вниз» бывает и с нулём: «0 см до шпагата» — законная цель, поэтому
+// одного «target > 0» мало.
+export const isCounter = g => Number(g?.target) > 0 || (Number(g?.target) >= 0 && goalDown(g));
 
 /**
  * Счётчик цели: набранное ставит сама пользовательница. Автоматики тут нет —
@@ -104,15 +106,41 @@ export const counterOf = g => {
     target: Number(g.target) || 0,
     unit: g.unit || '',
     auto: auto != null,
+    down: goalDown(g),
+    from: goalStart(g),
   };
 };
+
+/**
+ * Цель «вниз»: у неё лучше меньше — сантиметры до шпагата, секунды на круг.
+ * Такую цель нельзя мерить как «набрано из нужного»: она движется от того,
+ * что было, к тому, что хочется. Точку отсчёта запоминаем при создании, а
+ * если её не было (результата ещё не записали) — берём первый записанный.
+ */
+export const goalDown = g => SOURCES[g?.src?.kind]?.dirOf?.(g.src.ref || '') === 'down';
+export function goalStart(g) {
+  if (!g?.src) return null;
+  const saved = Number(g.src.from);
+  if (Number.isFinite(saved) && saved > 0) return saved;
+  const ex = g.src.kind === 'exercise' ? exerciseById(g.src.ref) : null;
+  const hist = ex ? exerciseHistory(ex.id) : [];
+  return hist.length ? hist[0].value : null;
+}
 
 /** Прогресс: «выполнено» перебивает всё, дальше счётчик, этапы, вложенные цели, вручную. */
 export function goalProgress(goal, seen = new Set()) {
   if (!goal || seen.has(goal.id)) return 0;
   if (goal.done) return 100;
   if (isCounter(goal)) {
-    const { current, target } = counterOf(goal);
+    const { current, target, down, from } = counterOf(goal);
+    if (down) {
+      if (current <= target) return 100;
+      // Пути нет — значит, и мерить нечего: не 0 % и не 100, а честный ноль
+      // до первой записи.
+      if (from == null || from <= target) return 0;
+      return Math.max(0, Math.min(100, Math.round(((from - current) / (from - target)) * 100)));
+    }
+    if (!target) return 0;
     return Math.max(0, Math.min(100, Math.round((current / target) * 100)));
   }
   seen.add(goal.id);
@@ -1361,6 +1389,24 @@ export const SOURCES = {
     sphere: 'sport', name: 'Тренировок', unit: 'тренировок', horizons: ['year', 'quarter', 'month'],
     count: (_ref, r) => doneWorkouts(r).length,
   },
+  exercise: {
+    // Не «сколько раз», а «до какого результата»: планка на 3 минуты, первое
+    // подтягивание, сантиметры до шпагата. Единица и направление берутся
+    // у самого упражнения — у шпагата «лучше» значит меньше.
+    sphere: 'sport', name: 'Рекорд в упражнении', unit: '', horizons: ['year'], lifetime: true,
+    ref: () => S.sport.exercises.map(e => ({ value: e.id, label: e.name })),
+    refName: id => exerciseById(id)?.name || '',
+    unitOf: id => exerciseById(id)?.unit || '',
+    dirOf: id => (exerciseById(id)?.dir === 'down' ? 'down' : 'up'),
+    count: (ref, _r, _p, goal) => {
+      const ex = exerciseById(ref);
+      const rec = ex && exerciseRecord(ex);
+      if (rec) return rec.best;
+      // Результата ещё нет: у цели «вверх» это ноль, у цели «вниз» — точка,
+      // с которой начинали. Ноль там означал бы «шпагат уже сел».
+      return goalStart(goal) ?? 0;
+    },
+  },
   tag: {
     sphere: 'sport', name: 'Тренировок с пилюлей', unit: 'раз', horizons: ['year', 'quarter', 'month'],
     ref: () => sportTags().map(t => ({ value: t.id, label: t.name })),
@@ -1469,7 +1515,7 @@ export const sourcesOf = sphere => Object.entries(SOURCES)
 export function autoCount(goal) {
   const src = SOURCES[goal?.src?.kind];
   if (!src) return null;
-  return src.count(goal.src.ref || '', periodRange(goal.horizon, goal.period), goal.period);
+  return src.count(goal.src.ref || '', periodRange(goal.horizon, goal.period), goal.period, goal);
 }
 
 /** Подпись «откуда число» — чтобы автоматика не выглядела магией. */
