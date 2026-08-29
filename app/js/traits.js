@@ -173,9 +173,12 @@ export function profileTraits() {
   const u = S.user;
   return [
     { rhythm: { 'сова': 'owl', 'жаворонок': 'lark', 'плавает': 'floating' }[u.chronotype] || 'floating' }.rhythm,
-    Number(u.activity) > 60 ? 'sprinter' : 'marathoner',
+    // Темп — отдельный вопрос, а не побочный смысл ползунка «Активность»:
+    // «много двигаюсь» и «работаю рывками» — разные вещи. Не выбрано —
+    // черты нет: выдумывать за человека его темп незачем.
+    u.pace === 'sprint' ? 'sprinter' : u.pace === 'even' ? 'marathoner' : null,
     Number(u.introversion) > 60 ? 'quiet' : 'social',
-  ];
+  ].filter(Boolean);
 }
 
 /**

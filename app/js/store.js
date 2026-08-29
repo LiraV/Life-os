@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 42;
+const VERSION = 43;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -134,6 +134,7 @@ function blank() {
     onboarded: false,
     user: {
       name: '', chronotype: 'сова', sleep: 10, introversion: 55, activity: 55,
+      pace: '',                                          // 'sprint' | 'even' | '' — как берёшься за дела
       wrist: 0,                                          // обхват запястья, см — тип сложения; спрашивается в «Теле»
       traits: [], xp: 0, createdAt: t,
       avatar: '',                                        // 'a1'…'a5' из assets/avatars или пусто — буква имени
@@ -242,6 +243,14 @@ function migrate(s) {
   // v22 → v23: аватар профиля. Пусто — рисуем букву имени, как раньше.
   merged.user.avatar = typeof merged.user.avatar === 'string' ? merged.user.avatar : '';
   merged.user.wrist = Number(merged.user.wrist) || 0;
+  // v42 → v43: темп перестал выводиться из ползунка «Активность» — тот про
+  // движение, а не про то, рывками ты работаешь или ровно. Прежним данным
+  // ставим то, что человек уже видел на полке черт, а не пустоту. Делаем это
+  // ровно один раз, по номеру пришедшей версии: иначе выбранное «по-разному»
+  // при каждой загрузке снова превращалось бы в вывод из ползунка.
+  const fromV = Number(s?.v) || 0;
+  merged.user.pace = ['sprint', 'even'].includes(merged.user.pace) ? merged.user.pace
+    : (fromV && fromV < 43 ? (Number(merged.user.activity) > 60 ? 'sprint' : 'even') : '');
   // v27 → v28: пол и мерки. Приложение всё время говорило в женском роде, поэтому
   // старым данным ставим 'f' — это сохраняет то, что человек уже видел, а не
   // навязывает новое. Цикл включён отдельным тумблером: пол задаёт ему значение

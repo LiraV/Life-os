@@ -215,6 +215,8 @@ function testResult(run, t) {
       </div>`) : ''}
     ${res.chronotype ? raw(h`<div class="card mute"><div class="lab">Хронотип в профиле станет «${res.chronotype}» — от него зависит кривая дня.</div></div>`) : ''}
     ${res.introversion != null ? raw(h`<div class="card mute"><div class="lab">Ползунок интроверсии встанет на ${res.introversion} — это та же шкала, что и в профиле.</div></div>`) : ''}
+    ${res.pace ? raw(h`<div class="card mute"><div class="lab">Темп в профиле станет «${res.pace === 'sprint' ? 'рывками' : 'ровно и понемногу'}» — от него зависит норма дня.</div></div>`)
+      : res.pace === '' && 'pace' in res ? raw('<div class="card mute"><div class="lab">Темп остаётся как есть: результат посередине, и придумывать за тебя крайность не буду.</div></div>') : ''}
     <button class="btn" data-act="accept">Сохранить</button>
     <button class="btn-ghost" data-act="cancel">оставить как было</button>`;
 }
@@ -319,12 +321,13 @@ export const actions = {
       };
       if (res.traitId && !s.user.traits.includes(res.traitId)) s.user.traits.push(res.traitId);
       if (res.chronotype) s.user.chronotype = res.chronotype;
+      if (res.pace) s.user.pace = res.pace;
       if (res.introversion != null) s.user.introversion = res.introversion;
       addDiary(s, `тест «${t.name}»: ${res.title}`, 'тесты', 'test');
       addXp(XP.test);
       s.ui.test = null;
     });
-    toast(trait ? `Черта добавлена: ${nameOf(trait)}` : 'Результат сохранён');
+    toast(trait ? `Черта добавлена: ${nameOf(trait)}` : res.pace ? 'Темп обновлён' : 'Результат сохранён');
   },
   cancel: () => update(s => { s.ui.test = null; }),
 

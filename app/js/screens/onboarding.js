@@ -7,13 +7,17 @@ import { h, raw, field, toast, collect } from '../ui.js';
 import { peakLabel } from '../selectors.js';
 import { offerTips } from '../tips.js';
 
+// Темп — не ползунок: между «рывками» и «ровно» есть законное «по-разному»,
+// и на шкале оно превращалось бы в случайную середину.
+const PACES = [['sprint', 'Рывками'], ['even', 'Ровно и понемногу'], ['', 'По-разному']];
+
 const SUGGESTED = ['Итальянский 15 минут', 'Вода 2 литра', 'Растяжка', 'Сон до 00:30', 'Страница дневника'];
 
-const draft = () => (S.ui.onb ||= { step: 0, name: '', sex: 'f', chronotype: 'сова', sleep: 10, introversion: 55, activity: 55, habits: [], theme: '' });
+const draft = () => (S.ui.onb ||= { step: 0, name: '', sex: 'f', chronotype: 'сова', sleep: 10, introversion: 55, activity: 55, pace: '', habits: [], theme: '' });
 
 function traits(d) {
   const t = [d.chronotype === 'сова' ? 'Сова' : d.chronotype === 'жаворонок' ? 'Жаворонок' : 'Плавающий ритм'];
-  t.push(d.activity > 60 ? 'Спринтер' : 'Марафонец');
+  if (d.pace) t.push(d.pace === 'sprint' ? 'Спринтер' : 'Марафонец');
   t.push(d.introversion > 60 ? 'Нужна тишина' : 'Заряжаюсь от людей');
   return t;
 }
@@ -63,6 +67,16 @@ const step1 = d => h`
   <div class="card">
     ${raw(field.range('introversion', 'Интроверсия', d.introversion, { left: 'люди', right: 'тишина' }))}
     ${raw(field.range('activity', 'Активность', d.activity, { left: 'покой', right: 'движение' }))}
+    <div class="lab">Активность — про движение в жизни: от неё считаются норма дня и суточный расход.</div>
+  </div>
+  <div class="card">
+    <div class="lab">Как берёшься за дела</div>
+    <div class="pills">
+      ${PACES.map(([k, l]) => raw(h`<button class="pill ${d.pace === k ? 'on' : ''}" data-act="pace" data-v="${k}">${l}</button>`))}
+    </div>
+    <div class="lab">${d.pace === 'sprint' ? 'Спринтер: норма дня выше, о перегрузе напомню позже.'
+      : d.pace === 'even' ? 'Марафонец: норма дня ниже, перегруз замечу раньше.'
+      : 'Можно не выбирать — тогда норма дня остаётся обычной. Это же покажет тест «Упорство» во «Внутри».'}</div>
   </div>
   <div style="flex:1"></div>
   <button class="btn" data-act="next">Дальше →</button>
@@ -110,6 +124,7 @@ function finish(skipped) {
     s.user.sleep = Number(d.sleep);
     s.user.introversion = Number(d.introversion);
     s.user.activity = Number(d.activity);
+    s.user.pace = ['sprint', 'even'].includes(d.pace) ? d.pace : '';
     s.user.traits = skipped ? [] : traits(d);
     s.habits = (skipped ? [] : d.habits).map(name => ({ id: uid(), name, target: 1, unit: '', log: {}, createdAt: todayISO() }));
     if (!skipped && d.theme.trim()) s.years[yearOf(todayISO())] = { theme: d.theme.trim(), quarters: {} };
@@ -128,6 +143,7 @@ const sync = () => Object.assign(draft(), collect());
 
 export const actions = {
   chrono: v => update(() => { sync(); draft().chronotype = v.v; }),
+  pace: v => update(() => { sync(); draft().pace = ['sprint', 'even'].includes(v.v) ? v.v : ''; }),
   sex: v => update(() => { sync(); draft().sex = v.v === 'm' ? 'm' : 'f'; }),
   hab: v => update(() => {
     sync();

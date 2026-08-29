@@ -215,6 +215,9 @@ function profileSheet() {
       field.date('birth', 'Дата рождения', S.user.birth || ''),
       field.opts('chronotype', 'Хронотип', ['жаворонок', 'сова', 'плавает'], S.user.chronotype),
       field.range('sleep', 'Нужно спать', S.user.sleep, { min: 6, max: 11, step: 0.5, suffix: ' ч' }),
+      field.opts('pace', 'Как берёшься за дела', [
+        { value: 'sprint', label: 'Рывками' }, { value: 'even', label: 'Ровно' }, { value: '', label: 'По-разному' },
+      ], S.user.pace || ''),
       field.number('height', 'Рост', S.user.height || '', { min: 0, max: 260, suffix: 'см' }),
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="cycle" ${S.user.cycle ? 'checked' : ''}> Вести цикл в «Теле»</label>`,
       field.note('Пол меняет обращение и нормы, которые считаются по-разному у мужчин и женщин: расход калорий, порог талии и пороги типа сложения. Цикл — отдельный тумблер: выключишь — раздел скроется, отметки останутся.'),
@@ -243,6 +246,7 @@ function saveProfile(s, v) {
   s.user.birth = v.birth || '';
   s.user.chronotype = v.chronotype || s.user.chronotype;
   s.user.sleep = Number(v.sleep) || s.user.sleep;
+  s.user.pace = ['sprint', 'even'].includes(v.pace) ? v.pace : '';
   s.user.height = Math.max(0, Number(v.height) || 0);
   s.user.cycle = !!v.cycle;
 }
