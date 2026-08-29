@@ -2,6 +2,7 @@
 // чтобы прогресс, потребности и реплики Летописца шли из реальных данных.
 
 import { BLOG_PLACES, BLOG_FEEDS, atPlace, isOut } from './blog.js';
+import { FREE_STAGES, isPaid, isLost, isLive, netOf } from './free.js';
 import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS, energyRec, energyAt, energyOn } from './store.js';
 export { energyRec, energyAt, energyOn };
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
@@ -768,6 +769,9 @@ export function sphereParts(key, days) {
     { label: 'дни питания', n: days.filter(d => (S.food.days[d]?.entries || []).length).length }];
   // «Тело» живо от отметок сна и замеров: у него нет этапов и журнала,
   // и без этой ветки роль «Целительница» видела бы только квесты.
+  if (key === 'free') return [quests,
+    { label: 'заказы', n: freeOrders().filter(o => isPaid(o) && days.includes(o.paidAt)).length },
+    { label: 'шаги', n: 0 }].filter(x => x.label !== 'шаги' || x.n);
   if (key === 'health') return [quests,
     { label: 'ночи', n: days.filter(d => sleepOn(d) != null).length },
     { label: 'замеры', n: (S.health.measures || []).filter(m => days.includes(m.date)).length }];
@@ -1541,6 +1545,26 @@ export const SOURCES = {
     refName: key => customName(key),
     count: (ref, r) => boardDoneIn(ref, r.from, r.to).length,
   },
+  freeOrders: {
+    sphere: 'free', name: 'Заказов оплачено', unit: 'заказов', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.name, label: x.name }))],
+    refName: id => id,
+    count: (ref, r) => freePaidIn(r.from, r.to, ref).length,
+  },
+  freeMoney: {
+    sphere: 'free', name: 'Заработано на фрилансе', unit: '₽', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.name, label: x.name }))],
+    refName: id => id,
+    count: (ref, r) => freeGross(r.from, r.to, ref),
+  },
+  freeNet: {
+    // Чистыми — то, что осталось после комиссии площадки. Кворк забирает
+    // пятую часть, и цель «заработать N» без этого была бы обманом.
+    sphere: 'free', name: 'Чистыми после комиссии', unit: '₽', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.name, label: x.name }))],
+    refName: id => id,
+    count: (ref, r) => freeNet(r.from, r.to, ref),
+  },
   income: {
     // Доход за период — из операций, а не отдельным счётчиком: одна запись
     // в бюджете, и цель растёт сама. Без статьи считаются все доходы.
@@ -1833,6 +1857,51 @@ export const mindLog = () => [...(S.mind || [])].sort((a, b) => (a.date < b.date
 export const mindIn = (from, to) => (S.mind || []).filter(x => x.date >= from && x.date <= to);
 export const mindMinutes = (from, to) => mindIn(from, to).reduce((a, x) => a + (Number(x.minutes) || 0), 0);
 export const mindDays = (from, to) => new Set(mindIn(from, to).map(x => x.date)).size;
+// ── фриланс ─────────────────────────────────────────────────────
+// Деньги считаются от оплаченных заказов и только по дню оплаты: «сдан» —
+// это ещё не деньги, и записывать его в доход значило бы считать надежду.
+
+export const freeOrders = () => S.free?.orders || [];
+export const freeBy = stage => freeOrders().filter(o => o.stage === stage);
+export const freeLive = () => freeOrders().filter(isLive)
+  .sort((a, b) => ((a.due || '9999') < (b.due || '9999') ? -1 : 1));
+export const freePlaces = () => S.free?.places || [];
+export const freeServices = () => S.free?.services || [];
+export const freeSteps = () => S.free?.steps || [];
+
+export const freePaid = (place = '') => freeOrders()
+  .filter(o => isPaid(o) && o.paidAt && (!place || o.place === place))
+  .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1));
+export const freePaidIn = (from, to, place = '') =>
+  freePaid(place).filter(o => o.paidAt >= from && o.paidAt <= to);
+export const freeGross = (from, to, place = '') =>
+  freePaidIn(from, to, place).reduce((a, o) => a + (Number(o.price) || 0), 0);
+export const freeNet = (from, to, place = '') =>
+  freePaidIn(from, to, place).reduce((a, o) => a + netOf(o), 0);
+export function freeAvg(from, to, place = '') {
+  const list = freePaidIn(from, to, place);
+  return list.length ? Math.round(freeGross(from, to, place) / list.length) : null;
+}
+
+/** Ближайшие сроки живых заказов — тихо, на самой сфере. */
+export const freeDue = (within = 30) => freeLive()
+  .filter(o => o.due && diffDays(o.due, todayISO()) <= within);
+
+/** Что приносит каждая площадка: заказы, деньги и средний чек за всё время. */
+export function freePlaceStats() {
+  const all = freePaid();
+  return freePlaces().map(pl => {
+    const mine = all.filter(o => o.place === pl.name);
+    const gross = mine.reduce((a, o) => a + (Number(o.price) || 0), 0);
+    return { ...pl, n: mine.length, gross, net: mine.reduce((a, o) => a + netOf(o), 0),
+      avg: mine.length ? Math.round(gross / mine.length) : null };
+  }).sort((a, b) => b.gross - a.gross);
+}
+
+/** Воронка: сколько заказов на каждой стадии — включая сорвавшиеся. */
+export const freeFunnel = () => FREE_STAGES.map(st => ({ ...st, n: freeBy(st.key).length }));
+export const freeStepsDone = () => freeSteps().filter(x => x.done).length;
+
 // ── блог ────────────────────────────────────────────────────────
 // Ритм и отклик — разные вещи. Ритм считается сам из постов, доехавших до
 // «опубликовано»; отклик человек вписывает руками, и только если хочет.

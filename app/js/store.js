@@ -13,16 +13,17 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 45;
+const VERSION = 46;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
   edu: 'scholar', study: 'scholar', books: 'reader', sport: 'athlete',
-  food: 'healer', health: 'healer', blog: 'artist', work: 'master', money: 'keeper', trips: 'wanderer',
+  food: 'healer', health: 'healer', blog: 'artist', work: 'master', free: 'master', money: 'keeper', trips: 'wanderer',
 };
 
 import { artSrc } from './sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, DEFAULT_FORMATS } from './blog.js';
+import { FREE_STAGES, FREE_KINDS } from './free.js';
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -34,6 +35,7 @@ export const SPHERES = [
   // «Тело» — такая же сфера жизни, как остальные, просто со своим экраном:
   // цикл, замеры и сон живут там, а плитка открывает именно его.
   { key: 'health', name: 'Тело',     mech: 'состояние',  img: 'assets/spheres/care.webp' },
+  { key: 'free',  name: 'Фриланс',  mech: 'заказы',     img: 'assets/spheres/plan.webp' },
   { key: 'money', name: 'Бюджет',   mech: 'казна',      img: 'assets/illustration_10.png' },
   { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png' },
   { key: 'trips', name: 'Страны',   mech: 'карта',      img: 'assets/illustration_01.png' },
@@ -226,6 +228,12 @@ function blank() {
                                                          // блюдо: { id, meal, title, kcal, prot, fat, carb, time, source }
     },
     mind: [],            // осознанность: { id, date, key, minutes, before, after, note }
+    free: {              // фриланс: заказы, площадки, услуги и шаги выхода
+      orders: [],        // { id, title, place, kind, price, fee, stage, due, paidAt, link, note, movedAt }
+      places: [],        // площадки: { id, name, fee } — комиссия в процентах
+      services: [],      // что продаю: { id, name, price }
+      steps: [],         // путь на фриланс: { id, text, done }
+    },
     blog: {              // блог: конвейер постов и отметки подписчиков
       posts: [],         // { id, title, place, stage, day, format, rubrics: [], blocks: [], seed, link, views, note }
       subs: [],          // { id, date, ig, tg } — сколько было на эту дату
@@ -671,6 +679,29 @@ function migrate(s) {
         tg: x.tg == null || x.tg === '' ? null : Math.max(0, Math.round(Number(x.tg) || 0)) }))
       .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
   };
+  // v45 → v46: сфера «Фриланс». Ничего готового не заводим — ни площадок,
+  // ни услуг, ни шагов: их предлагают на экране, а появляются они по тапу.
+  const SG = FREE_STAGES.map(x => x.key);
+  const f0 = merged.free && typeof merged.free === 'object' ? merged.free : {};
+  const nm = (x, d = '') => (typeof x === 'string' ? x.trim() : d);
+  const money = x => Math.max(0, Math.round(Number(x) || 0));
+  merged.free = {
+    orders: (Array.isArray(f0.orders) ? f0.orders : []).map(o => ({
+      id: o.id || uid(), title: nm(o.title) || 'Заказ',
+      place: nm(o.place), kind: FREE_KINDS.includes(o.kind) ? o.kind : '',
+      price: money(o.price), fee: Math.max(0, Math.min(100, Number(o.fee) || 0)),
+      stage: SG.includes(o.stage) ? o.stage : 'talk',
+      due: nm(o.due).slice(0, 10), paidAt: nm(o.paidAt).slice(0, 10),
+      link: nm(o.link), note: nm(o.note), movedAt: nm(o.movedAt).slice(0, 10),
+    })),
+    places: (Array.isArray(f0.places) ? f0.places : []).filter(x => x && x.name)
+      .map(x => ({ id: x.id || uid(), name: nm(x.name), fee: Math.max(0, Math.min(100, Number(x.fee) || 0)) })),
+    services: (Array.isArray(f0.services) ? f0.services : []).filter(x => x && x.name)
+      .map(x => ({ id: x.id || uid(), name: nm(x.name), price: money(x.price) })),
+    steps: (Array.isArray(f0.steps) ? f0.steps : []).filter(x => x && x.text)
+      .map(x => ({ id: x.id || uid(), text: nm(x.text), done: !!x.done })),
+  };
+
   // Метки постов превращаем в рубрики: одноимённые склеиваются, порядок
   // сохраняется. После переноса метка на посте больше не нужна.
   merged.blog.posts.forEach(post => {
