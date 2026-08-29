@@ -156,6 +156,28 @@ export function goalProgress(goal, seen = new Set()) {
 
 const avg = list => list.length ? Math.round(list.reduce((a, b) => a + b, 0) / list.length) : null;
 
+/**
+ * Намерения, к которым может вести цель месяца: свои и всех уровней выше —
+ * квартала и года. Ниже месяца намерений нет, поэтому список исчерпывающий.
+ */
+export function intentionsAbove(ym) {
+  const y = ym.slice(0, 4);
+  const q = `${y}-Q${Math.ceil(Number(ym.slice(5, 7)) / 3)}`;
+  const lvl = [[ym, 'месяц'], [q, 'квартал'], [y, 'год']];
+  return lvl.flatMap(([key, name]) => (S.intentions?.[key] || []).map(i => ({ ...i, period: key, level: name })));
+}
+/** Намерение цели: ищем по всем периодам, чтобы не хранить ещё и период. */
+export function intentionOf(g) {
+  if (!g?.intentId) return null;
+  for (const [period, list] of Object.entries(S.intentions || {})) {
+    const found = (list || []).find(i => i.id === g.intentId);
+    if (found) return { ...found, period };
+  }
+  return null;
+}
+/** Цели, ведущие к этому намерению, — чтобы намерение не висело в пустоте. */
+export const goalsOfIntent = id => liveGoals().filter(g => g.intentId === id);
+
 export const goalSlots = g => Array.isArray(g.slots) ? g.slots : [];
 
 /** Цели, положенные в этот период сверху — живут выше, но запланированы сюда. */

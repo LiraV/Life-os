@@ -7,7 +7,7 @@
 import { S, update, uid } from './store.js';
 import { todayISO, yearOf, monthKey, MONTHS } from './dates.js';
 import { h, raw, field, toast, openSheet } from './ui.js';
-import { sourcesOf, liveGoals, autoLabel, SOURCES, sphereOf, periodRange } from './selectors.js';
+import { sourcesOf, liveGoals, autoLabel, SOURCES, sphereOf, periodRange, intentionsAbove } from './selectors.js';
 
 const HZ = [
   { value: 'year', label: 'Год' },
@@ -35,6 +35,18 @@ export function sphereGoalSheet(sphere) {
   // площадки другие, а «сколько сейчас» бывает только за год. Поэтому блок
   // перерисовывается при смене счёта, а не строится один на всю сферу: раньше
   // брались общие горизонты, и один «только годовой» счёт отнимал месяц у всех.
+  // Блок «показывать в месяце» и выбор намерения: и то и другое имеет смысл
+  // только у месячной цели, поэтому появляется вместе со сроком «месяц».
+  const dynBlock = (ym, horizon) => {
+    if (horizon !== 'month') return '';
+    const ints = intentionsAbove(ym);
+    return `<label class="row tight" style="font-size:13px"><input type="checkbox" name="dynamic"> Показывать в месяце отдельной строкой</label>`
+      + (ints.length
+        ? field.select('intentId', 'Ради какого намерения',
+          [{ value: '', label: 'просто так' }, ...ints.map(i => ({ value: i.id, label: `${i.text} · ${i.level}` }))], '')
+        : field.note('Намерений на этот месяц, квартал и год пока нет — связать цель не с чем.'));
+  };
+
   const optsBlock = src => {
     const refs = src.ref ? src.ref() : [];
     const hz = HZ.filter(x => src.horizons.includes(x.value));
@@ -53,6 +65,10 @@ export function sphereGoalSheet(sphere) {
       `<div id="sg_opts">${optsBlock(first)}</div>`,
       field.number('target', 'Сколько', '', { min: 0 }),
       field.text('title', 'Как назвать', '', 'можно не заполнять — придумаю сама'),
+      // Динамичная — это не другой счёт, а другое место: месячный блок, где
+      // цель видна каждый день. Поэтому только для месяца и без ручных плюсов:
+      // число всё равно считает сфера.
+      `<div id="sg_dyn">${dynBlock(periodFor('month'), 'year')}</div>`,
       field.note('Число набранного будет считаться из отметок в этой сфере: отдельно вести его не нужно. Цель появится в «Планах» и там же правится или удаляется.'),
     ].join(''),
     primary: 'Добавить цель',
@@ -78,6 +94,9 @@ export function sphereGoalSheet(sphere) {
         // сантиметры. Точку отсчёта запоминаем сразу — по ней потом считается
         // движение цели «вниз»; позже её уже не восстановить.
         deadline: '', target, unit: (src.unitOf ? src.unitOf(ref) : src.unit) || src.unit,
+        // Динамичной делаем только месячную: в квартале и годе такого блока нет.
+        dynamic: horizon === 'month' && !!v.dynamic,
+        intentId: horizon === 'month' ? (v.intentId || '') : '',
         current: 0, steps: [], slots: [],
         src: { kind, ref, ...(down ? { from: src.count(ref, periodRange('year', String(yearOf(todayISO()))), '', null) || 0 } : {}) },
       };
@@ -98,10 +117,20 @@ export function sphereGoalSheet(sphere) {
 
   // Смена счёта перерисовывает только уточнение и сроки: число и название,
   // если их уже вписали, остаются на месте.
+  const redrawDyn = horizon => {
+    const box = wrap?.querySelector('#sg_dyn');
+    if (box) box.innerHTML = dynBlock(periodFor('month'), horizon);
+  };
   wrap?.addEventListener('change', e => {
     if (e.target?.name !== 'kind') return;
+    const src = list.find(x => x.key === e.target.value) || first;
     const box = wrap.querySelector('#sg_opts');
-    if (box) box.innerHTML = optsBlock(list.find(x => x.key === e.target.value) || first);
+    if (box) box.innerHTML = optsBlock(src);
+    redrawDyn(src.horizons.includes('year') ? 'year' : src.horizons[0]);
+  });
+  // Срок выбирается пилюлями: они шлют своё событие, а не change.
+  wrap?.addEventListener('opt', e => {
+    if (e.target?.dataset?.name === 'horizon') redrawDyn(e.detail);
   });
 }
 

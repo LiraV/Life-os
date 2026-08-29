@@ -11,6 +11,7 @@ import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
   quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
   goalSlots, goalsPlannedIn, monthGoals, isCounter, counterOf, autoLabel,
+  intentionsAbove, intentionOf, goalsOfIntent,
 } from '../selectors.js';
 
 const TABS = [['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']];
@@ -234,6 +235,20 @@ function counterRow(g) {
     ${auto ? raw(h`<div class="lab">Считается само: ${autoLabel(g)}. Отдельно отмечать не нужно.</div>`) : ''}`;
 }
 
+/**
+ * Выбор намерения для цели месяца: свои и всех уровней выше. Это не родитель
+ * и не срок — прогресс по этой связи никуда не поднимается. Она отвечает на
+ * вопрос «ради чего», а не «из чего складывается».
+ */
+function intentField(ym, value = '') {
+  const list = intentionsAbove(ym);
+  if (!list.length) {
+    return field.note('Намерений пока нет. Заведи их выше — и цель можно будет связать с тем, ради чего она.');
+  }
+  return field.select('intentId', 'Ради какого намерения',
+    [{ value: '', label: 'просто так' }, ...list.map(i => ({ value: i.id, label: `${i.text} · ${i.level}` }))], value);
+}
+
 /** Динамичная цель — одна строка: набрано, норма и плюс в один тап. */
 function dynRow(g) {
   const { current, target, unit, auto, down } = counterOf(g);
@@ -242,7 +257,7 @@ function dynRow(g) {
     <div class="dyn-row ${full ? 'done' : ''}">
       <div class="grow" data-act="goaledit" data-id="${g.id}" style="cursor:pointer">
         <div class="ink">${g.title}</div>
-        <div class="lab">${down ? `${current}${unit ? ' ' + unit : ''} · цель ${target}` : `${current} / ${target}${unit ? ' ' + unit : ''}`}${full ? ' ✦' : ''}${auto ? ' · сама' : ''}</div>
+        <div class="lab">${down ? `${current}${unit ? ' ' + unit : ''} · цель ${target}` : `${current} / ${target}${unit ? ' ' + unit : ''}`}${full ? ' ✦' : ''}${auto ? ' · сама' : ''}${intentionOf(g) ? ` · к «${intentionOf(g).text}»` : ''}</div>
       </div>
       ${auto ? '' : raw(h`
         ${raw(current ? h`<button class="hab-plus" data-act="cnt" data-id="${g.id}" data-d="-1" aria-label="Минус">−</button>` : '')}
@@ -266,7 +281,8 @@ function intentions(periodKey, title, compact) {
         ${list.map(i => raw(h`
           <div class="int-row">
             <span class="dash">—</span>
-            <span class="grow" data-act="intedit" data-p="${periodKey}" data-id="${i.id}">${i.text}</span>
+            <span class="grow" data-act="intedit" data-p="${periodKey}" data-id="${i.id}">${i.text}
+              ${goalsOfIntent(i.id).length ? raw(h`<i class="lab">· к нему ведёт ${goalsOfIntent(i.id).map(g => g.title).join(', ')}</i>`) : ''}</span>
             <button class="q-edit" data-act="intdel" data-p="${periodKey}" data-id="${i.id}">×</button>
           </div>`))}
       </div>`)
@@ -443,6 +459,9 @@ function goalSheet(goal, preset) {
       field.opts('horizon', 'Горизонт', Object.entries(HORIZONS).map(([value, label]) => ({ value, label })), horizon0),
       field.select('period', 'Период', periodOptions(horizon0, period0), period0),
       field.select('parentId', 'Ведёт к', parentOptions(horizon0, g.id), g.parentId || ''),
+      // Намерение — не родитель: прогресс по этой связи никуда не поднимается.
+      // Она про «ради чего», и потому доступна и цели со счётчиком, и обычной.
+      horizon0 === 'month' ? intentField(period0, g.intentId || '') : '',
       field.opts('sphere', 'Сфера', [{ value: '', label: 'без сферы' }, ...allSpheres().map(x => ({ value: x.key, label: x.name }))], g.sphere || ''),
       field.date('deadline', 'Срок — если он есть', g.deadline || ''),
       field.number('target', 'Счётчик — сколько всего', g.target ?? '', { min: 0 }),
@@ -473,6 +492,7 @@ function goalSheet(goal, preset) {
         const target = Number(v.target) || 0;
         const next = {
           ...g, title, horizon, period, parentId: v.parentId || '',
+          intentId: horizon === 'month' ? (v.intentId ?? g.intentId ?? '') : '',
           sphere: v.sphere || '', deadline: v.deadline || '',
           target,
           // У цели с источником единица его, а поля для неё на экране нет.
@@ -628,7 +648,8 @@ export const actions = {
       field.text('title', 'Что делаем', '', 'например, «Сходить на вокал»'),
       field.number('target', 'Сколько раз за месяц', 4, { min: 1 }),
       field.text('unit', 'В чём считаем', '', 'раз, дней, часов — необязательно'),
-      field.note('Останется внутри месяца: в кварталы и год такие цели не переносятся.'),
+      intentField(v.p),
+      field.note('Останется внутри месяца: в кварталы и год такие цели не переносятся. Намерение — не срок и не родитель: цель просто говорит, ради чего она.'),
     ].join(''),
     primary: 'Добавить',
     onSave: (val, close) => {
@@ -639,7 +660,7 @@ export const actions = {
         s2.goals.push({
           id: uid(), title, horizon: 'month', period: v.p, dynamic: true,
           target, unit: (val.unit || '').trim(), current: 0,
-          steps: [], slots: [], parentId: '', sphere: '', deadline: '',
+          steps: [], slots: [], parentId: '', intentId: val.intentId || '', sphere: '', deadline: '',
         });
         s2.ui.planTab = 'month';
         s2.ui.monthAnchor = v.p;

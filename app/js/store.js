@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 48;
+const VERSION = 49;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -172,7 +172,7 @@ function blank() {
                          // проснулся в этот день; полчаса — минимальный шаг
     energy: {},          // { 'YYYY-MM-DD': { '0'..'5': 0..100, d: 0..100 } }
                          // ключ — блок кривой дня; 'd' — отметка вне блоков (ночью)
-    goals: [],           // цели: { horizon, period, slots: [], parentId, steps }
+    goals: [],           // цели: { horizon, period, slots: [], parentId, intentId, steps }
     intentions: {},      // { '2026' | '2026-Q3' | '2026-08': [{ id, text }] } — направления, не задачи
     tracker: { rows: [], values: {}, habitValues: {}, lessonValues: {}, exerciseValues: {}, tagValues: {} },  // свои строки и ручные правки
     weeks: {},           // { '2026-W34': { boss, steps[], rest } }
@@ -689,6 +689,12 @@ function migrate(s) {
         tg: x.tg == null || x.tg === '' ? null : Math.max(0, Math.round(Number(x.tg) || 0)) }))
       .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
   };
+  // v48 → v49: цель может вести к намерению — своему или уровнем выше.
+  // Битую ссылку не чиним и не выдумываем: если намерения нет, связь просто
+  // не показывается, а поле остаётся — вдруг намерение вернётся из выгрузки.
+  merged.goals = (Array.isArray(merged.goals) ? merged.goals : [])
+    .map(g => ({ ...g, intentId: typeof g.intentId === 'string' ? g.intentId : '' }));
+
   // v47 → v48: недельный анализ состояния. Ответы держим в границах шкалы,
   // а пустое оставляем пустым: незаполненный вопрос — не единица.
   const QK = REVIEW_Q.map(q => q.key), OK2 = REVIEW_OPEN.map(q => q.key);
