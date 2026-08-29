@@ -2,17 +2,18 @@
 
 import { S, update, updateQuiet, uid, XP, addXp, allSpheres, addDiary, tickHabit, touchTracker, blockAt, energyAt, energyOn } from '../store.js';
 import { todayISO, addDays, dayTitle, dayShort, relativeDay } from '../dates.js';
-import { h, raw, field, toast, openSheet } from '../ui.js';
+import { h, raw, field, toast, openSheet, plural } from '../ui.js';
 import { effects } from '../traits.js';
 import { workoutSheet, workoutSetSheet, applyDone } from './sport.js';
 import { scheduleMark, occurrenceSheet } from '../schedule.js';
 import {
   questsOn, curveInfo, curveOwn, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
+  sleepOn, sleepAvg, sleepMarks,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
   workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName, inboxCount, dueOn,
   liveTasks, taskSubject,
 } from '../selectors.js';
-import { gv } from '../gender.js';
+import { gv, g } from '../gender.js';
 import { inboxSheet } from './inbox.js';
 import { taskSheet as studyTaskSheet } from './study.js';
 
@@ -82,6 +83,8 @@ export function render() {
       ${raw(energyHistory(date))}
     </div>
 
+    ${raw(sleepCard(date))}
+
     <div class="row between"><div class="caps">Квесты дня</div>
       <span class="lab">${qs.length ? raw('<span data-act="add" style="cursor:pointer">+ квест</span> · ') : ''}<span data-act="wadd" style="cursor:pointer">+ тренировка</span>${raw(' · ')}<span data-act="inbox" style="cursor:pointer">+ в инбокс</span></span></div>
 
@@ -102,6 +105,56 @@ export function render() {
 
     ${chronicler(date).map(t => raw(h`<div class="ai">${t}</div>`))}
     <div style="height:4px"></div>`;
+}
+
+/**
+ * Сон за ночь. Отметка принадлежит дню пробуждения: ночь с воскресенья на
+ * понедельник — это понедельник. Пока не тронешь ползунок, ничего не
+ * записано: ноль испортил бы и среднее, и связку с энергией.
+ */
+function sleepCard(date) {
+  const h2 = sleepOn(date);
+  const norm = Number(S.user.sleep) || 8;
+  const avg = sleepAvg(30);
+  const n = sleepMarks(30).filter(x => x.h != null).length;
+  const val = h2 ?? norm;
+  return h`
+    <div class="card">
+      <div class="row between"><div class="lab">Сон</div>
+        <div class="lab">${avg != null ? `в среднем ${sleepNum(avg)} ч за ${n} ${plural(n, 'ночь', 'ночи', 'ночей')}` : `норма ${sleepNum(norm)} ч`}</div></div>
+      <div class="fld" style="margin-top:2px">
+        <span>${date === todayISO() ? 'Сегодня ночью' : 'В эту ночь'} <b id="s_out">${h2 == null ? `${sleepNum(val)} ч · не отмечено` : `${sleepNum(h2)} ч · ${sleepLabel(h2, norm)}`}</b></span>
+        <input type="range" min="0" max="14" step="0.5" value="${val}" data-act-input="sleepLive" data-change="sleep" aria-label="Сон">
+        <div class="range-ends"><span>не ${gv('спал')}</span><span>норма ${sleepNum(norm)} ч</span><span>14 ч</span></div>
+      </div>
+      ${h2 == null ? raw(h`<div class="lab hint-sleep">Двинь ползунок — запишется как отметка за эту ночь. Ночь считается за то утро, в которое ты ${g('проснулась', 'проснулся')}.</div>`) : ''}
+      ${raw(sleepSpark(date))}
+    </div>`;
+}
+
+/** Часы без хвоста: 7 вместо 7,0 — а половина остаётся половиной. */
+const sleepNum = v => String(Math.round(v * 2) / 2).replace('.', ',');
+
+/** Оценка без упрёка: короткая ночь — это факт, а не провинность. */
+function sleepLabel(v, norm) {
+  if (v === 0) return 'совсем без сна';
+  if (v < norm - 2) return 'сильно меньше нормы';
+  if (v < norm - 0.5) return 'меньше нормы';
+  if (v <= norm + 1) return 'по норме';
+  return 'больше нормы';
+}
+
+/** Полоска за 30 ночей: неотмеченные остаются пустыми. */
+function sleepSpark(date) {
+  const marks = sleepMarks(30);
+  if (marks.filter(x => x.h != null).length < 2) return '';
+  const all = Array.from({ length: 30 }, (_, i) => addDays(todayISO(), -(29 - i)));
+  const by = Object.fromEntries(marks.map(x => [x.date, x.h]));
+  return h`
+    <div class="spark">
+      ${all.map(d => raw(h`<i class="${by[d] == null ? 'none' : ''} ${d === date ? 'cur' : ''}"
+        style="${by[d] != null ? `height:${Math.min(100, Math.round((by[d] / 12) * 100))}%` : ''}" title="${d}"></i>`))}
+    </div>`;
 }
 
 /** Волна энергии за месяц: пустые дни оставляем пустыми, а не нулём. */
@@ -404,6 +457,15 @@ export const actions = {
   },
   /** По отпусканию перерисовываем: совет Летописца и график должны догнать. */
   energy: v => update(s => { markEnergy(s, curDate(), Number(v.value)); }),
+
+  sleepLive: (v, el) => {
+    const val = Math.round(Number(v.value) * 2) / 2;
+    updateQuiet(s => { s.sleep[curDate()] = val; });
+    const out = document.getElementById('s_out');
+    if (out) out.textContent = `${sleepNum(val)} ч · ${sleepLabel(val, Number(S.user.sleep) || 8)}`;
+    el?.closest('.card')?.querySelector('.lab.hint-sleep')?.remove();
+  },
+  sleep: v => update(s => { s.sleep[curDate()] = Math.round(Number(v.value) * 2) / 2; }),
 
   toggle: v => {
     const date = curDate();

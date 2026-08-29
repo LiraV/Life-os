@@ -6,7 +6,8 @@ import { titleFor } from '../traits.js';
 import { todayISO, monthKey, MONTHS, yearOf, addDays } from '../dates.js';
 import { h, raw, bar, toast, openSheet, field } from '../ui.js';
 import { AVATARS, avatarSrc, avatarHtml } from '../avatars.js';
-import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress, energyStats, dayLoad, restLine } from '../selectors.js';
+import { levelInfo, needs, roles, pearl, weekStats, monthGoals, goalProgress, energyStats, dayLoad, restLine,
+  sleepAvg, sleepMarks, sleepVsEnergy } from '../selectors.js';
 
 export function render() {
   const li = levelInfo();
@@ -152,8 +153,28 @@ function energyCard() {
           : diff < -4 ? `В дни с движением энергия ниже на ${-diff} — возможно, это дни усталости.`
           : 'Разницы почти нет.'}</div>`) : ''}
 
+      ${raw(sleepLine())}
+
       <div class="lab">Считается из твоих отметок за 90 дней — ${e.count} ${e.count % 10 === 1 && e.count % 100 !== 11 ? 'день' : 'дней'}.</div>
     </div>`;
+}
+
+/**
+ * Сон рядом с энергией: сравниваем дни, когда спалось не меньше нормы, и
+ * дни, когда меньше. Пока ночей с любой стороны меньше трёх, связь не
+ * показываем — на двух ночах это была бы выдумка, а не наблюдение.
+ */
+function sleepLine() {
+  const v = sleepVsEnergy();
+  if (!v) return '';
+  const d = v.long - v.short;
+  return h`
+    <div class="lab" style="margin-top:4px">В зависимости от сна</div>
+    <div class="row"><span class="lab" style="width:104px">от ${v.norm} ч</span>${raw(bar(v.long))}<span class="lab">${v.long}</span></div>
+    <div class="row"><span class="lab" style="width:104px">меньше</span>${raw(bar(v.short))}<span class="lab">${v.short}</span></div>
+    <div class="lab">${d > 4 ? `Выспавшись, ты в среднем бодрее на ${d}.`
+      : d < -4 ? `После долгого сна энергия ниже на ${-d} — так тоже бывает.`
+      : 'Разницы почти нет.'} ${v.nLong} и ${v.nShort} ${v.nShort === 1 ? 'ночь' : 'ночей'} соответственно.</div>`;
 }
 
 export const actions = {

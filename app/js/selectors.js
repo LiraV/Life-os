@@ -634,16 +634,54 @@ function moveRate(days) {
   return Math.min(100, Math.round((n / 3) * 100));
 }
 
+// ── сон ─────────────────────────────────────────────────────────
+// Отметка привязана ко дню пробуждения: ночь принадлежит тому утру, в
+// которое человек встал. Незаполненная ночь — это пусто, а не ноль: ноль
+// испортил бы и среднее, и связку с энергией.
+
+export const sleepOn = date => (S.sleep?.[date] == null ? null : Number(S.sleep[date]));
+export const sleepDays = () => Object.keys(S.sleep || {}).sort();
+export const sleepMarks = (days = 30) => {
+  const from = addDays(todayISO(), -(days - 1));
+  return sleepDays().filter(d => d >= from && d <= todayISO()).map(d => ({ date: d, h: sleepOn(d) }));
+};
+export function sleepAvg(days = 30) {
+  const v = sleepMarks(days).map(x => x.h).filter(x => x != null);
+  return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null;
+}
+export const sleepMonth = ym => {
+  const v = sleepDays().filter(d => d.startsWith(ym)).map(d => sleepOn(d)).filter(x => x != null);
+  return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null;
+};
+
+/**
+ * Сон и энергия рядом. Порог — своя норма; сравниваем средние по дням, где
+ * есть и то и другое. Меньше трёх ночей с каждой стороны — не считаем:
+ * на двух ночах «связь» была бы выдумкой.
+ */
+export function sleepVsEnergy(days = 60) {
+  const norm = Number(S.user.sleep) || 8;
+  const rows = sleepMarks(days).map(x => ({ ...x, e: energyOn(x.date) })).filter(x => x.e != null);
+  const long = rows.filter(x => x.h >= norm).map(x => x.e);
+  const short = rows.filter(x => x.h < norm).map(x => x.e);
+  if (long.length < 3 || short.length < 3) return null;
+  const mean2 = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
+  return { norm, long: mean2(long), short: mean2(short), nLong: long.length, nShort: short.length };
+}
+
 /** Потребности за последние 7 дней: 0..100. null — данных пока нет. */
 export function needs() {
   const days = lastDays(7);
-  const sleepH = S.health.measures.filter(m => m.sleep != null).slice(-3);
-  const sleepAvg = sleepH.length ? sleepH.reduce((a, m) => a + m.sleep, 0) / sleepH.length : null;
-  const sleepFromHabit = habitRate(/сон|спать/i, days);
-  const sleep = sleepAvg != null ? Math.min(100, Math.round((sleepAvg / S.user.sleep) * 100))
-                                 : sleepFromHabit;
+  // Сначала свои отметки за неделю; их нет — старые «замеры сна» из «Тела»;
+  // нет и их — привычка про сон. Одно число, три источника по убыванию точности.
+  const week = days.map(d => sleepOn(d)).filter(x => x != null);
+  const meas = S.health.measures.filter(m => m.sleep != null).slice(-3);
+  const avg = week.length ? week.reduce((a, b) => a + b, 0) / week.length
+    : meas.length ? meas.reduce((a, m) => a + m.sleep, 0) / meas.length : null;
+  const sleep = avg != null ? Math.min(100, Math.round((avg / S.user.sleep) * 100))
+                            : habitRate(/сон|спать/i, days);
   return [
-    { key: 'sleep', name: 'Сон', value: sleep, hint: 'отметь сон в «Теле» или заведи привычку' },
+    { key: 'sleep', name: 'Сон', value: sleep, hint: 'отмечается на «Дне» ползунком' },
     { key: 'move', name: 'Движение', value: moveRate(days), hint: 'спорт-квесты и занятия за неделю' },
     { key: 'food', name: 'Еда', value: questRate(['food'], days, 3) || habitRate(/вод|еда|завтрак|белок/i, days), hint: 'питание за неделю' },
     { key: 'create', name: 'Творчество', value: questRate(['blog', 'edu', 'study'], days, 4), hint: 'блог, обучение и учёба за неделю' },

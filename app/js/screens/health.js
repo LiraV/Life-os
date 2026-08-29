@@ -5,7 +5,8 @@
 import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
-import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, build, energyNeed, waistRisk, age } from '../selectors.js';
+import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, build, energyNeed, waistRisk, age,
+  sleepAvg, sleepMarks } from '../selectors.js';
 import { g } from '../gender.js';
 
 const sign = n => n == null ? '' : n > 0 ? `+${n}` : `${n}`;
@@ -32,13 +33,21 @@ function nowView() {
     ${raw(buildCard())}
 
     <div class="card">
+      <div class="row between"><div class="caps">Сон</div>
+        <span class="lab">норма ${S.user.sleep} ч</span></div>
+      ${sleepAvg(30) != null ? raw(h`<div class="ink"><b>${String(sleepAvg(30)).replace('.', ',')} ч</b> в среднем за 30 ночей</div>
+        <div class="lab">Отмечено ${sleepMarks(30).filter(x => x.h != null).length} из 30. Отмечается ползунком на «Дне».</div>`)
+        : raw('<div class="lab">Сон пока не отмечался. Ползунок — на экране «День», под энергией.</div>')}
+    </div>
+
+    <div class="card">
       <div class="row between"><div class="caps">Замеры тела</div>
         <span class="lab">${cur ? dayShort(cur.date) : 'нет данных'}</span></div>
       ${cur ? raw(h`
         <div class="row between"><span class="ink">Вес</span><span class="ink">${fmt(cur.weight, 'кг')} <i class="lab">${sign(m.delta.weight)}</i></span></div>
         <div class="row between"><span class="ink">Талия</span><span class="ink">${fmt(cur.waist, 'см')} <i class="lab">${sign(m.delta.waist)}</i></span></div>
         <div class="row between"><span class="ink">Бёдра</span><span class="ink">${fmt(cur.hips, 'см')} <i class="lab">${sign(m.delta.hips)}</i></span></div>
-        <div class="row between"><span class="ink">Сон</span><span class="ink">${fmt(cur.sleep, 'ч')} <i class="lab">цель ${S.user.sleep} ч</i></span></div>`)
+`)
       : raw('<div class="empty">Первый замер — точка отсчёта, а не оценка.</div>')}
       <button class="add" data-act="measure">+ Новый замер</button>
     </div>
@@ -364,14 +373,16 @@ export const actions = {
         field.number('weight', 'Вес', '', { min: 0, suffix: 'кг' }),
         field.number('waist', 'Талия', '', { min: 0, suffix: 'см' }),
         field.number('hips', 'Бёдра', '', { min: 0, suffix: 'см' }),
-        field.number('sleep', 'Сон в среднем', '', { min: 0, max: 14, suffix: 'ч' }),
+
         last ? field.note(`Прошлый раз: ${fmt(last.weight, 'кг')} · ${fmt(last.waist, 'см')} · ${fmt(last.hips, 'см')}`) : '',
       ].join(''),
       primary: 'Сохранить · +5 XP',
       onSave: (v, close) => {
         const num = x => x === '' || x == null ? null : Number(x);
-        const r = { id: uid(), date: v.date || todayISO(), weight: num(v.weight), waist: num(v.waist), hips: num(v.hips), sleep: num(v.sleep) };
-        if ([r.weight, r.waist, r.hips, r.sleep].every(x => x == null)) return toast('Заполни хотя бы одно поле');
+        // Сон в замерах больше не спрашиваем: он отмечается за каждую ночь
+        // на «Дне». Старые значения в прошлых замерах остаются как были.
+        const r = { id: uid(), date: v.date || todayISO(), weight: num(v.weight), waist: num(v.waist), hips: num(v.hips) };
+        if ([r.weight, r.waist, r.hips].every(x => x == null)) return toast('Заполни хотя бы одно поле');
         update(s => { s.health.measures.push(r); addXp(XP.measure); });
         close();
         toast('Замер сохранён');
