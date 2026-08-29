@@ -29,11 +29,12 @@ import * as care from './screens/care.js';
 import * as library from './screens/library.js';
 import * as trips from './screens/trips.js';
 import * as free from './screens/free.js';
+import * as biz from './screens/biz.js';
 import { tipCard, tipActions, offerTips } from './tips.js';
 import { workTodayCount } from './selectors.js';
 import { avatarHtml } from './avatars.js';
 
-const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport, care, library, trips, inbox, work, free };
+const SCREENS = { day, plans, spheres, habits, health, inside, me, settings, tracker, food, budget, edu, study, sport, care, library, trips, inbox, work, free, biz };
 
 const NAV = [
   { key: 'more', label: '☰ Ещё' },

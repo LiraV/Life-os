@@ -3,6 +3,7 @@
 
 import { BLOG_PLACES, BLOG_FEEDS, atPlace, isOut } from './blog.js';
 import { FREE_STAGES, isPaid, isLost, isLive, netOf } from './free.js';
+import { BIZ_STAGES } from './biz.js';
 import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS, energyRec, energyAt, energyOn } from './store.js';
 export { energyRec, energyAt, energyOn };
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
@@ -769,6 +770,9 @@ export function sphereParts(key, days) {
     { label: 'дни питания', n: days.filter(d => (S.food.days[d]?.entries || []).length).length }];
   // «Тело» живо от отметок сна и замеров: у него нет этапов и журнала,
   // и без этой ветки роль «Целительница» видела бы только квесты.
+  if (key === 'biz') return [quests,
+    { label: 'запуски', n: bizProjects().filter(p => days.includes(p.launched)).length },
+    { label: 'отметки', n: bizProjects().reduce((a, p) => a + (p.marks || []).filter(m => days.includes(m.date)).length, 0) }];
   if (key === 'free') return [quests,
     { label: 'заказы', n: freeOrders().filter(o => isPaid(o) && days.includes(o.paidAt)).length },
     { label: 'шаги', n: 0 }].filter(x => x.label !== 'шаги' || x.n);
@@ -1545,6 +1549,25 @@ export const SOURCES = {
     refName: key => customName(key),
     count: (ref, r) => boardDoneIn(ref, r.from, r.to).length,
   },
+  bizLaunched: {
+    sphere: 'biz', name: 'Проектов запущено', unit: 'проектов', horizons: ['year', 'quarter', 'month'],
+    count: (_ref, r) => bizLaunchedIn(r.from, r.to).length,
+  },
+  bizMetric: {
+    // Показатель продукта — уровень, а не накопление за месяц: «дойти до
+    // ста пользователей». Поэтому за всё время, как рекорд в упражнении.
+    sphere: 'biz', name: 'Показатель проекта', unit: '', horizons: ['year'], lifetime: true,
+    ref: () => bizMetricRefs(),
+    refName: id => bizMetricRefs().find(x => x.value === id)?.label || '',
+    unitOf: id => {
+      const [pid, mid] = String(id || '').split(':');
+      return bizMetrics(bizById(pid)).find(m => m.id === mid)?.unit || '';
+    },
+    count: ref => {
+      const [pid, mid] = String(ref || '').split(':');
+      return bizBest(pid, mid);
+    },
+  },
   freeOrders: {
     sphere: 'free', name: 'Заказов оплачено', unit: 'заказов', horizons: ['year', 'quarter', 'month'],
     ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.name, label: x.name }))],
@@ -1857,6 +1880,44 @@ export const mindLog = () => [...(S.mind || [])].sort((a, b) => (a.date < b.date
 export const mindIn = (from, to) => (S.mind || []).filter(x => x.date >= from && x.date <= to);
 export const mindMinutes = (from, to) => mindIn(from, to).reduce((a, x) => a + (Number(x.minutes) || 0), 0);
 export const mindDays = (from, to) => new Set(mindIn(from, to).map(x => x.date)).size;
+// ── моё дело ────────────────────────────────────────────────────
+// Проект живёт своими числами: у каждого свои показатели и свои отметки.
+// Общего «успеха» приложение не считает — что тут успех, знает только автор.
+
+export const bizProjects = () => S.biz?.projects || [];
+export const bizById = id => bizProjects().find(p => p.id === id);
+export const bizBy = stage => bizProjects().filter(p => p.stage === stage);
+export const bizLive = () => bizBy('live');
+/** Запущенные за отрезок — по дню запуска; без него в счёт не идут. */
+export const bizLaunchedIn = (from, to) => bizProjects()
+  .filter(p => p.launched && p.launched >= from && p.launched <= to);
+
+export const bizSteps = pr => pr?.steps || [];
+export const bizStepsLeft = pr => bizSteps(pr).filter(x => !x.done).length;
+export function bizProgress(pr) {
+  const st = bizSteps(pr);
+  return st.length ? Math.round((st.filter(x => x.done).length / st.length) * 100) : null;
+}
+
+export const bizMetrics = pr => pr?.metrics || [];
+export const bizMarks = (pr, metricId) => (pr?.marks || [])
+  .filter(m => m.metricId === metricId).sort((a, b) => (a.date < b.date ? -1 : 1));
+/** Последняя отметка показателя и сдвиг от предыдущей. */
+export function bizLast(pr, metricId) {
+  const list = bizMarks(pr, metricId);
+  if (!list.length) return null;
+  const last = list[list.length - 1], prev = list[list.length - 2];
+  return { value: last.value, date: last.date, delta: prev ? +(last.value - prev.value).toFixed(1) : null, n: list.length };
+}
+/** Лучшее значение показателя за всё время — по нему ставится цель. */
+export function bizBest(projectId, metricId) {
+  const list = bizMarks(bizById(projectId), metricId).map(m => m.value);
+  return list.length ? Math.max(...list) : 0;
+}
+/** Пары «проект · показатель» для выбора в цели. */
+export const bizMetricRefs = () => bizProjects().flatMap(pr =>
+  bizMetrics(pr).map(m => ({ value: `${pr.id}:${m.id}`, label: `${pr.name} · ${m.name}` })));
+
 // ── фриланс ─────────────────────────────────────────────────────
 // Деньги считаются от оплаченных заказов и только по дню оплаты: «сдан» —
 // это ещё не деньги, и записывать его в доход значило бы считать надежду.

@@ -13,17 +13,19 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 46;
+const VERSION = 47;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
   edu: 'scholar', study: 'scholar', books: 'reader', sport: 'athlete',
-  food: 'healer', health: 'healer', blog: 'artist', work: 'master', free: 'master', money: 'keeper', trips: 'wanderer',
+  food: 'healer', health: 'healer', blog: 'artist', biz: 'artist', work: 'master', free: 'master',
+  money: 'keeper', trips: 'wanderer',
 };
 
 import { artSrc } from './sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, DEFAULT_FORMATS } from './blog.js';
 import { FREE_STAGES, FREE_KINDS } from './free.js';
+import { BIZ_STAGES, BIZ_KINDS } from './biz.js';
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -36,6 +38,7 @@ export const SPHERES = [
   // цикл, замеры и сон живут там, а плитка открывает именно его.
   { key: 'health', name: 'Тело',     mech: 'состояние',  img: 'assets/spheres/care.webp' },
   { key: 'free',  name: 'Фриланс',  mech: 'заказы',     img: 'assets/spheres/plan.webp' },
+  { key: 'biz',   name: 'Моё дело',  mech: 'проекты',    img: 'assets/illustration_08.png' },
   { key: 'money', name: 'Бюджет',   mech: 'казна',      img: 'assets/illustration_10.png' },
   { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png' },
   { key: 'trips', name: 'Страны',   mech: 'карта',      img: 'assets/illustration_01.png' },
@@ -228,6 +231,11 @@ function blank() {
                                                          // блюдо: { id, meal, title, kcal, prot, fat, carb, time, source }
     },
     mind: [],            // осознанность: { id, date, key, minutes, before, after, note }
+    biz: {               // моё дело: свои проекты — приложения, сайты, сервисы
+      projects: [],      // { id, name, kind, stage, link, launched, note,
+                         //   steps: [{id,text,done}], metrics: [{id,name,unit}],
+                         //   marks: [{id,metricId,date,value}] }
+    },
     free: {              // фриланс: заказы, площадки, услуги и шаги выхода
       orders: [],        // { id, title, place, kind, price, fee, stage, due, paidAt, link, note, movedAt }
       places: [],        // площадки: { id, name, fee } — комиссия в процентах
@@ -679,6 +687,27 @@ function migrate(s) {
         tg: x.tg == null || x.tg === '' ? null : Math.max(0, Math.round(Number(x.tg) || 0)) }))
       .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
   };
+  // v46 → v47: сфера «Моё дело». Готовых проектов не заводим — ни одного.
+  const BG = BIZ_STAGES.map(x => x.key);
+  const bz = merged.biz && typeof merged.biz === 'object' ? merged.biz : {};
+  const str = (x, d = '') => (typeof x === 'string' ? x.trim() : d);
+  merged.biz = {
+    projects: (Array.isArray(bz.projects) ? bz.projects : []).map(pr => ({
+      id: pr.id || uid(), name: str(pr.name) || 'Проект',
+      kind: BIZ_KINDS.includes(pr.kind) ? pr.kind : '',
+      stage: BG.includes(pr.stage) ? pr.stage : 'idea',
+      link: str(pr.link), launched: str(pr.launched).slice(0, 10), note: str(pr.note),
+      steps: (Array.isArray(pr.steps) ? pr.steps : []).filter(x => x && x.text)
+        .map(x => ({ id: x.id || uid(), text: str(x.text), done: !!x.done })),
+      metrics: (Array.isArray(pr.metrics) ? pr.metrics : []).filter(x => x && x.name)
+        .map(x => ({ id: x.id || uid(), name: str(x.name), unit: str(x.unit, 'шт') })),
+      marks: (Array.isArray(pr.marks) ? pr.marks : [])
+        .filter(x => x && x.metricId && x.date && Number.isFinite(Number(x.value)))
+        .map(x => ({ id: x.id || uid(), metricId: x.metricId, date: str(x.date).slice(0, 10), value: Number(x.value) }))
+        .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
+    })),
+  };
+
   // v45 → v46: сфера «Фриланс». Ничего готового не заводим — ни площадок,
   // ни услуг, ни шагов: их предлагают на экране, а появляются они по тапу.
   const SG = FREE_STAGES.map(x => x.key);
