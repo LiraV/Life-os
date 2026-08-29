@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 47;
+const VERSION = 48;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -26,6 +26,7 @@ import { artSrc } from './sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, DEFAULT_FORMATS } from './blog.js';
 import { FREE_STAGES, FREE_KINDS } from './free.js';
 import { BIZ_STAGES, BIZ_KINDS } from './biz.js';
+import { REVIEW_Q, REVIEW_OPEN } from './review.js';
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -231,6 +232,7 @@ function blank() {
                                                          // блюдо: { id, meal, title, kcal, prot, fat, carb, time, source }
     },
     mind: [],            // осознанность: { id, date, key, minutes, before, after, note }
+    review: {},          // недельный анализ: { '2026-W35': { date, scores: {}, open: {} } }
     biz: {               // моё дело: свои проекты — приложения, сайты, сервисы
       projects: [],      // { id, name, kind, stage, link, launched, note,
                          //   steps: [{id,text,done}], metrics: [{id,name,unit}],
@@ -687,6 +689,19 @@ function migrate(s) {
         tg: x.tg == null || x.tg === '' ? null : Math.max(0, Math.round(Number(x.tg) || 0)) }))
       .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
   };
+  // v47 → v48: недельный анализ состояния. Ответы держим в границах шкалы,
+  // а пустое оставляем пустым: незаполненный вопрос — не единица.
+  const QK = REVIEW_Q.map(q => q.key), OK2 = REVIEW_OPEN.map(q => q.key);
+  merged.review = Object.fromEntries(Object.entries(merged.review || {})
+    .filter(([k, r]) => /^\d{4}-W\d{2}$/.test(k) && r && typeof r === 'object')
+    .map(([k, r]) => [k, {
+      date: typeof r.date === 'string' ? r.date.slice(0, 10) : '',
+      scores: Object.fromEntries(QK.map(q => [q, Number(r.scores?.[q])])
+        .filter(([, v]) => v >= 1 && v <= 5)),
+      open: Object.fromEntries(OK2.map(q => [q, typeof r.open?.[q] === 'string' ? r.open[q].trim() : ''])
+        .filter(([, v]) => v)),
+    }]));
+
   // v46 → v47: сфера «Моё дело». Готовых проектов не заводим — ни одного.
   const BG = BIZ_STAGES.map(x => x.key);
   const bz = merged.biz && typeof merged.biz === 'object' ? merged.biz : {};

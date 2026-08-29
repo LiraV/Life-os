@@ -2,9 +2,10 @@
 // Летописец работает без сети — это правила поверх твоих данных, не языковая модель.
 
 import { S, update, uid, XP, addXp, addDiary } from '../store.js';
-import { todayISO, addDays, dayShort, monthKey, monthTitle, monthIn, weekDates } from '../dates.js';
-import { h, raw, field, toast, openSheet, closeSheet } from '../ui.js';
-import { weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest,
+import { todayISO, addDays, dayShort, monthKey, monthTitle, monthIn, weekDates, weekKey } from '../dates.js';
+import { h, raw, field, bar, toast, openSheet, closeSheet } from '../ui.js';
+import { reviewOf, reviewWeeks, reviewScoreOf, reviewParts, mondayOf,
+  weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest,
   mindLog, mindMinutes, mindDays, mindMonth, mindMonthMinutes, mindStreakWeek, mindShift } from '../selectors.js';
 import { PRACTICES, practiceById, practiceName, phaseAt, stepAt, cycleSecs } from '../mind.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
@@ -12,8 +13,9 @@ import { questSheet } from './day.js';
 import { hasKey, chatChronicler } from '../ai.js';
 import { byId, nameOf } from '../traits.js';
 import { TESTS, testLength, scoreTest } from '../tests.js';
+import { REVIEW_Q, REVIEW_OPEN, REVIEW_SCALE, REVIEW_ENDS, reviewScore } from '../review.js';
 
-const TABS = [['chat', 'Чат'], ['mind', 'Осознанность'], ['tests', 'Тесты'], ['diary', 'Дневник']];
+const TABS = [['chat', 'Чат'], ['week', 'Неделя'], ['mind', 'Осознанность'], ['tests', 'Тесты'], ['diary', 'Дневник']];
 const tab = params => params[0] || S.ui.insideTab || 'chat';
 
 export function render(params) {
@@ -21,8 +23,102 @@ export function render(params) {
   return h`
     <div class="title">Внутри</div>
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${t === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
-    ${raw({ chat: chatView, mind: mindView, tests: testsView, diary: diaryView }[t]())}
+    ${raw({ chat: chatView, week: weekView, mind: mindView, tests: testsView, diary: diaryView }[t]())}
     <div style="height:4px"></div>`;
+}
+
+// ── неделя: анализ состояния ────────────────────────────────────
+// Анкета на восемь вопросов и три открытых. Заполняется за минуту, раз в
+// неделю. Пропуск — не долг: незаполненная неделя нигде не считается нулём,
+// иначе один пропуск проваливал бы и месяц, и ряд по вопросу.
+
+const weekLabel = wk => {
+  const mon = mondayOf(wk);
+  return `${dayShort(mon)} — ${dayShort(addDays(mon, 6))}`;
+};
+
+function weekView() {
+  const cur = weekKey(todayISO());
+  const prev = weekKey(addDays(todayISO(), -7));
+  const done = reviewWeeks();
+  const parts = reviewParts();
+  const last8 = done.slice(-8);
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Анализ состояния</div>
+        <span class="lab">${done.length ? `${done.length} ${plural(done.length, 'неделя', 'недели', 'недель')}` : 'ещё ни разу'}</span></div>
+      <div class="ink">${reviewScoreOf(cur) != null
+        ? `Эта неделя — ${String(reviewScoreOf(cur)).replace('.', ',')} из 5`
+        : 'Восемь вопросов про то, как прошла неделя. Минута, и видно, что именно поехало.'}</div>
+      <div class="pills">
+        <button class="pill on" data-act="rev" data-w="${cur}">${reviewScoreOf(cur) != null ? 'Изменить эту неделю' : 'Заполнить за эту неделю'}</button>
+        ${reviewScoreOf(prev) == null ? raw(h`<button class="pill" data-act="rev" data-w="${prev}">За прошлую</button>`) : ''}
+      </div>
+      <div class="lab">Пропущенная неделя нигде не считается нулём — она просто пустая.</div>
+    </div>
+
+    ${last8.length ? raw(h`
+      <div class="card">
+        <div class="caps">Как менялось</div>
+        <div class="spark">
+          ${last8.map(wk => raw(h`<i class="${wk === cur ? 'cur' : ''}" style="height:${Math.round((reviewScoreOf(wk) / 5) * 100)}%" title="${wk}"></i>`))}
+        </div>
+        <div class="lab">${last8.length} ${plural(last8.length, 'неделя', 'недели', 'недель')} · последняя ${String(reviewScoreOf(last8[last8.length - 1])).replace('.', ',')} из 5</div>
+      </div>`) : ''}
+
+    ${done.length ? raw(h`
+      <div class="card">
+        <div class="caps">По вопросам · за 8 недель</div>
+        ${parts.filter(x => x.avg != null).sort((a, b) => a.avg - b.avg).map(x => raw(h`
+          <div class="row"><span class="lab" style="width:104px">${x.name}</span>
+            ${raw(bar(Math.round((x.avg / 5) * 100), x.avg < 2.5))}
+            <span class="lab">${String(x.avg).replace('.', ',')}</span></div>`))}
+        <div class="lab">Сверху то, что просело. Это не приговор и не задача — просто видно, куда смотреть.</div>
+      </div>`) : ''}
+
+    ${done.length ? raw(h`
+      <div class="card mute">
+        <div class="caps">Прошлые недели</div>
+        ${[...done].reverse().slice(0, 8).map(wk => raw(h`
+          <button class="link-row" data-act="rev" data-w="${wk}">
+            <span class="ink grow">${weekLabel(wk)}</span>
+            <span class="lab">${String(reviewScoreOf(wk)).replace('.', ',')} из 5 ›</span></button>`))}
+      </div>`) : ''}`;
+}
+
+/** Анкета одной недели. Все вопросы необязательны: что не тронула — пусто. */
+function reviewSheet(wk) {
+  const rec = reviewOf(wk) || { scores: {}, open: {} };
+  openSheet({
+    title: 'Как прошла неделя',
+    sub: weekLabel(wk),
+    body: [
+      ...REVIEW_Q.map(q => field.opts(q.key, q.q,
+        REVIEW_SCALE.map(v => ({ value: String(v), label: String(v) })), String(rec.scores?.[q.key] ?? ''))),
+      field.note(`Шкала одинаковая у всех вопросов: 1 — «${REVIEW_ENDS[0]}», 5 — «${REVIEW_ENDS[1]}». Больше — лучше, поэтому баллы складываются в одно число.`),
+      ...REVIEW_OPEN.map(q => field.area(q.key, q.q, rec.open?.[q.key] || '')),
+      field.note('Пустое поле — это пустое поле, а не ноль. Незаполненный вопрос не тянет средний балл вниз.'),
+    ].join(''),
+    primary: 'Сохранить',
+    onSave: (v, close) => {
+      const scores = {};
+      REVIEW_Q.forEach(q => { const n = Number(v[q.key]); if (n >= 1 && n <= 5) scores[q.key] = n; });
+      const open = {};
+      REVIEW_OPEN.forEach(q => { const t2 = (v[q.key] || '').trim(); if (t2) open[q.key] = t2; });
+      if (!Object.keys(scores).length && !Object.keys(open).length) return toast('Ответь хотя бы на один вопрос');
+      const was = !!reviewOf(wk);
+      update(s => {
+        s.review[wk] = { date: todayISO(), scores, open };
+        if (!was) addXp(XP.test);
+        const sc = reviewScore({ scores });
+        if (sc != null) addDiary(s, `анализ недели: ${String(sc).replace('.', ',')} из 5`, 'неделя', 'test');
+      });
+      close();
+      toast('Записано');
+    },
+    danger: reviewOf(wk) ? 'Стереть эту неделю' : null,
+    onDanger: (_v, close) => { update(s => { delete s.review[wk]; }); close(); toast('Стёрла'); },
+  });
 }
 
 // ── чат ─────────────────────────────────────────────────────────
@@ -243,6 +339,7 @@ export const stickBottom = params => tab(params) === 'chat';
 
 export const actions = {
   tab: v => { update(s => { s.ui.insideTab = v.v; }); location.hash = '#/inside/' + v.v; },
+  rev: v => reviewSheet(v.w),
 
   spheregoal: () => sphereGoalSheet('inside'),
   togoal: () => { location.hash = '#/plans'; },

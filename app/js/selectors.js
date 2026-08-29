@@ -4,6 +4,7 @@
 import { BLOG_PLACES, BLOG_FEEDS, atPlace, isOut } from './blog.js';
 import { FREE_STAGES, isPaid, isLost, isLive, netOf } from './free.js';
 import { BIZ_STAGES } from './biz.js';
+import { REVIEW_Q, reviewScore, reviewFilled } from './review.js';
 import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS, energyRec, energyAt, energyOn } from './store.js';
 export { energyRec, energyAt, energyOn };
 import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
@@ -1880,6 +1881,46 @@ export const mindLog = () => [...(S.mind || [])].sort((a, b) => (a.date < b.date
 export const mindIn = (from, to) => (S.mind || []).filter(x => x.date >= from && x.date <= to);
 export const mindMinutes = (from, to) => mindIn(from, to).reduce((a, x) => a + (Number(x.minutes) || 0), 0);
 export const mindDays = (from, to) => new Set(mindIn(from, to).map(x => x.date)).size;
+// ── недельный анализ ────────────────────────────────────────────
+// Анкета живёт по неделям, а трекер — по месяцам. Месяц берёт среднее по
+// тем неделям, что в него попали: пропущенная неделя не считается нулём,
+// иначе один пропуск проваливал бы весь месяц.
+
+export const reviews = () => S.review || {};
+export const reviewOf = wk => reviews()[wk] || null;
+export const reviewWeeks = () => Object.keys(reviews()).filter(k => reviewFilled(reviews()[k])).sort();
+export const reviewScoreOf = wk => reviewScore(reviewOf(wk));
+
+/** Недели месяца — по понедельнику: неделя принадлежит тому месяцу, в котором началась. */
+export const weeksOfMonthKey = ym => reviewWeeks().filter(wk => monthKey(mondayOf(wk)) === ym);
+/** Понедельник недели по её ключу: '2026-W35' → дата. */
+export function mondayOf(wk) {
+  const [y, w] = String(wk).split('-W').map(Number);
+  const jan4 = new Date(Date.UTC(y, 0, 4));
+  const mon = new Date(jan4);
+  mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (w - 1) * 7);
+  return mon.toISOString().slice(0, 10);
+}
+
+export function reviewMonth(ym) {
+  const vals = weeksOfMonthKey(ym).map(reviewScoreOf).filter(v => v != null);
+  return vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
+}
+
+/** Ряд по вопросу за последние недели — видно, что именно поехало. */
+export function reviewSeries(key, n = 8) {
+  return reviewWeeks().slice(-n).map(wk => ({ wk, v: Number(reviewOf(wk)?.scores?.[key]) || null }));
+}
+
+/** Что просело и что держится: средние по вопросам за последние недели. */
+export function reviewParts(n = 8) {
+  const weeks = reviewWeeks().slice(-n);
+  return REVIEW_Q.map(q => {
+    const vals = weeks.map(wk => Number(reviewOf(wk)?.scores?.[q.key])).filter(v => v >= 1 && v <= 5);
+    return { ...q, avg: vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null, n: vals.length };
+  });
+}
+
 // ── моё дело ────────────────────────────────────────────────────
 // Проект живёт своими числами: у каждого свои показатели и свои отметки.
 // Общего «успеха» приложение не считает — что тут успех, знает только автор.

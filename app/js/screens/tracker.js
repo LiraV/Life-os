@@ -5,7 +5,7 @@ import { S, update, uid, touchTracker } from '../store.js';
 import { todayISO, monthKey, MONTHS, yearOf, daysInMonth, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, toast, openSheet } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
-import { sleepMonth, sleepDays, blogMonth, blogYear, liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth, shelfDoneIn, collIn, boardDoneIn, measIn, workMonth, mindMonth,
+import { reviewMonth, reviewWeeks, sleepMonth, sleepDays, blogMonth, blogYear, liveHabits, habitMonthCount, habitTarget, habitDates, habitCount, goalsIn, counterOf, isCounter, liveLessons, lessonMonth, energyMonth, sphereLogMonth, shelfDoneIn, collIn, boardDoneIn, measIn, workMonth, mindMonth,
   sportTags, tagById, tagMonthCount, tagUsedIn, booksDoneIn, booksDoneYear } from '../selectors.js';
 
 /** В ячейке крупные величины сжимаем: 28000 мл → «28к», иначе колонки разъезжаются. */
@@ -131,6 +131,12 @@ export function buildRows(y) {
     ...(sleepDays().some(d => d.startsWith(String(y))) ? [{
       name: 'Сон', avg: true, unit: 'ч',
       cells: months.map(ym => ({ value: sleepMonth(ym) })),
+    }] : []),
+    // Анализ недели — среднее по неделям месяца. Строка появляется, когда
+    // анкета заполнена хоть раз: пустая строка на год ничего не говорит.
+    ...(reviewWeeks().length ? [{
+      name: 'Анализ состояния', avg: true, unit: 'из 5',
+      cells: months.map(ym => ({ value: reviewMonth(ym) })),
     }] : []),
     // Энергия — среднее за месяц, поэтому за год у неё тоже среднее, а не сумма.
     { name: 'Энергия', avg: true, unit: 'сред.', cells: months.map(ym => ({ value: energyMonth(ym) })) },
