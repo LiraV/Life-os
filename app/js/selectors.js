@@ -1433,6 +1433,17 @@ export const SOURCES = {
     refName: key => customName(key),
     count: (ref, r) => boardDoneIn(ref, r.from, r.to).length,
   },
+  income: {
+    // Доход за период — из операций, а не отдельным счётчиком: одна запись
+    // в бюджете, и цель растёт сама. Без статьи считаются все доходы.
+    sphere: 'money', name: 'Заработано', unit: '₽', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'все статьи' },
+      ...(S.budget.cats.income || []).map(c => ({ value: c.id, label: c.name }))],
+    refName: id => (S.budget.cats.income || []).find(c => c.id === id)?.name || '',
+    count: (ref, r) => Math.round(S.budget.ops
+      .filter(o => o.kind === 'income' && inRange(o.date, r) && (!ref || o.catId === ref))
+      .reduce((a, o) => a + (Number(o.sum) || 0), 0)),
+  },
   vault: {
     sphere: 'money', name: 'Накоплено в копилке', unit: '₽', horizons: ['year', 'quarter', 'month'], lifetime: true,
     ref: () => (S.budget.vaults || []).map(v => ({ value: v.id, label: v.name })),
