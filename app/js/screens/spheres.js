@@ -7,7 +7,7 @@ import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import { SPHERE_ART, DEFAULT_ART, artSrc } from '../sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, BLOG_FEEDS, placeShort, placeName, PACK, packById, UNPACK, UNPACK_ALL } from '../blog.js';
 import { blogPosts, blogBy, blogMonth, blogYear, blogTotal, blogAhead, viewsMonth, viewsRecord,
-  subsLast, subsDelta, subsTotal, blogFormats, blogRubrics, rubricName, formatName,
+  subsLast, subsDelta, subsTotal, sleepAvg, blogFormats, blogRubrics, rubricName, formatName,
   rubricMix, rubricUnsorted, formatMix, blockProgress } from '../selectors.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions,
   sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleOfSphere,
@@ -36,6 +36,7 @@ function grid() {
         const stu = sp.key === 'study' ? studyNow() : null;
         const wk = sp.key === 'work' ? { ...workWeek(todayISO()), jobs: jobsNow().length } : null;
         const bl = sp.key === 'blog' ? { month: blogMonth(todayISO().slice(0, 7)), ideas: blogBy('idea').length } : null;
+        const hl = sp.key === 'health' ? { sleep: sleepAvg(30), meas: S.health.measures.slice(-1)[0] } : null;
         const edu = sp.key === 'edu'
           ? liveLessons().filter(l => !l.paused).reduce((a, l) => a + lessonMonth(l, todayISO().slice(0, 7)), 0)
           : null;
@@ -44,7 +45,9 @@ function grid() {
             ${sp.img ? raw(h`<img src="${sp.img}" alt="">`) : raw(h`<div class="tile-emoji">${sp.icon}</div>`)}
             <span class="tile-badge">${sp.mech}</span>
             <b>${sp.name}</b>
-            <span>${bl ? (bl.month ? `${bl.month} ${plural(bl.month, 'пост', 'поста', 'постов')} за месяц`
+            <span>${hl ? (hl.sleep != null ? `сон ${String(hl.sleep).replace('.', ',')} ч в среднем`
+                : hl.meas ? `замер ${dayShort(hl.meas.date)}` : 'пока пусто')
+              : bl ? (bl.month ? `${bl.month} ${plural(bl.month, 'пост', 'поста', 'постов')} за месяц`
                 : bl.ideas ? `${bl.ideas} ${plural(bl.ideas, 'идея', 'идеи', 'идей')} в банке` : 'пока пусто')
               : wk ? (!wk.jobs ? 'место не заведено' : wk.days ? `${wk.hours} ч за неделю` : 'неделя не отмечена')
               : food ? `сегодня ${food.kcal} ккал`
@@ -902,7 +905,7 @@ const curKey = () => location.hash.replace(/^#\/?/, '').split('/')[1];
 
 export const actions = {
   // У питания свой экран: календарь КБЖУ не влезает в общую механику этапов.
-  open: v => { location.hash = { food: '#/food', money: '#/budget', edu: '#/edu', study: '#/study', sport: '#/sport', books: '#/library', trips: '#/trips', work: '#/work' }[v.v] || '#/spheres/' + v.v; },
+  open: v => { location.hash = { food: '#/food', money: '#/budget', edu: '#/edu', study: '#/study', sport: '#/sport', books: '#/library', trips: '#/trips', work: '#/work', health: '#/health' }[v.v] || '#/spheres/' + v.v; },
   back: () => { location.hash = '#/spheres'; },
 
   // Сфера тут не одна на экран, поэтому берём ту, что открыта, а не зашитую.

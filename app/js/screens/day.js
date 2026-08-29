@@ -336,6 +336,10 @@ function questRow(q) {
 // ── редактор квеста ─────────────────────────────────────────────
 // Функция, а не константа: своя сфера, заведённая сейчас, должна появиться
 // в выборе сразу, а не после перезапуска приложения.
+// Длина квеста: от «десять минут и хватит» до половины дня. Сорок пять
+// осталось значением по умолчанию — на нём стоит норма дня.
+const LENGTHS = [10, 15, 30, 45, 60, 90, 120, 180, 240];
+
 const sphereOpts = () => [{ value: '', label: 'без сферы' }, ...allSpheres().map(s => ({ value: s.key, label: s.name }))];
 
 export function questSheet(quest, date, onDone) {
@@ -352,7 +356,7 @@ export function questSheet(quest, date, onDone) {
     body: [
       field.text('title', 'Что делаем', q.title, 'например, «Черновик главы 2»'),
       field.time('time', 'Когда', q.time),
-      field.opts('minutes', 'Длина', [{ value: '45', label: '45 мин' }, { value: '90', label: '90 мин' }, { value: '120', label: '120 мин' }], String(q.minutes || 45)),
+      field.opts('minutes', 'Длина', LENGTHS.map(m => ({ value: String(m), label: m < 60 ? `${m} мин` : m % 60 === 0 ? `${m / 60} ч` : `${Math.floor(m / 60)} ч ${m % 60}` })), String(q.minutes || 45)),
       field.opts('sphere', 'Сфера', sphereOpts(), q.sphere || ''),
       lessons.length
         ? field.select('lessonId', 'Занятие с полки', [{ value: '', label: 'не связано' }, ...lessons.map(l => ({ value: l.id, label: l.name }))], q.lessonId || '')

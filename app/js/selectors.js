@@ -746,6 +746,11 @@ export function sphereParts(key, days) {
     { label: 'опыт', n: winsIn(days[days.length - 1], days[0]).length }];
   if (key === 'food') return [quests,
     { label: 'дни питания', n: days.filter(d => (S.food.days[d]?.entries || []).length).length }];
+  // «Тело» живо от отметок сна и замеров: у него нет этапов и журнала,
+  // и без этой ветки роль «Целительница» видела бы только квесты.
+  if (key === 'health') return [quests,
+    { label: 'ночи', n: days.filter(d => sleepOn(d) != null).length },
+    { label: 'замеры', n: (S.health.measures || []).filter(m => days.includes(m.date)).length }];
   // «Страны» отмечаются годом, а не датой, поэтому в двухнедельное окно им
   // попасть нечем: считаем только квесты, а не выдумываем поездке день.
   // Своя сфера приносит закрытые этапы с датой и отметки журнала.

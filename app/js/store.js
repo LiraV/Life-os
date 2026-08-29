@@ -13,12 +13,12 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 43;
+const VERSION = 44;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
   edu: 'scholar', study: 'scholar', books: 'reader', sport: 'athlete',
-  food: 'healer', blog: 'artist', work: 'master', money: 'keeper', trips: 'wanderer',
+  food: 'healer', health: 'healer', blog: 'artist', work: 'master', money: 'keeper', trips: 'wanderer',
 };
 
 import { artSrc } from './sphereart.js';
@@ -31,6 +31,9 @@ export const SPHERES = [
   { key: 'blog',  name: 'Блог',     mech: 'редакция',    img: 'assets/illustration_06.png' },
   { key: 'sport', name: 'Спорт',    mech: 'статы',      img: 'assets/illustration_05.png' },
   { key: 'food',  name: 'Питание',  mech: 'зелья',      img: 'assets/illustration_04.png' },
+  // «Тело» — такая же сфера жизни, как остальные, просто со своим экраном:
+  // цикл, замеры и сон живут там, а плитка открывает именно его.
+  { key: 'health', name: 'Тело',     mech: 'состояние',  img: 'assets/spheres/care.webp' },
   { key: 'money', name: 'Бюджет',   mech: 'казна',      img: 'assets/illustration_10.png' },
   { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png' },
   { key: 'trips', name: 'Страны',   mech: 'карта',      img: 'assets/illustration_01.png' },
