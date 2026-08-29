@@ -1243,6 +1243,39 @@ export function proteinHint() {
   return { kg, low: Math.round(kg * 1.2), high: Math.round(kg * 1.6), date: cur.date };
 }
 
+/**
+ * Жиры от веса: около грамма на килограмм, ориентир 0,8–1,2. Ниже нижней
+ * границы жиры обычно не опускают — это не про похудение, а про гормоны.
+ */
+export function fatHint() {
+  const cur = measureDeltas().cur;
+  const kg = cur && cur.weight != null ? Number(cur.weight) : null;
+  if (!kg) return null;
+  return { kg, mid: Math.round(kg), low: Math.round(kg * 0.8), high: Math.round(kg * 1.2), date: cur.date };
+}
+
+/** Вода от веса: 30 мл на килограмм — привычный ориентир, не предписание. */
+export function waterHint() {
+  const cur = measureDeltas().cur;
+  const kg = cur && cur.weight != null ? Number(cur.weight) : null;
+  if (!kg) return null;
+  return { kg, ml: Math.round(kg * 30 / 50) * 50, date: cur.date };
+}
+
+/**
+ * Углеводы — остаток калорий после белка и жира: 4 ккал на грамм белка и
+ * углеводов, 9 на грамм жира. Считается от того, что стоит в полях сейчас,
+ * поэтому меняется вслед за ними. Если остатка нет, честно возвращаем ноль
+ * и причину, а не отрицательное число.
+ */
+export function carbRest(kcal, prot, fat) {
+  const k = Math.max(0, Number(kcal) || 0);
+  const p = Math.max(0, Number(prot) || 0);
+  const f = Math.max(0, Number(fat) || 0);
+  const left = k - p * 4 - f * 9;
+  return { g: Math.max(0, Math.round(left / 4)), left: Math.round(left), enough: left >= 0, kcal: k, prot: p, fat: f };
+}
+
 // ── сложение: рост, вес, пол и возраст ──────────────────────────
 // Всё здесь — ориентиры, а не диагнозы: формулы дают оценку по среднему
 // человеку и ничего не знают о конкретном теле. Поэтому каждая величина

@@ -5,7 +5,7 @@ import { S, update, uid, XP, addXp, isWater, MEALS } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
-import { proteinHint, energyNeed, liveHabits, mealEntries, mealsOn } from '../selectors.js';
+import { proteinHint, fatHint, waterHint, carbRest, energyNeed, liveHabits, mealEntries, mealsOn } from '../selectors.js';
 
 const plural = (n, a, b, c) => {
   const m = n % 100, d = n % 10;
@@ -258,7 +258,17 @@ export const actions = {
   goals: () => {
     const t = targets();
     const p = proteinHint();
+    const f = fatHint();
+    const w = waterHint();
     const en = energyNeed();
+    // Каждая кнопка только подставляет число в своё поле и оставляет шторку
+    // открытой: раньше она молча сохраняла и закрывала форму, теряя всё, что
+    // человек в ней успел набрать.
+    const put = (name, val) => {
+      const el = document.querySelector(`.sheet input[name="${name}"]`);
+      if (el) el.value = String(val);
+    };
+    const live = n => Number(document.querySelector(`.sheet input[name="${n}"]`)?.value) || 0;
     openSheet({
       title: 'Дневные нормы',
       body: [
@@ -266,30 +276,36 @@ export const actions = {
         // Расход считается по весу, росту, возрасту и полу — они уже есть
         // в профиле. Кнопка ставит расход как есть: дефицит или профицит
         // от него — решение человека, а не приложения.
-        en ? h`<button class="pill" data-act="frombody">взять от тела: ${en.tdee} ккал</button>` : '',
+        en ? h`<button type="button" class="pill" data-act="frombody">взять от тела: ${en.tdee} ккал</button>` : '',
         en ? field.note(`Формула Миффлина: ${en.kg} кг, ${en.cm} см, ${en.age} ${plural(en.age, 'год', 'года', 'лет')} · покой ${en.bmr} ккал, с активностью ×${String(en.pal).replace('.', ',')}.`)
            : field.note('Чтобы посчитать норму калорий, заполни в «Я» пол, дату рождения и рост, а в «Теле» — вес.'),
         field.number('prot', 'Белки, г', t.prot, { min: 0 }),
         // Связка с замерами: белок обычно считают от веса, а вес уже есть
         // в «Теле». Кнопка ставит середину диапазона — решение всё равно твоё.
-        p ? h`<button class="pill" data-act="fromweight">взять от веса: ${Math.round((p.low + p.high) / 2)} г</button>` : '',
+        p ? h`<button type="button" class="pill" data-act="fromweight">взять от веса: ${Math.round((p.low + p.high) / 2)} г</button>` : '',
         p ? field.note(`Вес ${p.kg} кг от ${dayShort(p.date)} · ориентир 1,2–1,6 г на кг, это ${p.low}–${p.high} г.`) : '',
         field.number('fat', 'Жиры, г', t.fat, { min: 0 }),
+        f ? h`<button type="button" class="pill" data-act="fatweight">взять от веса: ${f.mid} г</button>` : '',
+        f ? field.note(`Около грамма на кг · ориентир ${f.low}–${f.high} г. Ниже нижней границы жиры обычно не опускают: это не про похудение, а про гормоны.`) : '',
         field.number('carb', 'Углеводы, г', t.carb, { min: 0 }),
+        h`<button type="button" class="pill" data-act="carbrest">взять остаток калорий</button>`,
+        field.note('Углеводы — это то, что осталось от калорий после белка и жира: 4 ккал в грамме белка и углеводов, 9 в грамме жира. Кнопка считает от того, что стоит в полях сейчас.'),
         field.number('water', 'Вода, мл', t.water, { min: 0 }),
+        w ? h`<button type="button" class="pill" data-act="waterweight">взять от веса: ${w.ml} мл</button>` : '',
+        w ? field.note(`Вес ${w.kg} кг · ориентир 30 мл на кг. Это привычная прикидка, а не предписание: в жару и в тренировки пьётся больше.`) : '',
       ].join(''),
-      onAct: (name, _d, close) => {
-        if (name === 'fromweight' && p) {
-          const prot = Math.round((p.low + p.high) / 2);
-          update(s => { s.food.targets = { ...s.food.targets, prot }; });
-          close();
-          toast(`Норма белка: ${prot} г`);
+      onAct: name => {
+        if (name === 'fromweight' && p) { put('prot', Math.round((p.low + p.high) / 2)); toast(`Белки: ${Math.round((p.low + p.high) / 2)} г`); }
+        if (name === 'frombody' && en) { put('kcal', en.tdee); toast(`Калории: ${en.tdee} ккал`); }
+        if (name === 'fatweight' && f) { put('fat', f.mid); toast(`Жиры: ${f.mid} г`); }
+        if (name === 'waterweight' && w) { put('water', w.ml); toast(`Вода: ${w.ml} мл`); }
+        if (name === 'carbrest') {
+          const r = carbRest(live('kcal'), live('prot'), live('fat'));
+          if (!r.enough) return toast(`Белок и жир уже съели все калории: не хватает ${-r.left} ккал`);
+          put('carb', r.g);
+          toast(`Углеводы: ${r.g} г`);
         }
-        if (name === 'frombody' && en) {
-          update(s => { s.food.targets = { ...s.food.targets, kcal: en.tdee }; });
-          close();
-          toast(`Норма калорий: ${en.tdee} ккал`);
-        }
+        return undefined;
       },
       onSave: (v, close) => {
         const n = (x, d) => Math.max(0, Math.round(Number(x) || d));
