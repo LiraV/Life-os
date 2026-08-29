@@ -93,8 +93,22 @@ export const countryBy = code => COUNTRIES.find(c => c.code === code);
 export const countryName = code => (countryBy(code) || {}).name || code;
 
 /** Поиск без учёта регистра и раскладки «ё/е»: «турци» найдёт Турцию. */
+/**
+ * Поиск страны. Совпадение с начала слова идёт первым: на «т» человек ждёт
+ * Таиланд и Турцию, а не Австрию, где «т» стоит в середине. Середину тоже
+ * ищем — но после, иначе «бри» не нашла бы Великобританию.
+ */
 export const searchCountries = q => {
   const s = String(q || '').trim().toLowerCase().replace(/ё/g, 'е');
   if (!s) return [];
-  return COUNTRIES.filter(c => c.name.toLowerCase().replace(/ё/g, 'е').includes(s)).slice(0, 12);
+  const norm = c => c.name.toLowerCase().replace(/ё/g, 'е');
+  const rank = c => {
+    const n = norm(c);
+    if (n.startsWith(s)) return 0;
+    if (n.split(/[\s-]+/).some(w => w.startsWith(s))) return 1;
+    return n.includes(s) ? 2 : 3;
+  };
+  return COUNTRIES.map(c => ({ c, r: rank(c) })).filter(x => x.r < 3)
+    .sort((a, b) => a.r - b.r || norm(a.c).localeCompare(norm(b.c), 'ru'))
+    .slice(0, 12).map(x => x.c);
 };

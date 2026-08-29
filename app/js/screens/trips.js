@@ -4,7 +4,7 @@
 // а «за жизнь» всё равно считается по разу. Год обязателен, всё остальное —
 // нет: смысл в отметке, а не в анкете.
 
-import { S, update, uid, XP, addXp } from '../store.js';
+import { S, update, updateQuiet, uid, XP, addXp } from '../store.js';
 import { todayISO, yearOf } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { COUNTRIES, flagOf, countryName, searchCountries, REGIONS } from '../countries.js';
@@ -90,22 +90,32 @@ function yearView() {
 }
 
 // ── отметить ────────────────────────────────────────────────────
-function addView() {
+/**
+ * Найденное живёт отдельным куском: при вводе перерисовывается только оно.
+ * Перерисовать весь экран нельзя — поле ввода заменилось бы новым, фокус
+ * слетел бы, и на телефоне закрывалась бы клавиатура прямо посреди слова.
+ */
+function foundList() {
   const q = S.ui.tripSearch || '';
   const found = searchCountries(q);
   const been = new Set(countriesEver().map(c => c.code));
+  return (q && !found.length ? '<div class="lab">Ничего не нашлось. Проверь написание — список на русском.</div>' : '')
+    + (found.length ? h`<div class="list">${found.map(c => raw(h`
+        <button class="link-row" data-act="mark" data-v="${c.code}">
+          <span class="ink grow">${flagOf(c.code)} ${c.name}</span>
+          <span class="lab">${been.has(c.code) ? 'уже была · ещё раз' : c.region} ›</span>
+        </button>`))}</div>` : '')
+    + (!q ? h`<div class="lab">Отмечу текущим годом — ${year()}. Год и заметку можно поправить, тапнув по стране.</div>` : '');
+}
+
+function addView() {
+  const q = S.ui.tripSearch || '';
   return h`
     <div class="card">
       <div class="fld"><span>Какая страна</span>
         <input type="text" data-field="q" data-act-input="search" value="${q}" placeholder="начни печатать: тур, ита, гру" autocomplete="off">
       </div>
-      ${q && !found.length ? raw('<div class="lab">Ничего не нашлось. Проверь написание — список на русском.</div>') : ''}
-      ${found.length ? raw(h`<div class="list">${found.map(c => raw(h`
-        <button class="link-row" data-act="mark" data-v="${c.code}">
-          <span class="ink grow">${flagOf(c.code)} ${c.name}</span>
-          <span class="lab">${been.has(c.code) ? 'уже была · ещё раз' : c.region} ›</span>
-        </button>`))}</div>`) : ''}
-      ${!q ? raw(h`<div class="lab">Отмечу текущим годом — ${year()}. Год и заметку можно поправить, тапнув по стране.</div>`) : ''}
+      <div id="cn_found">${raw(foundList())}</div>
     </div>
 
     ${visits().length ? raw(h`
@@ -192,7 +202,13 @@ export const actions = {
   ...sphereGoalActions('trips'),
   back: () => { location.hash = '#/spheres'; },
   tab: v => update(s => { s.ui.tripTab = v.v; }),
-  search: v => update(s => { s.ui.tripSearch = v.value; }),
+  // Сохраняем тихо и перерисовываем только список: экран целиком трогать
+  // нельзя, иначе поле ввода пересоздаётся и клавиатура закрывается.
+  search: v => {
+    updateQuiet(s => { s.ui.tripSearch = v.value; });
+    const box = document.getElementById('cn_found');
+    if (box) box.innerHTML = foundList();
+  },
   mark: v => addVisit(v.v, year()),
   open: v => countrySheet(v.v),
   edit: v => visitSheet(v.id),
