@@ -1332,6 +1332,31 @@ export const SOURCES = {
     refName: id => BLOG_PLACES.find(p => p.key === id)?.name || '',
     count: (ref, r) => blogOutIn(r.from, r.to, ref).length,
   },
+  subs: {
+    // Не за период, а «сколько сейчас»: подписчики — это уровень, а не
+    // накопление за месяц. Поэтому lifetime, как страны за всю жизнь.
+    sphere: 'blog', name: 'Подписчиков всего', unit: 'подписчиков', horizons: ['year'], lifetime: true,
+    ref: () => [{ value: '', label: 'везде' }, ...BLOG_FEEDS.map(f => ({ value: f.key, label: f.name }))],
+    refName: id => BLOG_FEEDS.find(f => f.key === id)?.name || '',
+    count: ref => subsNow(ref) || 0,
+  },
+  subsGain: {
+    sphere: 'blog', name: 'Прирост подписчиков', unit: 'подписчиков', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'везде' }, ...BLOG_FEEDS.map(f => ({ value: f.key, label: f.name }))],
+    refName: id => BLOG_FEEDS.find(f => f.key === id)?.name || '',
+    count: (ref, r) => subsGain(ref, r.from, r.to),
+  },
+  views: {
+    sphere: 'blog', name: 'Просмотров', unit: 'просмотров', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'везде' }, ...BLOG_PLACES.filter(p => p.key !== 'both').map(p => ({ value: p.key, label: p.name }))],
+    refName: id => BLOG_PLACES.find(p => p.key === id)?.name || '',
+    count: (ref, r) => viewsSum(r.from, r.to, ref),
+  },
+  viewsTop: {
+    // Рекорд, а не сумма: «хочу пост на 10 000» — это про один пост.
+    sphere: 'blog', name: 'Лучший пост по просмотрам', unit: 'просмотров', horizons: ['year'], lifetime: true,
+    count: () => viewsRecordValue(),
+  },
   workouts: {
     sphere: 'sport', name: 'Тренировок', unit: 'тренировок', horizons: ['year', 'quarter', 'month'],
     count: (_ref, r) => doneWorkouts(r).length,
@@ -1726,12 +1751,44 @@ export function subsDelta(feed) {
   return marks[marks.length - 1][feed] - marks[marks.length - 2][feed];
 }
 export const subsSeries = feed => subsMarks().filter(x => x[feed] != null).map(x => x[feed]);
-export const subsTotal = () => {
-  const last = subsLast();
-  if (!last) return null;
-  const n = BLOG_FEEDS.map(f => last[f.key]).filter(v => v != null);
+
+/** Последнее известное число по площадке — у каждой своё: отметка, где
+ *  заполнили только инстаграм, не должна обнулять телеграм. */
+export function subsLastOf(feed, upto = '9999-12-31') {
+  const marks = subsMarks().filter(x => x[feed] != null && x.date <= upto);
+  return marks.length ? marks[marks.length - 1][feed] : null;
+}
+/** Сколько сейчас: по площадке или суммой. Пусто — значит ещё не отмечали. */
+export function subsNow(feed = '', upto = '9999-12-31') {
+  if (feed) return subsLastOf(feed, upto);
+  const n = BLOG_FEEDS.map(f => subsLastOf(f.key, upto)).filter(v => v != null);
   return n.length ? n.reduce((a, b) => a + b, 0) : null;
-};
+}
+export const subsTotal = () => subsNow();
+
+/**
+ * Прирост за отрезок. Точка отсчёта — последняя отметка до начала периода;
+ * если её нет, берём первую отметку внутри и считаем от неё. Числа до первой
+ * отметки не выдумываем, поэтому прирост «с нуля» не рисуется.
+ */
+export function subsGain(feed, from, to) {
+  const before = subsNow(feed, from > '0000-01-01' ? prevDay(from) : from);
+  const end = subsNow(feed, to);
+  if (end == null) return 0;
+  if (before != null) return Math.max(0, end - before);
+  const inside = feed
+    ? subsMarks().filter(x => x[feed] != null && x.date >= from && x.date <= to).map(x => x[feed])
+    : subsMarks().filter(x => x.date >= from && x.date <= to)
+      .map(x => BLOG_FEEDS.map(f => subsLastOf(f.key, x.date)).filter(v => v != null).reduce((a, b) => a + b, 0));
+  if (inside.length < 2) return 0;
+  return Math.max(0, inside[inside.length - 1] - inside[0]);
+}
+const prevDay = d => addDays(d, -1);
+
+/** Просмотры: сумма по вышедшим за отрезок и лучший пост за всё время. */
+export const viewsSum = (from, to, place = '') =>
+  blogOutIn(from, to, place).reduce((a, p) => a + (p.views || 0), 0);
+export const viewsRecordValue = () => viewsRecord()?.views || 0;
 
 export const blogFormats = () => S.blog?.formats || [];
 export const blogRubrics = () => S.blog?.rubrics || [];

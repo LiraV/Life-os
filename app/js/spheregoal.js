@@ -31,22 +31,24 @@ export function sphereGoalSheet(sphere) {
   const list = sourcesOf(sphere);
   if (!list.length) return;
   const first = list[0];
-  // Уточнение «что именно» нужно не каждому источнику: в спорте пилюле нужно,
-  // а «всем тренировкам» нет. Список строим по тому источнику, у которого он
-  // есть, и на сохранении берём только если выбранный источник его просит.
-  const refSrc = list.find(x => x.ref);
-  const refs = refSrc ? refSrc.ref() : [];
-  // Горизонты — общие для сферы: то, что умеют все её источники.
-  const hz = HZ.filter(x => list.every(src => src.horizons.includes(x.value)));
-  openSheet({
+  // Уточнение и сроки — свои у каждого счёта: у постов площадки, у подписчиков
+  // площадки другие, а «сколько сейчас» бывает только за год. Поэтому блок
+  // перерисовывается при смене счёта, а не строится один на всю сферу: раньше
+  // брались общие горизонты, и один «только годовой» счёт отнимал месяц у всех.
+  const optsBlock = src => {
+    const refs = src.ref ? src.ref() : [];
+    const hz = HZ.filter(x => src.horizons.includes(x.value));
+    return (refs.length ? field.select('ref', `Что именно · ${src.name.toLowerCase()}`, refs, refs[0].value) : '')
+      + (hz.length > 1 ? field.opts('horizon', 'За какой срок', hz, 'year')
+        : field.note(`Считается за ${hz[0]?.label.toLowerCase() || 'год'} — другого отрезка у этих данных нет.`));
+  };
+  const wrap = openSheet({
     title: 'Цель отсюда',
     sub: 'счёт будет вести приложение',
     body: [
       field.select('kind', 'Что считаем', list.map(x => ({ value: x.key, label: x.name })), first.key),
-      refs.length ? field.select('ref', `Что именно · ${refSrc.name.toLowerCase()}`, refs, refs[0].value) : '',
+      `<div id="sg_opts">${optsBlock(first)}</div>`,
       field.number('target', 'Сколько', '', { min: 1 }),
-      hz.length > 1 ? field.opts('horizon', 'За какой срок', hz, 'year')
-                    : field.note(`Считается за ${hz[0]?.label.toLowerCase() || 'год'} — другого отрезка у этих данных нет.`),
       field.text('title', 'Как назвать', '', 'можно не заполнять — придумаю сама'),
       field.note('Число набранного будет считаться из отметок в этой сфере: отдельно вести его не нужно. Цель появится в «Планах» и там же правится или удаляется.'),
     ].join(''),
@@ -81,6 +83,14 @@ export function sphereGoalSheet(sphere) {
       close();
       toast(`Цель добавлена: «${goal.title}»`);
     },
+  });
+
+  // Смена счёта перерисовывает только уточнение и сроки: число и название,
+  // если их уже вписали, остаются на месте.
+  wrap?.addEventListener('change', e => {
+    if (e.target?.name !== 'kind') return;
+    const box = wrap.querySelector('#sg_opts');
+    if (box) box.innerHTML = optsBlock(list.find(x => x.key === e.target.value) || first);
   });
 }
 
