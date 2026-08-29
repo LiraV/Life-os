@@ -216,9 +216,8 @@ function profileSheet() {
       field.opts('chronotype', 'Хронотип', ['жаворонок', 'сова', 'плавает'], S.user.chronotype),
       field.range('sleep', 'Нужно спать', S.user.sleep, { min: 6, max: 11, step: 0.5, suffix: ' ч' }),
       field.number('height', 'Рост', S.user.height || '', { min: 0, max: 260, suffix: 'см' }),
-      field.number('wrist', 'Обхват запястья', S.user.wrist || '', { min: 0, max: 30, suffix: 'см' }),
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="cycle" ${S.user.cycle ? 'checked' : ''}> Вести цикл в «Теле»</label>`,
-      field.note('Пол меняет обращение и нормы, которые считаются по-разному у мужчин и женщин: расход калорий, порог талии, тип сложения. Цикл — отдельный тумблер: выключишь — раздел скроется, отметки останутся.'),
+      field.note('Пол меняет обращение и нормы, которые считаются по-разному у мужчин и женщин: расход калорий и порог талии. Цикл — отдельный тумблер: выключишь — раздел скроется, отметки останутся.'),
     ].join(''),
     // Кнопка аватара живёт внутри шторки, поэтому её ловит сама шторка.
     onAct: (name, _data, close, typed) => {
@@ -245,7 +244,6 @@ function saveProfile(s, v) {
   s.user.chronotype = v.chronotype || s.user.chronotype;
   s.user.sleep = Number(v.sleep) || s.user.sleep;
   s.user.height = Math.max(0, Number(v.height) || 0);
-  s.user.wrist = Math.max(0, Number(v.wrist) || 0);
   s.user.cycle = !!v.cycle;
 }
 

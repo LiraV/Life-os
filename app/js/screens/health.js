@@ -5,7 +5,7 @@
 import { S, update, uid, XP, addXp } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
-import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, build, energyNeed, waistRisk, age,
+import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, energyNeed, waistRisk, age,
   sleepAvg, sleepMarks } from '../selectors.js';
 import { g } from '../gender.js';
 
@@ -103,14 +103,14 @@ function cycleCard() {
 `;
 }
 
-/** Сложение: рост, ИМТ, талия и тип кости. Всё — ориентиры, а не оценки. */
+/** Сложение: ИМТ, талия и суточный расход. Всё — ориентиры, а не оценки. */
 function buildCard() {
-  const b = bmi(), bd = build(), w = waistRisk(), en = energyNeed(), yr = age();
-  if (!b && !bd && !w && !en) {
+  const b = bmi(), w = waistRisk(), en = energyNeed(), yr = age();
+  if (!b && !w && !en) {
     return h`
       <div class="card dash">
         <div class="caps">Сложение</div>
-        <div class="lab">Заполни в «Я» рост, дату рождения и обхват запястья — посчитаю ИМТ, тип сложения и суточный расход.
+        <div class="lab">Заполни в «Я» рост и дату рождения — посчитаю ИМТ и суточный расход.
           Пол там же: от него зависят порог талии и формула расхода.</div>
       </div>`;
   }
@@ -121,8 +121,7 @@ function buildCard() {
         <span class="ink">${b.value} <i class="lab">${b.band}</i></span></div>`) : ''}
       ${w ? raw(h`<div class="row between"><span class="ink">Талия</span>
         <span class="ink">${w.cm} см <i class="lab">${w.level === 'ok' ? `ниже ${w.warn}` : w.level === 'warn' ? `выше ${w.warn}` : `выше ${w.high}`}</i></span></div>`) : ''}
-      ${bd ? raw(h`<div class="row between"><span class="ink">Тип сложения</span>
-        <span class="ink">${bd.name} <i class="lab">${bd.note}</i></span></div>`) : ''}
+
       ${en ? raw(h`<div class="row between"><span class="ink">Расход в сутки</span>
         <span class="ink">${en.tdee} ккал <i class="lab">покой ${en.bmr}</i></span></div>`) : ''}
       <div class="lab">${[

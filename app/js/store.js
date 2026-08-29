@@ -140,7 +140,6 @@ function blank() {
       cycle: true,                                       // вести ли цикл: отдельный тумблер, а не следствие пола
       birth: '',                                         // дата рождения — нужна для расхода калорий и пульса
       height: 0,                                         // рост, см — без него нет ИМТ
-      wrist: 0,                                          // обхват запястья, см — тип сложения по Соловьёву
     },
     quests: {},          // { 'YYYY-MM-DD': [quest] }
     inbox: [],           // входящее без даты: { id, text, note, sphere, createdAt }
@@ -249,7 +248,6 @@ function migrate(s) {
   merged.user.cycle = typeof merged.user.cycle === 'boolean' ? merged.user.cycle : merged.user.sex === 'f';
   merged.user.birth = typeof merged.user.birth === 'string' ? merged.user.birth : '';
   merged.user.height = Number(merged.user.height) || 0;
-  merged.user.wrist = Number(merged.user.wrist) || 0;
   merged.health = { ...base.health, ...(s.health || {}) };
   merged.ui = { ...base.ui, ...(s.ui || {}) };
   // v21 → v22: подсказки на экранах. 'ask' — предложение ещё не показывали;
