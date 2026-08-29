@@ -188,6 +188,7 @@ export const actions = {
   },
 
   steps: v => {
+    const draw = () => {
     const pr = bizById(v.id);
     if (!pr) return;
     const have = new Set(bizSteps(pr).map(x => x.text));
@@ -209,13 +210,17 @@ export const actions = {
           if (!t) return;
           if (bizSteps(bizById(v.id)).some(x => x.text === t)) return toast('Такой шаг уже есть');
           update(s => s.biz.projects.find(x => x.id === v.id)?.steps.push({ id: uid(), text: t, done: false }));
-          close();
+          // Перерисовываем, а не закрываем: можно взять несколько подряд.
+          close(); draw();
+          return undefined;
         };
         if (name === 'stepadd') return put(data.v);
         if (name === 'stepown') return put(document.querySelector('.sheet [data-field="stnew"]')?.value);
         return undefined;
       },
     });
+    };
+    draw();
   },
 
   steptick: v => update(s => {

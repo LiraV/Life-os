@@ -5,14 +5,13 @@
 // в этап сферы или в повторяющееся дело. Пока не перенёс — просто лежит,
 // и лежать здесь можно сколько угодно.
 
-import { S, update, uid, XP, addXp, allSpheres, blankSphere } from '../store.js';
+import { S, update, updateQuiet, uid, XP, addXp, allSpheres, blankSphere } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, yearOf, MONTHS, relativeDay } from '../dates.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import { inboxItems, inboxCount, inboxAge, HORIZONS } from '../selectors.js';
 import { CARE_GROUPS } from '../selectors.js';
 
 export function render() {
-  const list = inboxItems();
   return h`
     <div class="title">Инбокс</div>
     <div class="sub">Сюда складывается то, что пришло в голову. Решать, когда это делать, — потом.</div>
@@ -25,15 +24,7 @@ export function render() {
       <div class="lab">Enter — и оно здесь. Ни даты, ни сферы вводить не нужно.</div>
     </div>
 
-    ${list.length ? list.map(it => raw(row(it))) : raw(h`
-      <div class="card dash">
-        <div class="empty">Инбокс пуст.<br>Это не задача на сегодня — просто пусто.</div>
-      </div>`)}
-
-    ${list.length ? raw(h`<div class="card mute">
-      <div class="lab">${list.length} ${plural(list.length, 'запись', 'записи', 'записей')}.
-        Разбирать инбокс целиком не обязательно: можно взять одну и закрыть экран.</div>
-    </div>`) : ''}
+    <div id="inb_list">${raw(listBody())}</div>
     <div style="height:4px"></div>`;
 }
 
@@ -67,10 +58,38 @@ const byId = id => (S.inbox || []).find(x => x.id === id);
 const drop = (s, id) => { s.inbox = s.inbox.filter(x => x.id !== id); };
 
 /** Добавить строкой. Пустое молча игнорируем — это не ошибка. */
-function add(text) {
+/** Список записей отдельным куском: при быстром вводе перерисовывается он,
+ *  а не весь экран, поэтому поле остаётся тем же и клавиатура не закрывается. */
+function listBody() {
+  const list = inboxItems();
+  if (!list.length) return h`
+      <div class="card dash">
+        <div class="empty">Инбокс пуст.<br>Это не задача на сегодня — просто пусто.</div>
+      </div>`;
+  return list.map(it => row(it)).join('') + h`
+    <div class="card mute">
+      <div class="lab">${list.length} ${plural(list.length, 'запись', 'записи', 'записей')}.
+        Разбирать инбокс целиком не обязательно: можно взять одну и закрыть экран.</div>
+    </div>`;
+}
+
+/**
+ * Добавление записи. С экрана инбокса обновляем только список: перерисовка
+ * целого экрана пересоздала бы поле и закрыла клавиатуру. С других экранов
+ * (например, из «Дня») перерисовываем как обычно — там ждут своих чисел.
+ */
+function add(text, el) {
   const t = String(text || '').trim();
   if (!t) return;
-  update(s => { s.inbox.push({ id: uid(), text: t, note: '', sphere: '', createdAt: todayISO() }); });
+  const box = document.getElementById('inb_list');
+  if (!box) {
+    update(s => { s.inbox.push({ id: uid(), text: t, note: '', sphere: '', createdAt: todayISO() }); });
+    toast('В инбоксе');
+    return;
+  }
+  updateQuiet(s => { s.inbox.push({ id: uid(), text: t, note: '', sphere: '', createdAt: todayISO() }); });
+  if (el) { el.value = ''; el.focus(); }
+  box.innerHTML = listBody();
   toast('В инбоксе');
 }
 
@@ -239,7 +258,7 @@ function toCare(it) {
 }
 
 export const actions = {
-  quickadd: v => { add(v.value); },
+  quickadd: (v, el) => { add(v.value, el); },
   edit: v => editSheet(v.id),
   move: v => moveSheet(v.id),
 

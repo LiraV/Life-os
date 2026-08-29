@@ -295,6 +295,7 @@ export const actions = {
   }),
 
   steps: () => {
+    const draw = () => {
     const have = new Set(freeSteps().map(x => x.text));
     openSheet({
       title: 'Путь на фриланс',
@@ -314,13 +315,18 @@ export const actions = {
           if (!t) return;
           if (freeSteps().some(x => x.text === t)) return toast('Такой шаг уже есть');
           update(s => s.free.steps.push({ id: uid(), text: t, done: false }));
-          close();
+          // Перерисовываем, а не закрываем: взятый шаг уходит из подсказок,
+          // поле пустеет, и можно взять следующий, не открывая заново.
+          close(); draw();
+          return undefined;
         };
         if (name === 'stepadd') return put(data.v);
         if (name === 'stepown') return put(document.querySelector('.sheet [data-field="stnew"]')?.value);
         return undefined;
       },
     });
+    };
+    draw();
   },
 
   steptick: v => update(s => {
