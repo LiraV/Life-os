@@ -5,9 +5,10 @@ import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSphere
 import { todayISO, addDays, monthKey, monthTitle, monthIn, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import { SPHERE_ART, DEFAULT_ART, artSrc } from '../sphereart.js';
-import { BLOG_STAGES, BLOG_PLACES, BLOG_FEEDS, placeShort, placeName } from '../blog.js';
+import { BLOG_STAGES, BLOG_PLACES, BLOG_FEEDS, placeShort, placeName, PACK, packById, UNPACK, UNPACK_ALL } from '../blog.js';
 import { blogPosts, blogBy, blogMonth, blogYear, blogTotal, blogAhead, viewsMonth, viewsRecord,
-  subsLast, subsDelta, subsTotal, blogTags } from '../selectors.js';
+  subsLast, subsDelta, subsTotal, blogFormats, blogRubrics, rubricName, formatName,
+  rubricMix, rubricUnsorted, formatMix, blockProgress } from '../selectors.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions,
   sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleOfSphere,
   SHELF_STATUS, sphereShelf, shelfBy, BOARD_STAGES, sphereBoard, boardBy,
@@ -546,7 +547,6 @@ function blogBody() {
   const subs = subsLast();
   const best = viewsMonth(ym);
   const rec2 = viewsRecord();
-  const tags = blogTags();
 
   return h`
     <div class="card">
@@ -600,35 +600,113 @@ function blogBody() {
     })}
     <button class="add" data-act="postadd">+ Пост</button>
 
-    ${tags.length ? raw(h`<div class="card mute">
-      <div class="caps">Рубрики</div>
-      <div class="pills">${tags.map(x => raw(h`<span class="pill">${x.name} · ${x.count}</span>`))}</div>
-      <div class="lab">О чём ты пишешь на самом деле, а не о чём кажется.</div>
-    </div>`) : ''}`;
+    ${raw(unpackCard())}
+    ${raw(rubricCard(ym))}`;
 }
 
 /**
- * Пост целиком. Просмотры и ссылка нужны только вышедшему, но поля не
- * прячем: человек знает лучше, что у него уже есть.
+ * Распаковка: вопрос, из которого может вырасти пост. Приложение спрашивает,
+ * человек отвечает — и только если он сам нажмёт «взять», в банке появляется
+ * идея. Вопрос запоминается вместе с ней, чтобы через месяц было понятно,
+ * откуда она взялась.
  */
-function postSheet(id) {
+function unpackCard() {
+  const q = UNPACK_ALL[S.ui.unpack ?? 0] || UNPACK_ALL[0];
+  return h`
+    <div class="card">
+      <div class="row between"><div class="caps">Распаковка</div>
+        <span class="lab">${q.group}</span></div>
+      <div class="ink">${q.q}</div>
+      <div class="pills">
+        <button class="pill" data-act="unpacknext">другой вопрос</button>
+        <button class="pill on" data-act="unpacktake">взять в идеи</button>
+        <button class="pill" data-act="unpackall">все ${UNPACK_ALL.length}</button>
+      </div>
+      <div class="lab">Вопрос сам ничего не создаёт. Идея появится, только если ты её возьмёшь.</div>
+    </div>`;
+}
+
+/** Рубрикатор и форматы: что есть на самом деле, без долей-обязательств. */
+function rubricCard(ym) {
+  const mix = rubricMix();
+  const none = rubricUnsorted();
+  const fmt = formatMix(ym);
+  return h`
+    <div class="card mute">
+      <div class="row between"><div class="caps">Рубрикатор</div>
+        <button class="q-edit" data-act="rubrics">править ›</button></div>
+      ${mix.length ? raw(h`<div class="list">${mix.map(r => raw(h`
+        <div class="link-row">
+          <span class="ink grow ellip">${r.name}</span>
+          <span class="lab">${r.n ? `${r.n} · ${r.share}%` : 'ещё не выходило'}${r.last ? ` · ${dayShort(r.last)}` : ''}</span>
+        </div>`))}</div>`)
+        : raw('<div class="lab">Рубрик пока нет. Их можно завести и вешать на посты.</div>')}
+      ${none ? raw(h`<div class="lab">Без рубрики: ${none}.</div>`) : ''}
+      <div class="lab">Доли за год — это про то, о чём ты пишешь на самом деле, а не норма.</div>
+    </div>
+
+    <div class="card mute">
+      <div class="row between"><div class="caps">Форматы</div>
+        <button class="q-edit" data-act="formats">править ›</button></div>
+      ${fmt.length ? raw(h`<div class="pills">${fmt.map(f => raw(h`<span class="pill">${f.name} · ${f.n}</span>`))}</div>`)
+        : raw('<div class="lab">За этот месяц форматы не отмечены.</div>')}
+    </div>`;
+}
+
+/**
+ * Пост целиком. Формат и рубрики — метки, структура — скелет черновика.
+ * Черновик живёт вне формы (как на доске работы): пункты можно двигать,
+ * не потеряв то, что уже вписано в поля.
+ */
+let draft = { blocks: [], rubrics: [] };
+
+function postSheet(id, seed = '') {
   const p = id ? blogPosts().find(x => x.id === id) : null;
-  const base = p || { title: '', place: 'both', stage: 'idea', day: '', link: '', views: null, tags: [], note: '' };
+  const base = p || { title: seed, place: 'both', stage: 'idea', day: '', format: '', link: '',
+    views: null, rubrics: [], blocks: [], seed, note: '' };
+  draft = { blocks: (base.blocks || []).map(x => ({ ...x })), rubrics: [...(base.rubrics || [])] };
   openSheet({
     title: p ? 'Пост' : 'Новый пост',
     sub: p ? placeName(p.place) : 'идея, черновик или уже готовое',
     body: [
       field.text('title', 'О чём', base.title, 'коротко'),
+      base.seed ? field.note(`Из распаковки: ${base.seed}`) : '',
       field.opts('place', 'Куда', BLOG_PLACES.map(x => ({ value: x.key, label: x.name })), base.place),
       field.opts('stage', 'Стадия', BLOG_STAGES.map(x => ({ value: x.key, label: x.name })), base.stage),
+      field.opts('format', 'Формат', [{ value: '', label: 'не выбран' },
+        ...blogFormats().map(f => ({ value: f.id, label: f.name }))], base.format),
+      rubricBlock(),
       field.date('day', 'День выхода', base.day),
       field.note('День выхода — это когда пост выходит, а не дедлайн. В «Дне» он не появится: незачем маячить перед глазами раньше времени.'),
-      field.text('tags', 'Рубрики', (base.tags || []).join(', '), 'через запятую'),
+      packBlock(),
       field.number('views', 'Просмотры', base.views ?? '', { min: 0, step: 1 }),
       field.text('link', 'Ссылка', base.link, 'после публикации'),
       field.area('note', 'Заметка', base.note, 'мысли, план, что зашло'),
     ].join(''),
     primary: p ? 'Сохранить' : 'Добавить',
+    onAct: (name, data) => {
+      if (name === 'rub') {
+        draft.rubrics = draft.rubrics.includes(data.v)
+          ? draft.rubrics.filter(x => x !== data.v) : [...draft.rubrics, data.v];
+        return redrawPost();
+      }
+      if (name === 'pktoggle') {
+        const x = draft.blocks.find(bk => bk.id === data.v);
+        if (x) x.done = !x.done;
+        return redrawPost();
+      }
+      if (name === 'pkdel') { draft.blocks = draft.blocks.filter(bk => bk.id !== data.v); return redrawPost(); }
+      if (name === 'pkadd') {
+        const box = document.querySelector('.sheet [data-field="pknew"]');
+        const text = (box?.value || '').trim();
+        if (!text) return;
+        draft.blocks.push({ id: uid(), text, done: false });
+        box.value = '';
+        return redrawPost();
+      }
+      if (name === 'pktpl') return addPack(data.v);
+      return undefined;
+    },
     onSave: (v, close) => {
       const title = (v.title || '').trim();
       if (!title) return toast('Нужно название');
@@ -638,19 +716,22 @@ function postSheet(id) {
         title,
         place: BLOG_PLACES.some(x => x.key === v.place) ? v.place : 'both',
         stage: BLOG_STAGES.some(x => x.key === v.stage) ? v.stage : 'idea',
+        format: blogFormats().some(f => f.id === v.format) ? v.format : '',
+        rubrics: [...draft.rubrics],
+        blocks: draft.blocks.map(bk => ({ ...bk })),
+        seed: base.seed || '',
         day: (v.day || '').trim().slice(0, 10),
         link: (v.link || '').trim(),
         views: String(v.views ?? '').trim() === '' ? null : Math.max(0, Math.round(Number(v.views) || 0)),
-        tags: (v.tags || '').split(',').map(x => x.trim()).filter(Boolean),
         note: (v.note || '').trim(),
       };
       // Дата выхода нужна, чтобы пост попал в ритм. Ставим сегодняшнюю только
       // тогда, когда человек сам двинул пост в «опубликовано» и дня не назвал.
       if (next.stage === 'out' && !next.day) next.day = todayISO();
-      update(s => {
-        const was = s.blog.posts.find(x => x.id === id);
+      update(s2 => {
+        const was = s2.blog.posts.find(x => x.id === id);
         if (was) Object.assign(was, next, { movedAt: was.stage !== next.stage ? todayISO() : was.movedAt });
-        else s.blog.posts.push({ id: uid(), ...next, movedAt: todayISO() });
+        else s2.blog.posts.push({ id: uid(), ...next, movedAt: todayISO() });
       });
       close();
       toast(p ? 'Сохранено' : 'Добавлено');
@@ -658,10 +739,121 @@ function postSheet(id) {
     danger: p ? 'Удалить' : null,
     onDanger: (_v, close) => {
       close();
-      confirmSheet(`Удалить «${p.title}»?`, 'Пост исчезнет вместе с просмотрами и заметкой.', 'Удалить',
-        () => update(s => { s.blog.posts = s.blog.posts.filter(x => x.id !== id); }));
+      confirmSheet(`Удалить «${p.title}»?`, 'Пост исчезнет вместе со структурой, просмотрами и заметкой.', 'Удалить',
+        () => update(s2 => { s2.blog.posts = s2.blog.posts.filter(x => x.id !== id); }));
     },
   });
+}
+
+const rubricBlock = () => h`
+  <div class="fld" id="rub_block"><span>Рубрики</span>
+    <div class="pills" id="rub_pick">${raw(rubricPicker())}</div>
+    ${blogRubrics().length ? '' : raw('<div class="lab">Рубрик пока нет — их заводят на экране сферы.</div>')}
+  </div>`;
+
+const rubricPicker = () => blogRubrics()
+  .map(r => `<button type="button" class="pill ${draft.rubrics.includes(r.id) ? 'on' : ''}" data-act="rub" data-v="${r.id}">${r.name}</button>`)
+  .join('');
+
+const packBlock = () => {
+  const done = draft.blocks.filter(x => x.done).length;
+  return h`
+    <div class="fld" id="pk_block">
+      <span>Упаковка${draft.blocks.length ? ` · ${done} из ${draft.blocks.length}` : ''}</span>
+      <div class="pills">${PACK.map(t => raw(h`<button type="button" class="pill" data-act="pktpl" data-v="${t.id}">${t.name}</button>`))}</div>
+      <div class="lab">Скелет только подставит пункты: лишние можно стереть, свои — дописать.</div>
+      <div class="cl-list">
+        ${draft.blocks.map(x => raw(h`
+          <div class="cl-item ${x.done ? 'done' : ''}">
+            <button type="button" class="check sm ${x.done ? 'on' : ''}" data-act="pktoggle" data-v="${x.id}">✓</button>
+            <span class="grow">${x.text}</span>
+            <button type="button" class="q-edit" data-act="pkdel" data-v="${x.id}">×</button>
+          </div>`))}
+      </div>
+      <div class="row">
+        <input type="text" class="grow" data-field="pknew" data-act-enter="pkadd" placeholder="Свой пункт и Enter">
+        <button type="button" class="pill" data-act="pkadd">+</button>
+      </div>
+    </div>`;
+};
+
+/** Перерисовываем только то, что живёт вне формы: введённое не теряется. */
+function redrawPost() {
+  const rp = document.getElementById('rub_pick');
+  if (rp) rp.innerHTML = rubricPicker();
+  const pk = document.getElementById('pk_block');
+  if (pk) pk.outerHTML = packBlock();
+}
+
+/**
+ * Скелет поста добавляется пилюлей прямо в форме: отдельная шторка закрыла бы
+ * эту и стёрла всё, что уже вписано. Дубли по тексту не добавляются.
+ */
+function addPack(id) {
+  const tpl = packById(id);
+  if (!tpl) return;
+  const have = new Set(draft.blocks.map(x => x.text));
+  const fresh = tpl.blocks.filter(x => !have.has(x));
+  if (!fresh.length) return toast(`«${tpl.name}» уже добавлен`);
+  fresh.forEach(text => draft.blocks.push({ id: uid(), text, done: false }));
+  redrawPost();
+  toast(`${tpl.name}: +${fresh.length}`);
+}
+
+/**
+ * Список именованных записей: добавить, переименовать, убрать. Один код на
+ * рубрикатор и форматы — они устроены одинаково, и расходиться им незачем.
+ */
+function listSheet({ title, sub, get, add, ren, del, note }) {
+  const draw = () => openSheet({
+    title, sub,
+    body: [
+      get().length ? get().map(x => h`
+        <div class="link-row">
+          <span class="ink grow ellip" data-act="ls-ren" data-v="${x.id}" style="cursor:pointer">${x.name}</span>
+          <button class="q-edit" data-act="ls-del" data-v="${x.id}">×</button>
+        </div>`).join('')
+        : field.note('Пока пусто.'),
+      `<div class="row"><input type="text" class="grow" data-field="lsnew" data-act-enter="ls-add" placeholder="Добавить и Enter">
+        <button type="button" class="pill" data-act="ls-add">+</button></div>`,
+      field.note(note),
+    ].join(''),
+    onAct: (name, data, close) => {
+      if (name === 'ls-add') {
+        const box = document.querySelector('.sheet [data-field="lsnew"]');
+        const val = (box?.value || '').trim();
+        if (!val) return;
+        if (nameTaken(get(), val)) return toast(`«${val}» уже есть`);
+        update(s2 => add(s2, val));
+        close(); draw();
+        return;
+      }
+      if (name === 'ls-ren') {
+        const cur = get().find(x => x.id === data.v);
+        if (!cur) return;
+        close();
+        openSheet({
+          title: 'Переименовать',
+          body: field.text('name', 'Название', cur.name),
+          onSave: (v, cl) => {
+            const val = (v.name || '').trim();
+            if (!val) return toast('Нужно название');
+            if (nameTaken(get(), val, cur.id)) return toast(`«${val}» уже есть`);
+            update(s2 => ren(s2, cur.id, val));
+            cl(); draw();
+          },
+        });
+        return;
+      }
+      if (name === 'ls-del') {
+        const cur = get().find(x => x.id === data.v);
+        if (!cur) return;
+        close();
+        confirmSheet(`Убрать «${cur.name}»?`, note, 'Убрать', () => { update(s2 => del(s2, cur.id)); draw(); });
+      }
+    },
+  });
+  draw();
 }
 
 /** Строка поста: стадия двигается тапом по пилюле, остальное — в шторке. */
@@ -671,7 +863,9 @@ function postRow(p, stage) {
     <div class="chk-row">
       <button class="pill" data-act="postmove" data-id="${p.id}" title="дальше: ${next.name}">${placeShort(p.place)}</button>
       <span class="grow ellip" data-act="postedit" data-id="${p.id}" style="cursor:pointer">${p.title}</span>
-      <span class="lab">${p.stage === 'out' && p.views != null ? `${p.views} просм.` : p.day ? dayShort(p.day) : ''}</span>
+      <span class="lab">${p.stage === 'out' && p.views != null ? `${p.views} просм.`
+        : p.stage === 'draft' && blockProgress(p) != null ? `${blockProgress(p)}%`
+        : p.day ? dayShort(p.day) : formatName(p.format)}</span>
       <button class="q-edit" data-act="postedit" data-id="${p.id}">›</button>
     </div>`;
 }
@@ -803,6 +997,51 @@ export const actions = {
   // ── блог
   postadd: () => postSheet(null),
   postedit: v => postSheet(v.id),
+
+  /** Распаковка: вопрос меняется по кругу и живёт в настройках вида, а не
+   *  в данных — это не запись человека, а то, где он остановился. */
+  unpacknext: () => update(s2 => { s2.ui.unpack = ((s2.ui.unpack ?? 0) + 1) % UNPACK_ALL.length; }),
+  unpacktake: () => {
+    const q = UNPACK_ALL[S.ui.unpack ?? 0] || UNPACK_ALL[0];
+    postSheet(null, q.q);
+  },
+  unpackall: () => openSheet({
+    title: 'Распаковка',
+    sub: `${UNPACK_ALL.length} вопросов · тапни, чтобы взять`,
+    body: UNPACK.map(g => h`
+      <div class="fld"><span>${g.name}</span>
+        ${g.questions.map(q => raw(h`<button class="link-row" data-act="uq" data-v="${q}">
+          <span class="ink grow">${q}</span><span class="lab">взять ›</span></button>`))}
+      </div>`).join(''),
+    onAct: (name, data, close) => { if (name === 'uq') { close(); postSheet(null, data.v); } },
+  }),
+
+  rubrics: () => listSheet({
+    title: 'Рубрикатор',
+    sub: 'о чём ты пишешь — списком',
+    get: () => blogRubrics(),
+    add: (s2, name) => s2.blog.rubrics.push({ id: uid(), name, note: '' }),
+    ren: (s2, id, name) => { const x = s2.blog.rubrics.find(r => r.id === id); if (x) x.name = name; },
+    del: (s2, id) => {
+      s2.blog.rubrics = s2.blog.rubrics.filter(r => r.id !== id);
+      // Рубрику убрали — снимаем её и с постов, иначе они ссылались бы в пустоту.
+      s2.blog.posts.forEach(pst => { pst.rubrics = (pst.rubrics || []).filter(r => r !== id); });
+    },
+    note: 'Удалённая рубрика снимается с постов, сами посты остаются.',
+  }),
+
+  formats: () => listSheet({
+    title: 'Форматы',
+    sub: 'чем именно выходит пост',
+    get: () => blogFormats(),
+    add: (s2, name) => s2.blog.formats.push({ id: uid(), name }),
+    ren: (s2, id, name) => { const x = s2.blog.formats.find(f => f.id === id); if (x) x.name = name; },
+    del: (s2, id) => {
+      s2.blog.formats = s2.blog.formats.filter(f => f.id !== id);
+      s2.blog.posts.forEach(pst => { if (pst.format === id) pst.format = ''; });
+    },
+    note: 'Удалённый формат снимается с постов, сами посты остаются.',
+  }),
 
   /** Тап по пилюле двигает пост на следующую стадию. Вышедшему ставим день
    *  выхода — но только если он не задан: свою дату не перетираем. */

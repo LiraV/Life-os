@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 40;
+const VERSION = 41;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -22,7 +22,7 @@ export const ROLE_SEED = {
 };
 
 import { artSrc } from './sphereart.js';
-import { BLOG_STAGES, BLOG_PLACES } from './blog.js';
+import { BLOG_STAGES, BLOG_PLACES, DEFAULT_FORMATS } from './blog.js';
 
 export const SPHERES = [
   { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
@@ -218,8 +218,10 @@ function blank() {
     },
     mind: [],            // осознанность: { id, date, key, minutes, before, after, note }
     blog: {              // блог: конвейер постов и отметки подписчиков
-      posts: [],         // { id, title, place: 'ig'|'tg'|'both', stage, day, link, views, tags: [], note, movedAt }
+      posts: [],         // { id, title, place, stage, day, format, rubrics: [], blocks: [], seed, link, views, note }
       subs: [],          // { id, date, ig, tg } — сколько было на эту дату
+      formats: [],       // свой список форматов: [{ id, name }]
+      rubrics: [],       // рубрикатор: [{ id, name, note }]
     },
                          // before/after — своя отметка напряжения 0..100, обе необязательны
     diary: [],
@@ -227,7 +229,7 @@ function blank() {
     tests: {},
     // tips: 'ask' — предложение ещё не показывали, 'on' — показываем, 'off' — отказалась
     ui: { tab: 'day', date: t, weekAnchor: t, monthAnchor: monthKey(t), year: yearOf(t), habitAnchor: t,
-          tips: 'ask', tipsSeen: {}, icon: 'pearl' },
+          tips: 'ask', tipsSeen: {}, icon: 'pearl', unpack: 0 },
   };
 }
 
@@ -611,10 +613,21 @@ function migrate(s) {
       day: typeof x.day === 'string' ? x.day : '',
       link: typeof x.link === 'string' ? x.link : '',
       views: x.views == null || x.views === '' ? null : Math.max(0, Math.round(Number(x.views) || 0)),
+      format: typeof x.format === 'string' ? x.format : '',
+      rubrics: Array.isArray(x.rubrics) ? x.rubrics.map(String) : [],
+      // v40 → v41: свободные метки стали рубрикатором. Названия сохраняем как
+      // есть — ниже они превратятся в записи рубрик, ничего не потеряв.
       tags: Array.isArray(x.tags) ? x.tags.map(String) : [],
+      blocks: (Array.isArray(x.blocks) ? x.blocks : [])
+        .filter(bk => bk && bk.text).map(bk => ({ id: bk.id || uid(), text: String(bk.text), done: !!bk.done })),
+      seed: typeof x.seed === 'string' ? x.seed : '',
       note: typeof x.note === 'string' ? x.note : '',
       movedAt: typeof x.movedAt === 'string' ? x.movedAt : '',
     })),
+    formats: (Array.isArray(b0.formats) && b0.formats.length ? b0.formats : DEFAULT_FORMATS.map(n => ({ id: uid(), name: n })))
+      .filter(x => x && x.name).map(x => ({ id: x.id || uid(), name: String(x.name).trim() })),
+    rubrics: (Array.isArray(b0.rubrics) ? b0.rubrics : [])
+      .filter(x => x && x.name).map(x => ({ id: x.id || uid(), name: String(x.name).trim(), note: String(x.note || '') })),
     subs: (Array.isArray(b0.subs) ? b0.subs : [])
       .filter(x => x && typeof x.date === 'string')
       .map(x => ({ id: x.id || uid(), date: x.date,
@@ -622,6 +635,18 @@ function migrate(s) {
         tg: x.tg == null || x.tg === '' ? null : Math.max(0, Math.round(Number(x.tg) || 0)) }))
       .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
   };
+  // Метки постов превращаем в рубрики: одноимённые склеиваются, порядок
+  // сохраняется. После переноса метка на посте больше не нужна.
+  merged.blog.posts.forEach(post => {
+    (post.tags || []).forEach(name => {
+      const n = normName(name);
+      let r = merged.blog.rubrics.find(x => normName(x.name) === n);
+      if (!r) { r = { id: uid(), name, note: '' }; merged.blog.rubrics.push(r); }
+      if (!post.rubrics.includes(r.id)) post.rubrics.push(r.id);
+    });
+    delete post.tags;
+  });
+
   const oldIdeas = merged.spheres?.blog?.items;
   if (Array.isArray(oldIdeas) && oldIdeas.length && !merged.blog.posts.length) {
     merged.blog.posts = oldIdeas.map(i => ({
@@ -629,7 +654,7 @@ function migrate(s) {
       place: 'both',
       stage: i.done ? 'out' : (i.stage || 0) >= 2 ? 'ready' : (i.stage || 0) >= 1 ? 'draft' : 'idea',
       day: i.done && typeof i.doneAt === 'string' ? i.doneAt.slice(0, 10) : '',
-      link: '', views: null, tags: [], note: '',
+      link: '', views: null, format: '', rubrics: [], blocks: [], seed: '', note: '',
       movedAt: typeof i.doneAt === 'string' ? i.doneAt.slice(0, 10) : '',
     }));
     merged.spheres.blog = { ...merged.spheres.blog, items: [] };

@@ -1694,11 +1694,39 @@ export const subsTotal = () => {
   return n.length ? n.reduce((a, b) => a + b, 0) : null;
 };
 
-/** Рубрики: метка и сколько постов под ней. */
-export function blogTags() {
-  const n = {};
-  blogPosts().forEach(p => (p.tags || []).forEach(t => { n[t] = (n[t] || 0) + 1; }));
-  return Object.entries(n).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+export const blogFormats = () => S.blog?.formats || [];
+export const blogRubrics = () => S.blog?.rubrics || [];
+export const rubricName = id => blogRubrics().find(r => r.id === id)?.name || '';
+export const formatName = id => blogFormats().find(f => f.id === id)?.name || '';
+
+/**
+ * Раскладка по рубрикам: сколько вышло и когда в последний раз. Это описание
+ * того, что есть, а не план: доли ни к чему не обязывают, а «давно не было» —
+ * такой же факт, как дата, и не упрёк.
+ */
+export function rubricMix(days = 365) {
+  const from = addDays(todayISO(), -days);
+  const out = blogOut().filter(p => p.day && p.day >= from);
+  return blogRubrics().map(r => {
+    const mine = out.filter(p => (p.rubrics || []).includes(r.id));
+    return { ...r, n: mine.length, share: out.length ? Math.round((mine.length / out.length) * 100) : 0,
+      last: mine.map(p => p.day).sort().slice(-1)[0] || '' };
+  }).sort((a, b) => b.n - a.n);
+}
+export const rubricUnsorted = () => blogOut().filter(p => !(p.rubrics || []).length).length;
+
+/** Форматы за месяц — чтобы видеть, чем на самом деле выходит. */
+export function formatMix(ym) {
+  const out = blogOutIn(`${ym}-01`, `${ym}-31`);
+  return blogFormats().map(f => ({ ...f, n: out.filter(p => p.format === f.id).length }))
+    .filter(f => f.n).sort((a, b) => b.n - a.n);
+}
+
+/** Готовность черновика по структуре. Без пунктов — не 0%, а «нет структуры». */
+export function blockProgress(post) {
+  const bs = post?.blocks || [];
+  if (!bs.length) return null;
+  return Math.round((bs.filter(x => x.done).length / bs.length) * 100);
 }
 
 export const mindMonth = ym => mindDays(`${ym}-01`, `${ym}-31`);
