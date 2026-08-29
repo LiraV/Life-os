@@ -1,6 +1,8 @@
 /* «Жизнь в одном месте» — тёплая осенняя палитра из хендоффа.
    На телефоне приложение занимает весь экран, на широком — карточка 400×830. */
 
+/* Тема — это только переменные. Ни один цвет не зашит в правила ниже:
+   иначе тёмная тема оставляет светлые заплатки там, где про них забыли. */
 :root{
   --bg1:#f3dfdc; --bg2:#eccfc9; --bg3:#e6c2bb; --around:#c99aa1;
   --card:#fbf4ec; --card-mute:rgba(251,244,236,.55);
@@ -8,7 +10,22 @@
   --ink:#53403a; --ink2:#8d6a60; --ink3:#7d635a; --ink4:#9c6b60;
   --line:#dcb3a6; --track:#eeded2; --caramel:#c98d6b;
   --tag-bg:#f6dfd2; --nav:#6e4a48; --nav-off:#d8b8ae; --drawer:#f7ecdf;
+  --nav-ink:#f7ecdf;                 /* текст в боковой колонке — поверх --nav */
   --shadow:0 8px 20px rgba(122,62,58,.12);
+  --soft:rgba(255,250,243,.65);      /* мягкая подложка поверх фона */
+  --field:rgba(255,250,243,.8);      /* поля ввода */
+  --soft-on:rgba(255,250,243,.95);
+  --hover:#e6d3c6;                   /* наведение и нажатие на клетках */
+  --veil:rgba(90,45,42,.35);         /* затемнение под шторкой и ящиком */
+  --badge-bg:rgba(110,60,55,.62);
+  --toast-bg:#53403a; --toast-ink:#ffeee2;
+  --on-deep:#ffeee2;                 /* текст на тёмном: совет, тост */
+  --fade:243,223,220;                /* растворение верха списка — в RGB */
+  --sep:rgba(255,255,255,.16);
+  --lift:0 26px 60px rgba(122,62,58,.35), inset 0 1px 0 rgba(255,255,255,.6);
+  --glow:0 8px 18px rgba(166,58,53,.35);
+  --deep-glow:0 10px 22px rgba(142,43,50,.3);
+  --drop:0 10px 22px rgba(90,45,42,.3);
   --r-card:20px; --r-phone:42px;
 }
 
@@ -41,7 +58,7 @@ h1,h2,h3{margin:0; font-weight:400}
 @media (min-width:560px) and (min-height:880px){
   body{align-items:center; padding:24px 0}
   .app{height:830px; max-width:400px; border-radius:var(--r-phone); padding:16px 14px 12px;
-       box-shadow:0 26px 60px rgba(122,62,58,.35), inset 0 1px 0 rgba(255,255,255,.6)}
+       box-shadow:var(--lift)}
 }
 
 .statusbar{display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--ink4); flex:none; min-height:16px}
@@ -80,12 +97,12 @@ h1,h2,h3{margin:0; font-weight:400}
 
 /* ── кнопки и пилюли ────────────────────────────────────────── */
 .btn{background:var(--accent); color:var(--on-accent); border-radius:99px; padding:12px 18px; font-size:14.5px;
-     text-align:center; box-shadow:0 8px 18px rgba(166,58,53,.35); transition:transform .15s; flex:none; width:100%}
+     text-align:center; box-shadow:var(--glow); transition:transform .15s; flex:none; width:100%}
 .btn:active{transform:scale(.98)}
 .btn-ghost{font-size:13px; color:var(--ink2); padding:9px; text-align:center; width:100%}
 .btn-ghost.danger{color:var(--accent)}
 .pill{font-size:12.5px; color:var(--deep); border:1px solid var(--line); border-radius:99px; padding:5px 12px;
-      background:rgba(255,250,243,.65); transition:all .15s; flex:none}
+      background:var(--soft); transition:all .15s; flex:none}
 .pill.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
 .pills{display:flex; gap:7px; flex-wrap:wrap; flex:none}
 .add{border:1.5px dashed var(--line); border-radius:var(--r-card); padding:11px; font-size:13px; color:var(--ink2);
@@ -163,7 +180,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 
 /* ── AI-пузырь ──────────────────────────────────────────────── */
 .ai{background:linear-gradient(135deg,var(--deep),var(--warm)); border-radius:20px 20px 20px 6px; padding:12px 15px;
-    color:#ffeee2; font-size:13.5px; line-height:1.45; box-shadow:0 10px 22px rgba(142,43,50,.3); flex:none}
+    color:var(--on-deep); font-size:13.5px; line-height:1.45; box-shadow:var(--deep-glow); flex:none}
 .me{background:var(--card); border-radius:20px 20px 6px 20px; padding:11px 15px; color:var(--ink); font-size:13.5px;
     align-self:flex-end; max-width:82%; box-shadow:var(--shadow); flex:none}
 .ai{max-width:88%; align-self:flex-start; white-space:pre-wrap}
@@ -176,16 +193,16 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .tile{background:var(--card); border-radius:var(--r-card); padding:9px; box-shadow:var(--shadow); text-align:left;
       display:flex; flex-direction:column; gap:5px}
 .tile img{width:100%; height:70px; object-fit:cover; border-radius:14px; display:block}
-.tile-badge{position:relative; margin-top:-24px; margin-left:6px; align-self:flex-start; font-size:9.5px; color:#fff6ee;
-            background:rgba(110,60,55,.62); border-radius:99px; padding:2px 8px}
+.tile-badge{position:relative; margin-top:-24px; margin-left:6px; align-self:flex-start; font-size:9.5px; color:var(--on-accent);
+            background:var(--badge-bg); border-radius:99px; padding:2px 8px}
 .tile b{font-size:13px; font-weight:500}
 .tile span{font-size:11.5px; color:var(--ink2); line-height:1.3}
 
 /* ── привычки ───────────────────────────────────────────────── */
 .role{display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:8px 10px;
-      background:rgba(255,250,243,.6); border-radius:14px;
+      background:var(--soft); border-radius:14px;
       border:0; width:100%; text-align:left; font:inherit; cursor:pointer}
-.role:active{background:rgba(255,250,243,.95)}
+.role:active{background:var(--soft-on)}
 
 .hab-grid{display:flex; gap:5px; justify-content:space-between}
 .hab-cell{width:28px; height:28px; border-radius:10px; background:var(--track); font-size:10px; color:var(--ink4);
@@ -201,7 +218,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .cal-d{aspect-ratio:1; border-radius:11px; background:var(--track); font-size:12px; color:var(--ink);
        display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s}
 .cal-d.on{background:var(--accent); color:var(--on-accent)}
-.cal-d.start{box-shadow:inset 0 0 0 2px rgba(255,246,238,.7)}
+.cal-d.start{box-shadow:inset 0 0 0 2px var(--on-accent)}
 .cal-d.today{outline:1.5px solid var(--deep); outline-offset:1px; font-weight:600}
 .cal-d.pred{background:transparent; box-shadow:inset 0 0 0 1.5px var(--line); color:var(--ink4)}
 .cal-d.fut{opacity:.45; pointer-events:none}
@@ -250,7 +267,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .day-box,.pick-box{cursor:pointer}
 .day-box input,.pick-box input{position:absolute; opacity:0; pointer-events:none}
 .day-box span,.pick-box span{display:inline-block; font-size:12.5px; color:var(--deep); border:1px solid var(--line);
-  border-radius:99px; padding:6px 13px; background:rgba(255,250,243,.65)}
+  border-radius:99px; padding:6px 13px; background:var(--soft)}
 .day-box:has(input:checked) span,.pick-box:has(input:checked) span{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
 .sched-row{display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--track)}
 .sched-row:first-of-type{border-top:0}
@@ -311,14 +328,14 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
    пустая тёмная полоса — сама навигация, спрятанная, но всё ещё flex. */
 .nav[hidden]{display:none}
 .nav{flex:none; background:var(--nav); border-radius:99px; padding:7px 8px; display:flex; justify-content:space-between;
-     box-shadow:0 10px 22px rgba(90,45,42,.3)}
+     box-shadow:var(--drop)}
 .nav button{font-size:12px; color:var(--nav-off); padding:6px 11px; border-radius:99px; transition:all .15s; white-space:nowrap}
 .nav button.on{background:var(--deep); color:var(--on-accent)}
 
-.drawer-wrap{position:absolute; inset:0; background:rgba(90,45,42,.35); z-index:6; display:flex}
+.drawer-wrap{position:absolute; inset:0; background:var(--veil); z-index:6; display:flex}
 .drawer{width:236px; max-width:78%; background:var(--drawer); border-radius:var(--r-phone) 28px 28px var(--r-phone);
         padding:calc(20px + env(safe-area-inset-top)) 14px 14px; display:flex; flex-direction:column; gap:8px;
-        box-shadow:12px 0 40px rgba(90,45,42,.3); animation:din .22s ease-out}
+        box-shadow:12px 0 40px var(--veil); animation:din .22s ease-out}
 @keyframes din{from{transform:translateX(-100%)}to{transform:translateX(0)}}
 .drawer-head{display:flex; gap:10px; align-items:center; padding:0 6px 10px}
 .avatar{width:42px; height:42px; border-radius:99px; background:linear-gradient(160deg,var(--deep),var(--warm));
@@ -334,17 +351,17 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .av-pick img{width:100%; aspect-ratio:1; border-radius:99px; object-fit:cover; background:var(--track); display:block}
 .av-row{width:100%; gap:9px; padding:9px 2px; border-top:1px solid var(--track); border-bottom:1px solid var(--track)}
 .drawer button.item{text-align:left; font-size:13.5px; color:var(--ink); padding:10px 12px; border-radius:14px; border:1.5px solid transparent}
-.drawer button.item.on{border-color:var(--line); background:rgba(255,250,243,.6)}
+.drawer button.item.on{border-color:var(--line); background:var(--soft)}
 
 /* ── шторки, тосты ──────────────────────────────────────────── */
-.overlay{position:absolute; inset:0; background:rgba(90,45,42,.35); z-index:8; display:flex; flex-direction:column;
+.overlay{position:absolute; inset:0; background:var(--veil); z-index:8; display:flex; flex-direction:column;
          justify-content:flex-end; padding:12px}
 /* Прокрутка только вниз: с overflow-y:auto браузер сам включает и боковую,
    и шторку получается таскать вбок. */
 .sheet{background:var(--card); border-radius:26px; padding:14px 16px calc(14px + env(safe-area-inset-bottom));
        display:flex; flex-direction:column; gap:10px; max-height:88%; min-width:0;
        overflow-y:auto; overflow-x:hidden; overflow-x:clip; overscroll-behavior:contain; touch-action:pan-y;
-       box-shadow:0 -10px 40px rgba(90,45,42,.3); animation:sin .22s ease-out}
+       box-shadow:0 -10px 40px var(--veil); animation:sin .22s ease-out}
 @keyframes sin{from{transform:translateY(14px); opacity:.4}to{transform:translateY(0); opacity:1}}
 .grab{width:38px; height:4px; border-radius:99px; background:var(--track); align-self:center; flex:none}
 .sheet-title{font-family:Prata,serif; font-size:18px; color:var(--deep)}
@@ -357,7 +374,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .fld>span b{color:var(--deep); font-weight:500}
 .fld>span i{font-style:normal; color:var(--ink4)}
 .fld input[type=text],.fld input[type=number],.fld input[type=date],.fld input[type=time],.fld textarea,.fld select{
-  background:rgba(255,250,243,.8); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:16px;
+  background:var(--field); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:16px;
   width:100%; min-width:0; max-width:100%}
 /* Safari меряет поля даты и времени по своему усмотрению и не даёт им сжаться:
    без сброса вида такое поле распирает шторку и она едет вбок. */
@@ -371,10 +388,10 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .fld-note{margin:0; font-size:12px; color:var(--ink2); line-height:1.45}
 .opts{display:flex; gap:7px; flex-wrap:wrap}
 .opt{font-size:12.5px; color:var(--deep); border:1px solid var(--line); border-radius:99px; padding:6px 13px;
-     background:rgba(255,250,243,.65)}
+     background:var(--soft)}
 .opt.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
 
-.toast{position:absolute; left:50%; bottom:76px; transform:translateX(-50%); background:#53403a; color:#ffeee2;
+.toast{position:absolute; left:50%; bottom:76px; transform:translateX(-50%); background:var(--toast-bg); color:var(--toast-ink);
        font-size:13px; border-radius:99px; padding:9px 18px; box-shadow:0 10px 24px rgba(0,0,0,.3); z-index:9;
        animation:tin .25s; max-width:88%; text-align:center}
 @keyframes tin{from{opacity:0; transform:translate(-50%,10px)}to{opacity:1; transform:translate(-50%,0)}}
@@ -425,7 +442,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
           backdrop-filter:blur(12px) saturate(1.06);
           -webkit-backdrop-filter:blur(12px) saturate(1.06)}
 .scr.scrolled .scr-head::after{content:''; position:absolute; left:0; right:0; top:100%; height:12px;
-                 background:linear-gradient(rgba(243,223,220,.8), rgba(243,223,220,0)); pointer-events:none}
+                 background:linear-gradient(rgba(var(--fade),.9), rgba(var(--fade),0)); pointer-events:none}
 /* Заливка плотная сама по себе: на размытие полагаться нельзя — его может
    не быть, и тогда под шапкой читался бы уехавший текст. Размытие только
    смягчает край. */
@@ -438,11 +455,11 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
   .btn:hover{transform:translateY(-1px)}
   .pill:hover{border-color:var(--accent)}
   .add:hover{border-color:var(--accent); color:var(--deep)}
-  .arrow:hover{background:rgba(255,250,243,.6)}
+  .arrow:hover{background:var(--soft)}
   .w-set-name:hover{background:var(--track)}
   .tpl-set:hover{background:var(--track)}
-  .cal-d:hover:not([disabled]){background:#e6d3c6}
-  .hab-plus:hover{background:#e6d3c6}
+  .cal-d:hover:not([disabled]){background:var(--hover)}
+  .hab-plus:hover{background:var(--hover)}
   .chip:hover{background:var(--track)}
   .tr tbody td.edit:not(.has):hover{background:var(--track); border-radius:8px}
 }
@@ -554,9 +571,9 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
                  border-radius:22px; padding:12px 10px}
   .app.desk .nav::-webkit-scrollbar{display:none}
   .app.desk .nav button{text-align:left; width:100%; padding:8px 12px; font-size:13px}
-  .side-head{display:flex; align-items:center; gap:9px; padding:2px 6px 10px; color:var(--drawer)}
-  .side-head .ink, .side-head .lab{color:var(--drawer)}
-  .side-sep{height:1px; background:rgba(255,255,255,.16); margin:8px 4px}
+  .side-head{display:flex; align-items:center; gap:9px; padding:2px 6px 10px; color:var(--nav-ink)}
+  .side-head .ink, .side-head .lab{color:var(--nav-ink)}
+  .side-sep{height:1px; background:var(--sep); margin:8px 4px}
 
   /* Карточки раскладываются в две колонки: одна на всю ширину читается плохо.
      А вот списки — квесты, привычки, строки — остаются списками во всю строку:
@@ -589,7 +606,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
      ставим окно по центру, как и ожидается от настольного приложения. */
   .app.desk .overlay{justify-content:center; align-items:center; padding:24px}
   .app.desk .sheet{max-width:620px; width:100%; border-radius:22px; max-height:84vh;
-                   padding-bottom:16px; box-shadow:0 20px 60px rgba(90,45,42,.32)}
+                   padding-bottom:16px; box-shadow:0 20px 60px var(--veil)}
 }
 
 /* Блюдо внутри приёма: не карточка в карточке, а строка с разделителем. */
@@ -616,5 +633,132 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .opt.pic span{font-size:10px; color:var(--ink2); line-height:1.2}
 .opt.pic.on{border-color:var(--accent); background:var(--tag-bg)}
 .opt.pic.on img{outline:2px solid var(--accent); outline-offset:-2px}
+.theme-dot{width:52px; height:52px; border-radius:50%; display:block;
+  box-shadow:0 2px 8px rgba(0,0,0,.14), inset 0 0 0 1px rgba(0,0,0,.06)}
+.icon-pick.on .theme-dot{outline:2px solid var(--accent); outline-offset:2px}
 .tpl-art{width:44px; height:32px; object-fit:cover; border-radius:8px; flex:none}
 .pill-art{width:18px; height:18px; object-fit:cover; border-radius:5px; vertical-align:-4px}
+
+/* ── темы ───────────────────────────────────────────────────────
+   Каждая тема переопределяет тот же набор переменных целиком: неполная
+   тема унаследовала бы цвета рассвета и оставила бы чужие пятна. */
+
+/* Ночь */
+[data-theme="night"]{
+  --bg1:#272029; --bg2:#211b23; --bg3:#1b161d; --around:#100d11;
+  --card:#2f2831; --card-mute:rgba(47,40,49,.6);
+  --accent:#d9776c; --deep:#e9938a; --warm:#c07a68; --on-accent:#241d24;
+  --ink:#ece1e3; --ink2:#b3a3a8; --ink3:#c2b2b7; --ink4:#9b8b91;
+  --line:#4c414a; --track:#3a323b; --caramel:#c98d6b;
+  --tag-bg:#3b313a; --nav:#332b35; --nav-off:#9d8d93; --drawer:#2f2831;
+  --nav-ink:#ece1e3;
+  --shadow:0 8px 20px rgba(0,0,0,.42);
+  --soft:rgba(255,255,255,.06); --field:rgba(255,255,255,.07); --soft-on:rgba(255,255,255,.13);
+  --hover:#3d3440;
+  --veil:rgba(0,0,0,.6);
+  --badge-bg:rgba(0,0,0,.55);
+  --toast-bg:#ece1e3; --toast-ink:#241d24;
+  --on-deep:#241d24;
+  --fade:39,32,41;
+  --sep:rgba(255,255,255,.12);
+  --lift:0 26px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.07);
+  --glow:0 8px 18px rgba(0,0,0,.4);
+  --deep-glow:0 10px 22px rgba(0,0,0,.45);
+  --drop:0 10px 22px rgba(0,0,0,.45);
+}
+
+/* Шалфей */
+[data-theme="sage"]{
+  --bg1:#e6ece2; --bg2:#dae4d5; --bg3:#cedbc9; --around:#a8bda2;
+  --card:#f7faf4; --card-mute:rgba(247,250,244,.6);
+  --accent:#4e7a52; --deep:#3b6141; --warm:#6b8f5a; --on-accent:#f4faf1;
+  --ink:#3b4a3d; --ink2:#6d8070; --ink3:#5f7362; --ink4:#7d8f7f;
+  --line:#b6cbb0; --track:#e0e9dc; --caramel:#94a86b;
+  --tag-bg:#e2eddd; --nav:#41563f; --nav-off:#b6cbb0; --drawer:#f2f7ef;
+  --nav-ink:#f2f7ef;
+  --shadow:0 8px 20px rgba(58,84,58,.12);
+  --soft:rgba(250,253,248,.65); --field:rgba(250,253,248,.8); --soft-on:rgba(250,253,248,.95);
+  --hover:#d5e2d0;
+  --veil:rgba(40,60,42,.35);
+  --badge-bg:rgba(50,72,52,.62);
+  --toast-bg:#3b4a3d; --toast-ink:#eef5ea;
+  --on-deep:#eef5ea;
+  --fade:230,236,226;
+  --sep:rgba(255,255,255,.18);
+  --lift:0 26px 60px rgba(58,84,58,.32), inset 0 1px 0 rgba(255,255,255,.6);
+  --glow:0 8px 18px rgba(78,122,82,.32);
+  --deep-glow:0 10px 22px rgba(59,97,65,.3);
+  --drop:0 10px 22px rgba(40,60,42,.3);
+}
+
+/* Море */
+[data-theme="sea"]{
+  --bg1:#dfe8ef; --bg2:#d0dfea; --bg3:#c2d5e4; --around:#95b2c9;
+  --card:#f6fafd; --card-mute:rgba(246,250,253,.6);
+  --accent:#31688f; --deep:#245273; --warm:#3f87a6; --on-accent:#f2f9fd;
+  --ink:#36444f; --ink2:#657888; --ink3:#5a6c7a; --ink4:#77899a;
+  --line:#a9c4d7; --track:#dde8f0; --caramel:#6f9dbb;
+  --tag-bg:#dcebf5; --nav:#2f4d63; --nav-off:#a9c4d7; --drawer:#eef6fb;
+  --nav-ink:#eef6fb;
+  --shadow:0 8px 20px rgba(40,70,95,.13);
+  --soft:rgba(248,252,255,.65); --field:rgba(248,252,255,.8); --soft-on:rgba(248,252,255,.95);
+  --hover:#cfe0ec;
+  --veil:rgba(28,52,72,.35);
+  --badge-bg:rgba(38,64,86,.62);
+  --toast-bg:#36444f; --toast-ink:#eaf4fb;
+  --on-deep:#eaf4fb;
+  --fade:223,232,239;
+  --sep:rgba(255,255,255,.18);
+  --lift:0 26px 60px rgba(40,70,95,.32), inset 0 1px 0 rgba(255,255,255,.6);
+  --glow:0 8px 18px rgba(49,104,143,.32);
+  --deep-glow:0 10px 22px rgba(36,82,115,.3);
+  --drop:0 10px 22px rgba(28,52,72,.3);
+}
+
+/* Слива */
+[data-theme="plum"]{
+  --bg1:#ece1ee; --bg2:#e1d2e6; --bg3:#d6c4dd; --around:#ad91b8;
+  --card:#faf5fb; --card-mute:rgba(250,245,251,.6);
+  --accent:#7a4180; --deep:#653067; --warm:#96578c; --on-accent:#faf2fb;
+  --ink:#453a4c; --ink2:#7a6a82; --ink3:#6c5d75; --ink4:#8b7a92;
+  --line:#c9adcf; --track:#e7dced; --caramel:#b183a8;
+  --tag-bg:#eddcef; --nav:#54395a; --nav-off:#c9adcf; --drawer:#f5ecf6;
+  --nav-ink:#f5ecf6;
+  --shadow:0 8px 20px rgba(85,55,95,.13);
+  --soft:rgba(253,249,254,.65); --field:rgba(253,249,254,.8); --soft-on:rgba(253,249,254,.95);
+  --hover:#e0cfe4;
+  --veil:rgba(60,38,66,.35);
+  --badge-bg:rgba(78,50,84,.62);
+  --toast-bg:#453a4c; --toast-ink:#f3e9f5;
+  --on-deep:#f3e9f5;
+  --fade:236,225,238;
+  --sep:rgba(255,255,255,.18);
+  --lift:0 26px 60px rgba(85,55,95,.32), inset 0 1px 0 rgba(255,255,255,.6);
+  --glow:0 8px 18px rgba(122,65,128,.32);
+  --deep-glow:0 10px 22px rgba(101,48,103,.3);
+  --drop:0 10px 22px rgba(60,38,66,.3);
+}
+
+/* Песок */
+[data-theme="sand"]{
+  --bg1:#f0e9de; --bg2:#e8ded0; --bg3:#ded2c1; --around:#bcaa92;
+  --card:#fbf7f0; --card-mute:rgba(251,247,240,.6);
+  --accent:#8a6a3c; --deep:#6f5329; --warm:#a5824c; --on-accent:#fdf8f0;
+  --ink:#4a4238; --ink2:#7d7263; --ink3:#6f6556; --ink4:#8d8171;
+  --line:#cdbda4; --track:#e9e0d2; --caramel:#bb9463;
+  --tag-bg:#eee3d2; --nav:#5b4c38; --nav-off:#cdbda4; --drawer:#f6f0e6;
+  --nav-ink:#f6f0e6;
+  --shadow:0 8px 20px rgba(95,80,58,.13);
+  --soft:rgba(253,250,245,.65); --field:rgba(253,250,245,.8); --soft-on:rgba(253,250,245,.95);
+  --hover:#e2d6c3;
+  --veil:rgba(66,55,40,.35);
+  --badge-bg:rgba(84,70,52,.62);
+  --toast-bg:#4a4238; --toast-ink:#f5eee2;
+  --on-deep:#f5eee2;
+  --fade:240,233,222;
+  --sep:rgba(255,255,255,.18);
+  --lift:0 26px 60px rgba(95,80,58,.32), inset 0 1px 0 rgba(255,255,255,.6);
+  --glow:0 8px 18px rgba(138,106,60,.32);
+  --deep-glow:0 10px 22px rgba(111,83,41,.3);
+  --drop:0 10px 22px rgba(66,55,40,.3);
+}

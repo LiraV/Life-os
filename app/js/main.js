@@ -6,6 +6,7 @@ import { todayISO } from './dates.js';
 import { closeSheet, toast } from './ui.js';
 import { reconcile } from './traits.js';
 import { applyAppIcon } from './appicon.js';
+import { applyTheme } from './theme.js';
 
 import * as onboarding from './screens/onboarding.js';
 import * as day from './screens/day.js';
@@ -253,6 +254,10 @@ function syncDesk() {
 }
 DESK.addEventListener('change', () => { syncDesk(); renderNav(); render(); });
 
+// Тему ставим сразу при загрузке модуля, а не только в render: иначе первый
+// кадр успевает мелькнуть цветами рассвета поверх выбранной.
+applyTheme();
+
 let lastKey = '';
 export function render() {
   // Сначала — не удалось ли прочитать данные. Иначе человека встретит
@@ -260,6 +265,7 @@ export function render() {
   if (loadError) return renderRescue();
   // Режим ноутбука — до всего остального: онбординг тоже экран, и он оставался
   // телефонной колонкой посреди широкого окна.
+  applyTheme();
   syncDesk();
   syncTraits();
   renderStatus();

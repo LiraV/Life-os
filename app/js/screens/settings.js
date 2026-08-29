@@ -7,6 +7,7 @@ import { hasKey, maskKey, setKey, setModel, getModel, checkKey, DEFAULT_MODEL } 
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import { tipsOn, tipsReset, tipsDisable } from '../tips.js';
 import { APP_ICONS, iconKey, setAppIcon, iconById } from '../appicon.js';
+import { THEMES, themeKey, setTheme, themeById } from '../theme.js';
 
 export function render() {
   const size = (() => {
@@ -83,8 +84,19 @@ export function render() {
     </div>
 
     <div class="card">
+      <div class="caps">Тема</div>
+      <div class="icon-grid themes">
+        ${THEMES.map(t => raw(h`<button class="icon-pick ${t.key === themeKey() ? 'on' : ''}" data-act="theme" data-id="${t.key}">
+          <span class="theme-dot" style="background:linear-gradient(135deg, ${t.dot[0]} 50%, ${t.dot[1]} 50%)"></span>
+          <span class="ink">${t.name}</span>
+          <span class="lab">${t.note}</span></button>`))}
+      </div>
+      <div class="lab">Меняется сразу и запоминается на этом устройстве.</div>
+    </div>
+
+    <div class="card">
       <div class="caps">Иконка приложения</div>
-      <div class="icon-grid">
+      <div class="icon-grid apps">
         ${APP_ICONS.map(i => raw(h`<button class="icon-pick ${i.key === iconKey() ? 'on' : ''}" data-act="icon" data-id="${i.key}">
           <img src="icons/${i.key}-192.png" alt="${i.name}" width="64" height="64" loading="lazy">
           <span class="ink">${i.name}</span>
@@ -111,6 +123,11 @@ export function render() {
 }
 
 export const actions = {
+  theme: v => {
+    if (!v.id || v.id === themeKey()) return;
+    setTheme(v.id);
+    toast(`Тема · ${themeById(v.id).name}`);
+  },
   icon: v => {
     const key = v.id;
     if (!key || key === iconKey()) return;
