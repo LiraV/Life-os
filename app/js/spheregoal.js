@@ -40,7 +40,10 @@ export function sphereGoalSheet(sphere) {
     const hz = HZ.filter(x => src.horizons.includes(x.value));
     return (refs.length ? field.select('ref', `Что именно · ${src.name.toLowerCase()}`, refs, refs[0].value) : '')
       + (hz.length > 1 ? field.opts('horizon', 'За какой срок', hz, 'year')
-        : field.note(`Считается за ${hz[0]?.label.toLowerCase() || 'год'} — другого отрезка у этих данных нет.`));
+        : field.note(`Считается за ${hz[0]?.label.toLowerCase() || 'год'} — другого отрезка у этих данных нет.`))
+      // У «за всё время» срок означает не окно счёта, а когда хочется дойти.
+      // Без этой строки квартал у рекорда читался бы как «рекорд за квартал».
+      + (src.lifetime ? field.note('Это счёт за всё время: рекорд не обнуляется в начале срока. Срок здесь — когда ты хочешь дойти.') : '');
   };
   const wrap = openSheet({
     title: 'Цель отсюда',

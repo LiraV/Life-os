@@ -76,6 +76,8 @@ function weekView() {
         <div class="lab">Сверху то, что просело. Это не приговор и не задача — просто видно, куда смотреть.</div>
       </div>`) : ''}
 
+    ${raw(wordsCard(done))}
+
     ${done.length ? raw(h`
       <div class="card mute">
         <div class="caps">Прошлые недели</div>
@@ -84,6 +86,26 @@ function weekView() {
             <span class="ink grow">${weekLabel(wk)}</span>
             <span class="lab">${String(reviewScoreOf(wk)).replace('.', ',')} из 5 ›</span></button>`))}
       </div>`) : ''}`;
+}
+
+/**
+ * Написанное своими словами возвращается на экран. Иначе смысла писать нет:
+ * ответ уходил бы в хранилище и больше никогда не попадался на глаза.
+ */
+function wordsCard(done) {
+  const withWords = [...done].reverse().filter(wk => Object.keys(reviewOf(wk)?.open || {}).length).slice(0, 4);
+  if (!withWords.length) return '';
+  return h`
+    <div class="card">
+      <div class="caps">Своими словами</div>
+      ${withWords.map(wk => raw(h`
+        <div class="link-row" data-act="rev" data-w="${wk}" style="cursor:pointer; flex-direction:column; align-items:flex-start; gap:2px">
+          <span class="lab">${weekLabel(wk)}</span>
+          ${REVIEW_OPEN.filter(q => reviewOf(wk).open[q.key]).map(q => raw(h`
+            <span class="ink"><i class="lab">${q.q.toLowerCase()}:</i> ${reviewOf(wk).open[q.key]}</span>`))}
+        </div>`))}
+      <div class="lab">Через месяц это читается интереснее, чем баллы.</div>
+    </div>`;
 }
 
 /** Анкета одной недели. Все вопросы необязательны: что не тронула — пусто. */
@@ -96,8 +118,9 @@ function reviewSheet(wk) {
       ...REVIEW_Q.map(q => field.opts(q.key, q.q,
         REVIEW_SCALE.map(v => ({ value: String(v), label: String(v) })), String(rec.scores?.[q.key] ?? ''))),
       field.note(`Шкала одинаковая у всех вопросов: 1 — «${REVIEW_ENDS[0]}», 5 — «${REVIEW_ENDS[1]}». Больше — лучше, поэтому баллы складываются в одно число.`),
+      '<div class="caps" style="margin-top:6px">Своими словами</div>',
       ...REVIEW_OPEN.map(q => field.area(q.key, q.q, rec.open?.[q.key] || '')),
-      field.note('Пустое поле — это пустое поле, а не ноль. Незаполненный вопрос не тянет средний балл вниз.'),
+      field.note('Эти три — без шкалы и без счёта: они никуда не считаются, их просто можно перечитать. Пустое поле — это пустое поле, а не ноль.'),
     ].join(''),
     primary: 'Сохранить',
     onSave: (v, close) => {

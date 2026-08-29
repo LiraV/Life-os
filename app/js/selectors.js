@@ -1422,7 +1422,7 @@ export const SOURCES = {
     count: (_ref, _r, period) => countriesInYear(Number(period.slice(0, 4))).length,
   },
   countriesEver: {
-    sphere: 'trips', name: 'Стран за жизнь', unit: 'стран', horizons: ['year'], lifetime: true,
+    sphere: 'trips', name: 'Стран за жизнь', unit: 'стран', horizons: ['year', 'quarter', 'month'], lifetime: true,
     count: () => countriesEver().length,
   },
   posts: {
@@ -1434,7 +1434,7 @@ export const SOURCES = {
   subs: {
     // Не за период, а «сколько сейчас»: подписчики — это уровень, а не
     // накопление за месяц. Поэтому lifetime, как страны за всю жизнь.
-    sphere: 'blog', name: 'Подписчиков всего', unit: 'подписчиков', horizons: ['year'], lifetime: true,
+    sphere: 'blog', name: 'Подписчиков всего', unit: 'подписчиков', horizons: ['year', 'quarter', 'month'], lifetime: true,
     ref: () => [{ value: '', label: 'везде' }, ...BLOG_FEEDS.map(f => ({ value: f.key, label: f.name }))],
     refName: id => BLOG_FEEDS.find(f => f.key === id)?.name || '',
     count: ref => subsNow(ref) || 0,
@@ -1453,7 +1453,7 @@ export const SOURCES = {
   },
   viewsTop: {
     // Рекорд, а не сумма: «хочу пост на 10 000» — это про один пост.
-    sphere: 'blog', name: 'Лучший пост по просмотрам', unit: 'просмотров', horizons: ['year'], lifetime: true,
+    sphere: 'blog', name: 'Лучший пост по просмотрам', unit: 'просмотров', horizons: ['year', 'quarter', 'month'], lifetime: true,
     count: () => viewsRecordValue(),
   },
   workouts: {
@@ -1464,7 +1464,7 @@ export const SOURCES = {
     // Не «сколько раз», а «до какого результата»: планка на 3 минуты, первое
     // подтягивание, сантиметры до шпагата. Единица и направление берутся
     // у самого упражнения — у шпагата «лучше» значит меньше.
-    sphere: 'sport', name: 'Рекорд в упражнении', unit: '', horizons: ['year'], lifetime: true,
+    sphere: 'sport', name: 'Рекорд в упражнении', unit: '', horizons: ['year', 'quarter', 'month'], lifetime: true,
     ref: () => S.sport.exercises.map(e => ({ value: e.id, label: e.name })),
     refName: id => exerciseById(id)?.name || '',
     unitOf: id => exerciseById(id)?.unit || '',
@@ -1557,7 +1557,7 @@ export const SOURCES = {
   bizMetric: {
     // Показатель продукта — уровень, а не накопление за месяц: «дойти до
     // ста пользователей». Поэтому за всё время, как рекорд в упражнении.
-    sphere: 'biz', name: 'Показатель проекта', unit: '', horizons: ['year'], lifetime: true,
+    sphere: 'biz', name: 'Показатель проекта', unit: '', horizons: ['year', 'quarter', 'month'], lifetime: true,
     ref: () => bizMetricRefs(),
     refName: id => bizMetricRefs().find(x => x.value === id)?.label || '',
     unitOf: id => {
@@ -1628,7 +1628,9 @@ export function autoCount(goal) {
   return src.count(goal.src.ref || '', periodRange(goal.horizon, goal.period), goal.period, goal);
 }
 
-/** Подпись «откуда число» — чтобы автоматика не выглядела магией. */
+/** Подпись «откуда число» — чтобы автоматика не выглядела магией.
+ *  У целей «за всё время» срок — это не окно счёта, а когда хочется дойти:
+ *  рекорд не сбрасывается в начале квартала, поэтому так и подписано. */
 export function autoLabel(goal) {
   const src = SOURCES[goal?.src?.kind];
   if (!src) return '';
