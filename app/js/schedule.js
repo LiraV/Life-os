@@ -27,13 +27,13 @@ export const scheduleBlock = (kind, refId) => {
   const list = schedulesOf(kind, refId);
   return h`
     <div class="row between"><div class="caps">Расписание</div>
-      <button class="q-edit" data-act="schedadd" data-k="${kind}" data-id="${refId}">+ день</button></div>
+      <span class="lab"><span data-act="schedadd" data-k="${kind}" data-id="${refId}" style="cursor:pointer">+ по дням</span>${raw(' · ')}<span data-act="schedonce" data-k="${kind}" data-id="${refId}" style="cursor:pointer">+ разово</span></span></div>
     ${list.length ? list.map(sc => raw(h`
       <button class="link-row" data-act="schededit" data-k="${kind}" data-id="${refId}" data-s="${sc.id}">
         <span class="lab grow ellip">${sc.off ? '⏸ ' : ''}${scheduleLabel(sc)}</span>
         <span class="lab">${sc.place || 'изменить'} ›</span>
       </button>`))
-      : raw('<div class="lab">Пусто — и это нормально: без расписания просто ничего не появляется на дне само.</div>')}
+      : raw('<div class="lab">Пусто — и это нормально: без расписания просто ничего не появляется на дне само. «По дням» — это правило на каждую неделю, «разово» — одно занятие на конкретный день.</div>')}
     ${list.length ? raw(h`<div class="lab">По расписанию в этом месяце — ${monthTotal(list)}.</div>`) : ''}`;
 };
 
@@ -54,14 +54,27 @@ const dayBoxes = days => h`
     </div>
   </div>`;
 
-/** Одно правило: дни, время, длительность, срок. */
-export function ruleSheet(kind, refId, rule) {
+/**
+ * Одно правило: дни, время, длительность, срок. Либо разовое занятие — тогда
+ * вместо дней недели один день. Форма одна: у разового просто нет того, чему
+ * там взяться неоткуда, — повторения и срока «по какой день».
+ */
+export function ruleSheet(kind, refId, rule, once = false) {
   const isNew = !rule;
-  const sc = rule || { id: uid(), kind, refId, days: [], time: '', dur: 60, every: 1, from: '', to: '', place: '', note: '', off: false };
+  const sc = rule || { id: uid(), kind, refId, days: [], time: '', dur: 60, every: 1, from: '', to: '', place: '', note: '', off: false,
+    ...(once ? { date: todayISO() } : {}) };
+  const one = !!sc.date;
   openSheet({
-    title: isNew ? 'Когда это бывает' : scheduleLabel(sc),
+    title: isNew ? (one ? 'Разовое занятие' : 'Когда это бывает') : scheduleLabel(sc),
     sub: scheduleTitle(sc),
-    body: [
+    body: one ? [
+      field.date('date', 'Какого числа', sc.date || todayISO()),
+      field.time('time', 'Во сколько', sc.time || ''),
+      field.number('dur', 'Сколько длится', sc.dur || '', { min: 0, suffix: 'мин' }),
+      field.text('place', 'Где', sc.place || '', 'адрес, кабинет, ссылка'),
+      `<label class="row tight" style="font-size:13px"><input type="checkbox" name="off" ${sc.off ? 'checked' : ''}> Пауза — не показывать на дне</label>`,
+      field.note('Разовое занятие появится только в этот день. Правило на каждую неделю заводится кнопкой «+ по дням».'),
+    ].join('') : [
       dayBoxes(sc.days || []),
       field.time('time', 'Во сколько', sc.time || ''),
       field.number('dur', 'Сколько длится', sc.dur || '', { min: 0, suffix: 'мин' }),
@@ -74,10 +87,15 @@ export function ruleSheet(kind, refId, rule) {
     ].join(''),
     primary: isNew ? 'Добавить' : 'Сохранить',
     onSave: (v, close) => {
-      const days = DOW.map((_, i) => (v['d' + i] ? i : -1)).filter(i => i >= 0);
-      if (!days.length) return toast('Выбери хотя бы один день');
+      const days = one ? [] : DOW.map((_, i) => (v['d' + i] ? i : -1)).filter(i => i >= 0);
+      if (one && !v.date) return toast('Нужен день');
+      if (!one && !days.length) return toast('Выбери хотя бы один день');
       update(s => {
-        const next = {
+        const next = one ? {
+          ...sc, date: v.date, days: [], every: 1, from: '', to: '',
+          time: v.time || '', dur: Math.max(0, Number(v.dur) || 0),
+          place: (v.place || '').trim(), off: !!v.off,
+        } : {
           ...sc, days, time: v.time || '', dur: Math.max(0, Number(v.dur) || 0),
           every: Number(v.every) === 2 ? 2 : 1, from: v.from || '', to: v.to || '',
           place: (v.place || '').trim(), off: !!v.off,
@@ -138,6 +156,7 @@ export function scheduleMark(sc, date) {
 /** Общие действия — подмешиваются в таблицы действий сфер. */
 export const scheduleActions = {
   schedadd: v => ruleSheet(v.k, v.id, null),
+  schedonce: v => ruleSheet(v.k, v.id, null, true),
   schededit: v => ruleSheet(v.k, v.id, S.schedules.find(x => x.id === v.s)),
 };
 

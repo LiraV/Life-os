@@ -994,6 +994,9 @@ export const schedulesOf = (kind, refId) => schedules().filter(sc => sc.kind ===
 /** Попадает ли правило на эту дату: день недели, срок и чётность недели. */
 export function scheduleHits(sc, date) {
   if (sc.off) return false;
+  // Разовое занятие: не правило, а один назначенный день. Такое бывает чаще,
+  // чем кажется, — вокал на неделе переносят, врач принимает во вторник.
+  if (sc.date) return sc.date === date;
   if (!sc.days?.length) return false;
   if (!sc.days.includes(dowIndex(date))) return false;
   if (sc.from && date < sc.from) return false;
@@ -1056,9 +1059,10 @@ export const scheduleShiftedOn = date => schedules()
 
 /** «пн, чт · 19:30 · 1 ч» — как правило читается одной строкой. */
 export function scheduleLabel(sc) {
-  const days = (sc.days || []).slice().sort((a, b) => a - b).map(d => DOW[d].toLowerCase()).join(', ');
+  const days = sc.date ? dayShort(sc.date)
+    : (sc.days || []).slice().sort((a, b) => a - b).map(d => DOW[d].toLowerCase()).join(', ');
   const parts = [days];
-  if (Number(sc.every) === 2) parts.push('раз в две недели');
+  if (!sc.date && Number(sc.every) === 2) parts.push('раз в две недели');
   if (sc.time) parts.push(sc.time);
   if (sc.dur) parts.push(sc.dur >= 60 ? `${Math.round(sc.dur / 60 * 10) / 10} ч` : `${sc.dur} мин`);
   return parts.filter(Boolean).join(' · ');

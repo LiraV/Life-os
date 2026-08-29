@@ -400,6 +400,8 @@ function migrate(s) {
     every: Number(sc.every) === 2 ? 2 : 1,
     dur: Math.max(0, Number(sc.dur) || 0),
     off: !!sc.off,
+    // Разовое занятие: один день вместо правила по дням недели.
+    date: typeof sc.date === 'string' ? sc.date.slice(0, 10) : '',
     // v20 → v21: перенос и отмена одного занятия живут отдельно от правила.
     moves: sc.moves && typeof sc.moves === 'object' ? sc.moves : {},
   }));
