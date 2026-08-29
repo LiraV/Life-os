@@ -527,12 +527,32 @@ export function cycleInfo() {
   };
 }
 
+/** Мерки тела: три опорные — их знают формулы — плюс свои, какие захочет. */
+export const BODY_CORE = [
+  { key: 'weight', name: 'Вес', unit: 'кг' },   // ИМТ и суточный расход
+  { key: 'waist', name: 'Талия', unit: 'см' },  // порог ВОЗ
+  { key: 'hips', name: 'Бёдра', unit: 'см' },
+];
+export const bodyMetrics = () => S.health.metrics || [];
+/** Значение мерки в замере: опорные лежат полем, свои — в extra по id. */
+export const measureVal = (rec, key) =>
+  (BODY_CORE.some(c => c.key === key) ? rec?.[key] : rec?.extra?.[key]) ?? null;
+
 export function measureDeltas() {
   const list = [...S.health.measures].sort((a, b) => a.date.localeCompare(b.date));
   const cur = list[list.length - 1], prev = list[list.length - 2];
-  const d = (f) => (cur && prev && cur[f] != null && prev[f] != null) ? +(cur[f] - prev[f]).toFixed(1) : null;
-  return { cur, prev, list, delta: { weight: d('weight'), waist: d('waist'), hips: d('hips'), sleep: d('sleep') } };
+  const d = key => {
+    const a = measureVal(cur, key), b2 = measureVal(prev, key);
+    return cur && prev && a != null && b2 != null ? +(a - b2).toFixed(1) : null;
+  };
+  const delta = { sleep: d('sleep') };
+  [...BODY_CORE.map(c => c.key), ...bodyMetrics().map(m => m.id)].forEach(k => { delta[k] = d(k); });
+  return { cur, prev, list, delta };
 }
+
+/** Все мерки одним списком — в том порядке, в каком их показывать. */
+export const bodyRows = () => [...BODY_CORE.map(c => ({ ...c })),
+  ...bodyMetrics().map(m => ({ key: m.id, name: m.name, unit: m.unit }))];
 
 // ── энергия ─────────────────────────────────────────────────────
 export const energyDays = () => Object.keys(S.energy).filter(d => energyOn(d) != null).sort();

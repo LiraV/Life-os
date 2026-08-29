@@ -2,11 +2,11 @@
 // и с правкой. Всё остальное (день цикла, фаза, средняя длина, прогноз) считается
 // из этих отметок.
 
-import { S, update, uid, XP, addXp } from '../store.js';
+import { S, update, uid, XP, addXp, nameTaken, normName } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, build, energyNeed, waistRisk, age,
-  sleepAvg, sleepMarks } from '../selectors.js';
+  sleepAvg, sleepMarks, bodyRows, bodyMetrics, measureVal, BODY_CORE } from '../selectors.js';
 import { g } from '../gender.js';
 
 const sign = n => n == null ? '' : n > 0 ? `+${n}` : `${n}`;
@@ -43,20 +43,20 @@ function nowView() {
     <div class="card">
       <div class="row between"><div class="caps">Замеры тела</div>
         <span class="lab">${cur ? dayShort(cur.date) : 'нет данных'}</span></div>
-      ${cur ? raw(h`
-        <div class="row between"><span class="ink">Вес</span><span class="ink">${fmt(cur.weight, 'кг')} <i class="lab">${sign(m.delta.weight)}</i></span></div>
-        <div class="row between"><span class="ink">Талия</span><span class="ink">${fmt(cur.waist, 'см')} <i class="lab">${sign(m.delta.waist)}</i></span></div>
-        <div class="row between"><span class="ink">Бёдра</span><span class="ink">${fmt(cur.hips, 'см')} <i class="lab">${sign(m.delta.hips)}</i></span></div>
-`)
+      ${cur ? raw(h`${bodyRows().map(r => raw(h`
+        <div class="row between"><span class="ink">${r.name}</span>
+          <span class="ink">${fmt(measureVal(cur, r.key), r.unit)} <i class="lab">${sign(m.delta[r.key])}</i></span></div>`))}`)
       : raw('<div class="empty">Первый замер — точка отсчёта, а не оценка.</div>')}
       <button class="add" data-act="measure">+ Новый замер</button>
+      <button class="btn-ghost" data-act="metrics">Что мерить — свои мерки</button>
     </div>
 
     ${m.list.length > 1 ? raw(h`
       <div class="card mute">
         <div class="caps">История замеров</div>
         ${m.list.slice(-6).reverse().map(x => raw(h`<div class="row between"><span class="lab">${dayShort(x.date)}</span>
-          <span class="lab">${fmt(x.weight, 'кг')} · ${fmt(x.waist, 'см')} · сон ${fmt(x.sleep, 'ч')}</span>
+          <span class="lab">${bodyRows().map(r => (measureVal(x, r.key) != null ? `${measureVal(x, r.key)} ${r.unit}` : null))
+            .filter(Boolean).join(' · ') || '—'}</span>
           <button class="q-edit" data-act="mdel" data-id="${x.id}">×</button></div>`))}
       </div>`) : ''}
     <div style="height:4px"></div>`;
@@ -102,6 +102,11 @@ function cycleCard() {
     ${raw(symptomsCard())}
 `;
 }
+
+// Подсказки мерок: это предложение, а не список по умолчанию. Ни одна не
+// появится в форме, пока человек её не возьмёт.
+const SUGGEST = [['Грудь', 'см'], ['Бедро', 'см'], ['Рука', 'см'], ['Шея', 'см'],
+  ['Икра', 'см'], ['Плечи', 'см'], ['Под грудью', 'см'], ['Жир', '%']];
 
 /** Тип сложения. Строка доступна всегда: запястье ни от чего не зависит,
  *  и просить его после веса и роста незачем. */
@@ -395,19 +400,20 @@ export const actions = {
       sub: 'Пустые поля просто не запишутся',
       body: [
         field.date('date', 'Когда', todayISO()),
-        field.number('weight', 'Вес', '', { min: 0, suffix: 'кг' }),
-        field.number('waist', 'Талия', '', { min: 0, suffix: 'см' }),
-        field.number('hips', 'Бёдра', '', { min: 0, suffix: 'см' }),
-
-        last ? field.note(`Прошлый раз: ${fmt(last.weight, 'кг')} · ${fmt(last.waist, 'см')} · ${fmt(last.hips, 'см')}`) : '',
+        ...bodyRows().map(r => field.number(r.key, r.name, '', { min: 0, suffix: r.unit })),
+        last ? field.note(`Прошлый раз: ${bodyRows().map(r => (measureVal(last, r.key) != null ? `${r.name.toLowerCase()} ${measureVal(last, r.key)} ${r.unit}` : null)).filter(Boolean).join(' · ') || 'ничего не заполнено'}`) : '',
+        field.note('Мерок ровно столько, сколько ты завела: список правится кнопкой «Что мерить». Вес и талия нужны формулам — ИМТ и порогу ВОЗ, — поэтому они есть всегда.'),
       ].join(''),
       primary: 'Сохранить · +5 XP',
       onSave: (v, close) => {
-        const num = x => x === '' || x == null ? null : Number(x);
+        const num = x => x === '' || x == null || String(x).trim() === '' ? null : Number(x);
         // Сон в замерах больше не спрашиваем: он отмечается за каждую ночь
         // на «Дне». Старые значения в прошлых замерах остаются как были.
-        const r = { id: uid(), date: v.date || todayISO(), weight: num(v.weight), waist: num(v.waist), hips: num(v.hips) };
-        if ([r.weight, r.waist, r.hips].every(x => x == null)) return toast('Заполни хотя бы одно поле');
+        const r = { id: uid(), date: v.date || todayISO(), extra: {} };
+        BODY_CORE.forEach(c => { r[c.key] = num(v[c.key]); });
+        bodyMetrics().forEach(mm => { const x = num(v[mm.id]); if (x != null) r.extra[mm.id] = x; });
+        const any = BODY_CORE.some(c => r[c.key] != null) || Object.keys(r.extra).length;
+        if (!any) return toast('Заполни хотя бы одно поле');
         update(s => { s.health.measures.push(r); addXp(XP.measure); });
         close();
         toast('Замер сохранён');
@@ -416,4 +422,47 @@ export const actions = {
   },
 
   mdel: v => update(s => { s.health.measures = s.health.measures.filter(x => x.id !== v.id); }),
+
+  /**
+   * Свои мерки. Готового списка не навязываем — предлагаем подсказки, но
+   * ни одна не появится, пока её не возьмут. Удалённая мерка уходит из
+   * формы, а записанные ею числа остаются в прошлых замерах.
+   */
+  metrics: () => {
+    const draw = () => openSheet({
+      title: 'Что мерить',
+      sub: 'вес, талия и бёдра есть всегда — их знают формулы',
+      body: [
+        bodyMetrics().length ? bodyMetrics().map(mm => h`
+          <div class="link-row">
+            <span class="ink grow ellip">${mm.name}</span>
+            <span class="lab">${mm.unit}</span>
+            <button class="q-edit" data-act="mtdel" data-id="${mm.id}">×</button>
+          </div>`).join('')
+          : field.note('Пока ничего своего. Возьми из подсказок или впиши своё.'),
+        `<div class="pills">${SUGGEST.filter(x => !bodyMetrics().some(mm => normName(mm.name) === normName(x[0])))
+          .map(([n, u]) => `<button type="button" class="pill" data-act="mtadd" data-n="${n}" data-u="${u}">+ ${n}</button>`).join('')}</div>`,
+        `<div class="row"><input type="text" class="grow" data-field="mtnew" data-act-enter="mtown" placeholder="Своя мерка и Enter">
+          <button type="button" class="pill" data-act="mtown">+</button></div>`,
+        field.note('Удалишь мерку — она исчезнет из формы, но числа, записанные ею раньше, останутся в прошлых замерах.'),
+      ].join(''),
+      onAct: (name, data, close) => {
+        const add = (nm, unit) => {
+          const n = (nm || '').trim();
+          if (!n) return;
+          if (nameTaken(bodyMetrics(), n)) return toast(`«${n}» уже есть`);
+          update(s => { s.health.metrics.push({ id: uid(), name: n, unit: unit || 'см' }); });
+          close(); draw();
+        };
+        if (name === 'mtadd') return add(data.n, data.u);
+        if (name === 'mtown') return add(document.querySelector('.sheet [data-field="mtnew"]')?.value, 'см');
+        if (name === 'mtdel') {
+          update(s => { s.health.metrics = s.health.metrics.filter(x => x.id !== data.id); });
+          close(); draw();
+        }
+        return undefined;
+      },
+    });
+    draw();
+  },
 };

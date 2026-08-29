@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 44;
+const VERSION = 45;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -180,7 +180,10 @@ function blank() {
     roleOf: {},          // { ключ сферы: id роли } — к какой роли она относится
     habits: [],          // [{ id, name, target, step, unit, log: { date: количество }, link }]
                          // link: '' — своя запись, 'water' — число берётся из «Питания»
-    health: { days: {}, measures: [], symptoms: [] },   // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
+    health: { days: {}, measures: [], symptoms: [], metrics: [] },
+                         // days: { 'YYYY-MM-DD': true } — отмеченные дни месячных
+                         // metrics: свои мерки [{ id, name, unit }]; значения замера
+                         // лежат в его extra по id мерки
     lessons: [],                                         // полка обучения: курсы и практики
     sport: {                                             // спорт: тренировки и упражнения с рекордами
       workouts: [],                                      // { id, date, title, templateId, lessonId, goalId, done, sets: [], tags: [], note }
@@ -246,6 +249,16 @@ function migrate(s) {
   // v22 → v23: аватар профиля. Пусто — рисуем букву имени, как раньше.
   merged.user.avatar = typeof merged.user.avatar === 'string' ? merged.user.avatar : '';
   merged.user.wrist = Number(merged.user.wrist) || 0;
+  // v44 → v45: кроме веса, талии и бёдер человек меряет что хочет. Готовых
+  // мерок не навязываем — список пустой, пока сама не добавит.
+  merged.health.metrics = (Array.isArray(merged.health.metrics) ? merged.health.metrics : [])
+    .filter(m => m && m.name).map(m => ({ id: m.id || uid(), name: String(m.name).trim(), unit: String(m.unit || 'см').trim() }));
+  merged.health.measures = (Array.isArray(merged.health.measures) ? merged.health.measures : []).map(r => ({
+    ...r,
+    extra: r.extra && typeof r.extra === 'object'
+      ? Object.fromEntries(Object.entries(r.extra).map(([k, v]) => [k, Number(v)]).filter(([, v]) => Number.isFinite(v)))
+      : {},
+  }));
   // v42 → v43: темп перестал выводиться из ползунка «Активность» — тот про
   // движение, а не про то, рывками ты работаешь или ровно. Прежним данным
   // ставим то, что человек уже видел на полке черт, а не пустоту. Делаем это
