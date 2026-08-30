@@ -243,7 +243,7 @@ function blank() {
                          //   marks: [{id,metricId,date,value}] }
     },
     free: {              // фриланс: заказы, площадки, услуги и шаги выхода
-      orders: [],        // { id, title, place, kind, price, fee, stage, due, paidAt, link, note, movedAt }
+      orders: [],        // { id, title, placeId, kind, price, cur, fee, stage, due, paidAt, link, note, movedAt }
       places: [],        // площадки: { id, name, fee } — комиссия в процентах
       services: [],      // что продаю: { id, name, price }
       steps: [],         // путь на фриланс: { id, text, done }
@@ -794,7 +794,10 @@ export function migrate(s) {
   merged.free = {
     orders: (Array.isArray(f0.orders) ? f0.orders : []).map(o => ({
       id: o.id || uid(), title: nm(o.title) || 'Заказ',
-      place: nm(o.place), kind: FREE_KINDS.includes(o.kind) ? o.kind : '',
+      // place — старое название площадки строкой; ниже оно превращается в
+      // ссылку на саму площадку, а здесь просто доносится в целости.
+      place: nm(o.place), placeId: nm(o.placeId),
+      kind: FREE_KINDS.includes(o.kind) ? o.kind : '',
       price: money(o.price), fee: Math.max(0, Math.min(100, Number(o.fee) || 0)),
       stage: SG.includes(o.stage) ? o.stage : 'talk',
       due: nm(o.due).slice(0, 10), paidAt: nm(o.paidAt).slice(0, 10),
@@ -911,6 +914,48 @@ export function migrate(s) {
     });
   });
 
+
+  // У суммы должна быть валюта. Сейчас она одна и подставляется сама — на
+  // экранах ничего не меняется, — но записана она у самой суммы, а не общей
+  // настройкой: иначе в день первой оплаты не в рублях все прошлые числа
+  // задним числом станут двусмысленными, и разобрать их будет уже нечем.
+  const CUR = 'RUB';
+  const withCur = rec => { if (!rec.cur) rec.cur = CUR; };
+  merged.budget.ops.forEach(withCur);
+  merged.budget.vaults.forEach(withCur);
+  merged.free.orders.forEach(withCur);
+  merged.free.services.forEach(withCur);
+  merged.lessons.forEach(withCur);
+
+  // Заказ ссылался на площадку её названием: переименуешь Kwork — и вся история
+  // заказов отвяжется. Переводим на имя площадки. Названия, которым площадки не
+  // нашлось, не выбрасываем — заводим площадку: заказ помнит, откуда он пришёл.
+  {
+    const places = merged.free.places;
+    const byName = new Map(places.map(pl => [normName(pl.name), pl]));
+    merged.free.orders.forEach(o => {
+      if (o.placeId || !o.place) { delete o.place; if (!o.placeId) o.placeId = ''; return; }
+      const key = normName(o.place);
+      let pl = byName.get(key);
+      if (!pl) {
+        pl = { id: uid(), name: String(o.place).trim(), fee: Number(o.fee) || 0 };
+        places.push(pl);
+        byName.set(key, pl);
+      }
+      o.placeId = pl.id;
+      delete o.place;
+    });
+  }
+
+  // Ссылка на модуль занятия и на показатель проекта была склеена из двух имён
+  // через двоеточие — «занятие:модуль». У модуля и у показателя есть своё имя,
+  // уникальное на всё приложение, и одного достаточно: склеенная ссылка ни в
+  // какую таблицу не ложится. Берём вторую половину — это и есть своё имя.
+  merged.goals.forEach(g => {
+    if (!g.src || !['courseModule', 'bizMetric'].includes(g.src.kind)) return;
+    const ref = String(g.src.ref || '');
+    if (ref.includes(':')) g.src.ref = ref.split(':')[1] || '';
+  });
 
   // Учёт записей заводим один раз, честно: место в списке мы знаем точно, а
   // время появления — только если у записи есть своя дата. Выдумывать «создано

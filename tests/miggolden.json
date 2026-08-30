@@ -315,6 +315,7 @@
      "id": "id28",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -323,6 +324,7 @@
      "id": "id29",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -331,6 +333,7 @@
      "id": "id30",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -795,6 +798,7 @@
      "id": "id28",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -803,6 +807,7 @@
      "id": "id29",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -811,6 +816,7 @@
      "id": "id30",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -1275,6 +1281,7 @@
      "id": "id28",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -1283,6 +1290,7 @@
      "id": "id29",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -1291,6 +1299,7 @@
      "id": "id30",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -1755,6 +1764,7 @@
      "id": "id28",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -1763,6 +1773,7 @@
      "id": "id29",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -1771,6 +1782,7 @@
      "id": "id30",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -2336,6 +2348,7 @@
      "id": "id36",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -2344,6 +2357,7 @@
      "id": "id37",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -2352,6 +2366,7 @@
      "id": "id38",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -2431,7 +2446,7 @@
     {
      "id": "id46",
      "title": "Заказ",
-     "place": "",
+     "placeId": "",
      "kind": "",
      "price": 0,
      "fee": 100,
@@ -2441,6 +2456,7 @@
      "link": "",
      "note": "",
      "movedAt": "",
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -2848,6 +2864,7 @@
      "id": "id28",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -2856,6 +2873,7 @@
      "id": "id29",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -2864,6 +2882,7 @@
      "id": "id30",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -3339,6 +3358,7 @@
      "id": "id28",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -3347,6 +3367,7 @@
      "id": "id29",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -3355,6 +3376,7 @@
      "id": "id30",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -3765,6 +3787,7 @@
      "id": "id16",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -3773,6 +3796,7 @@
      "id": "id17",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -3781,6 +3805,7 @@
      "id": "id18",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -4257,6 +4282,7 @@
      "id": "id28",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -4265,6 +4291,7 @@
      "id": "id29",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -4273,6 +4300,7 @@
      "id": "id30",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -4737,6 +4765,7 @@
      "id": "id28",
      "name": "Накопительный",
      "start": 0,
+     "cur": "RUB",
      "order": 0,
      "createdAt": "",
      "updatedAt": ""
@@ -4745,6 +4774,7 @@
      "id": "id29",
      "name": "Сейв 1",
      "start": 0,
+     "cur": "RUB",
      "order": 1,
      "createdAt": "",
      "updatedAt": ""
@@ -4753,6 +4783,7 @@
      "id": "id30",
      "name": "Сейв 2",
      "start": 0,
+     "cur": "RUB",
      "order": 2,
      "createdAt": "",
      "updatedAt": ""
@@ -5127,6 +5158,7 @@
      "kind": "income",
      "sum": 500,
      "date": "2026-08-01",
+     "cur": "RUB",
      "order": 0,
      "createdAt": "когда-то",
      "updatedAt": ""
@@ -5217,6 +5249,637 @@
     },
     {
      "id": "id18",
+     "name": "Кружок",
+     "order": 5,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "deleted": [],
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "склеенные ссылки и площадка по названию": {
+  "v": 52,
+  "onboarded": false,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "когда-то",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [
+   {
+    "id": "g1",
+    "title": "Пройти модуль",
+    "horizon": "year",
+    "period": "2026",
+    "target": 1,
+    "src": {
+     "kind": "courseModule",
+     "ref": "m1"
+    },
+    "intentId": "",
+    "slots": [],
+    "order": 0,
+    "createdAt": "",
+    "updatedAt": ""
+   },
+   {
+    "id": "g2",
+    "title": "Дойти до ста",
+    "horizon": "year",
+    "period": "2026",
+    "target": 100,
+    "src": {
+     "kind": "bizMetric",
+     "ref": "mt1"
+    },
+    "intentId": "",
+    "slots": [],
+    "order": 1,
+    "createdAt": "",
+    "updatedAt": ""
+   }
+  ],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [
+   {
+    "id": "l1",
+    "name": "Вёрстка",
+    "items": [
+     {
+      "id": "m1",
+      "title": "HTML",
+      "lessons": [
+       {
+        "id": "ls1",
+        "title": "Урок",
+        "done": true,
+        "order": 0,
+        "createdAt": "",
+        "updatedAt": ""
+       }
+      ],
+      "order": 0,
+      "createdAt": "",
+      "updatedAt": ""
+     }
+    ],
+    "kind": "practice",
+    "perMonth": 0,
+    "cost": 0,
+    "alsoSport": false,
+    "paused": false,
+    "log": {},
+    "cur": "RUB",
+    "order": 0,
+    "createdAt": "",
+    "updatedAt": ""
+   }
+  ],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down",
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id5",
+     "name": "Руки",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id7",
+     "name": "Ноги",
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id8",
+     "name": "Спина",
+     "order": 4,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id9",
+     "name": "Кардио",
+     "order": 5,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат",
+     "order": 6,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером",
+     "order": 7,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье",
+      "order": 0,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id13",
+      "name": "Буся",
+      "order": 1,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id14",
+      "name": "Подписки",
+      "order": 2,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id15",
+      "name": "Обучение",
+      "order": 3,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id16",
+      "name": "Спорт",
+      "order": 4,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id17",
+      "name": "Жильё",
+      "order": 5,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id18",
+      "name": "Еда",
+      "order": 6,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт",
+      "order": 7,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id20",
+      "name": "Одежда",
+      "order": 8,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id21",
+      "name": "Другое",
+      "order": 9,
+      "createdAt": "",
+      "updatedAt": ""
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца",
+      "order": 0,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id23",
+      "name": "Подработка",
+      "order": 1,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс",
+      "order": 2,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело",
+      "order": 3,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id26",
+      "name": "Работа",
+      "order": 4,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "id27",
+      "name": "Льготы",
+      "order": 5,
+      "createdAt": "",
+      "updatedAt": ""
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0,
+     "cur": "RUB",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0,
+     "cur": "RUB",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0,
+     "cur": "RUB",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "rules": [
+    {
+     "id": "id31",
+     "text": "Никакой Лавки",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id32",
+     "text": "По максимуму общественный транспорт",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id33",
+     "text": "Живу красиво только на выходных",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id34",
+     "text": "За неделю планировать, сколько тратить в какой день",
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id35",
+     "text": "Каждый день класть себе фиксированную сумму",
+     "order": 4,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id36",
+     "text": "Не брать в долг",
+     "order": 5,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id37",
+     "text": "Никакого такси",
+     "order": 6,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "start": 0,
+   "updatedAt": ""
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": [
+    {
+     "id": "pr1",
+     "name": "Life OS",
+     "kind": "",
+     "stage": "idea",
+     "link": "",
+     "launched": "",
+     "note": "",
+     "steps": [],
+     "metrics": [
+      {
+       "id": "mt1",
+       "name": "Люди",
+       "unit": "чел",
+       "order": 0,
+       "createdAt": "",
+       "updatedAt": ""
+      }
+     ],
+     "marks": [
+      {
+       "id": "mk1",
+       "metricId": "mt1",
+       "date": "2026-08-01",
+       "value": 20,
+       "order": 0,
+       "createdAt": "когда-то",
+       "updatedAt": ""
+      }
+     ],
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ]
+  },
+  "free": {
+   "orders": [
+    {
+     "id": "o1",
+     "title": "Лендинг",
+     "placeId": "id38",
+     "kind": "",
+     "price": 5000,
+     "fee": 20,
+     "stage": "paid",
+     "due": "",
+     "paidAt": "2026-08-01",
+     "link": "",
+     "note": "",
+     "movedAt": "",
+     "cur": "RUB",
+     "order": 0,
+     "createdAt": "когда-то",
+     "updatedAt": ""
+    },
+    {
+     "id": "o2",
+     "title": "Правки",
+     "placeId": "id38",
+     "kind": "",
+     "price": 1000,
+     "fee": 20,
+     "stage": "paid",
+     "due": "",
+     "paidAt": "2026-08-02",
+     "link": "",
+     "note": "",
+     "movedAt": "",
+     "cur": "RUB",
+     "order": 1,
+     "createdAt": "когда-то",
+     "updatedAt": ""
+    }
+   ],
+   "places": [
+    {
+     "id": "id38",
+     "name": "Кворк",
+     "fee": 20,
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id39",
+     "name": "Пост",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id40",
+     "name": "Карусель",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id41",
+     "name": "Рилс",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id42",
+     "name": "Сторис",
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id43",
+     "name": "Лонгрид",
+     "order": 4,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id44",
      "name": "Кружок",
      "order": 5,
      "createdAt": "",

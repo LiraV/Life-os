@@ -174,7 +174,7 @@ function opsView() {
               <div class="ink">${o.kind === 'save' ? 'В копилку' : catName(o.kind, o.catId)}</div>
               ${o.note ? raw(h`<div class="lab">${o.note}</div>`) : ''}
             </div>
-            <span class="ink" style="color:${o.kind === 'income' ? '#5a7a52' : 'var(--ink)'}">${o.kind === 'income' ? '+' : '−'}${money(Math.abs(o.sum))}</span>
+            <span class="ink" style="color:${o.kind === 'income' ? '#5a7a52' : 'var(--ink)'}">${o.kind === 'income' ? '+' : '−'}${money(Math.abs(o.sum), o.cur)}</span>
           </div>`))}
       </div>`))
     : raw('<div class="card dash"><div class="empty">За этот месяц операций нет.</div></div>')}`;

@@ -123,7 +123,8 @@ const calc = await p.evaluate(async y => {
   const m = await import('./app/js/selectors.js');
   const { S } = await import('./app/js/store.js');
   const pr2 = S.biz.projects[0];
-  const ref = `${pr2.id}:${pr2.metrics[0].id}`;
+  // У показателя теперь своё имя: имя проекта впереди не нужно.
+  const ref = pr2.metrics[0].id;
   return {
     srcs: m.sourcesOf('biz').map(x => x.key),
     launched: m.SOURCES.bizLaunched.count('', { from: `${y}-01-01`, to: `${y}-12-31` }),

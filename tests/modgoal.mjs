@@ -37,10 +37,10 @@ const calc = await p.evaluate(async () => {
   return {
     keys: m.sourcesOf('edu').map(x => x.key),
     refs: mod.ref().map(x => x.label),
-    html: mod.count('c1:m1'), css: mod.count('c1:m2'), prac: mod.count('c1:m3'),
-    sHtml: mod.suggest('c1:m1'), sCss: mod.suggest('c1:m2'),
+    html: mod.count('m1'), css: mod.count('m2'), prac: mod.count('m3'),
+    sHtml: mod.suggest('m1'), sCss: mod.suggest('m2'),
     course: all.count('c1'), sCourse: all.suggest('c1'),
-    name: mod.refName('c1:m1'),
+    name: mod.refName('m1'),
   };
 });
 console.log(' ', JSON.stringify(calc));
@@ -62,15 +62,15 @@ await p.selectOption('.sheet select[name="kind"]', 'courseModule'); await p.wait
 ok('уточнение — модули курса', /Вёрстка с нуля · HTML/.test(await p.locator('.sheet select[name="ref"]').innerText()));
 ok('поле «сколько» подставилось от модуля', await p.inputValue('.sheet input[name="target"]') === '4',
   await p.inputValue('.sheet input[name="target"]'));
-await p.selectOption('.sheet select[name="ref"]', 'c1:m2'); await p.waitForTimeout(400);
+await p.selectOption('.sheet select[name="ref"]', 'm2'); await p.waitForTimeout(400);
 ok('на другом модуле подсказка сменилась', await p.inputValue('.sheet input[name="target"]') === '1',
   await p.inputValue('.sheet input[name="target"]'));
-await p.selectOption('.sheet select[name="ref"]', 'c1:m1'); await p.waitForTimeout(400);
+await p.selectOption('.sheet select[name="ref"]', 'm1'); await p.waitForTimeout(400);
 await p.locator('[data-sheet="save"]').click(); await p.waitForTimeout(700);
 
 let s = await st();
 let g = s.goals.slice(-1)[0];
-ok('цель завелась на модуль', g.src.kind === 'courseModule' && g.src.ref === 'c1:m1', JSON.stringify(g.src));
+ok('цель завелась на модуль', g.src.kind === 'courseModule' && g.src.ref === 'm1', JSON.stringify(g.src));
 ok('цель — 2 из 4', await p.evaluate(async gg => (await import('./app/js/selectors.js')).autoCount(gg), g) === 2
   && g.target === 4, `${g.target}`);
 ok('в названии видно модуль', /Пройти модуль \(Вёрстка с нуля · HTML\)/.test(g.title), g.title);

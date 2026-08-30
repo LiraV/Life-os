@@ -55,7 +55,8 @@ await p.locator('[data-act="fromservice"]').first().click(); await p.waitForTime
 ok('шторка заказа заполнена из услуги', await p.inputValue('.sheet input[name="title"]') === 'Лендинг'
   && await p.inputValue('.sheet input[name="price"]') === '25000',
   await p.inputValue('.sheet input[name="title"]'));
-await p.selectOption('.sheet select[name="place"]', 'Кворк').catch(() => {});
+const kworkId = (await st()).free.places.find(x => x.name === 'Кворк').id;
+await p.selectOption('.sheet select[name="placeId"]', kworkId).catch(() => {});
 await p.locator('.sheet .opts[data-name="kind"] .opt', { hasText: 'Вёрстка' }).click(); await p.waitForTimeout(200);
 await p.fill('.sheet input[name="fee"]', '20');
 await p.fill('.sheet input[name="due"]', today);
@@ -83,14 +84,14 @@ ok('средний чек показан', /средний чек 25 000/.test(t
 ok('площадка показывает свой итог', /Кворк[\s\S]{0,40}25 000/.test(t), (t.match(/Кворк.{0,40}/) || [''])[0]);
 
 // ── 5. счёт напрямую
-const calc = await p.evaluate(async ([ym, y]) => {
+const calc = await p.evaluate(async ([ym, y, kw]) => {
   const m = await import('./app/js/selectors.js');
   return {
     gross: m.freeGross(`${ym}-01`, `${ym}-31`), net: m.freeNet(`${ym}-01`, `${ym}-31`),
-    kwork: m.freeGross(`${y}-01-01`, `${y}-12-31`, 'Кворк'), other: m.freeGross(`${y}-01-01`, `${y}-12-31`, 'FL.ru'),
+    kwork: m.freeGross(`${y}-01-01`, `${y}-12-31`, kw), other: m.freeGross(`${y}-01-01`, `${y}-12-31`, 'нет-такой'),
     srcs: m.sourcesOf('free').map(x => x.key),
   };
-}, [today.slice(0, 7), today.slice(0, 4)]);
+}, [today.slice(0, 7), today.slice(0, 4), kworkId]);
 ok('грязными 25000, чистыми 20000', calc.gross === 25000 && calc.net === 20000, JSON.stringify(calc));
 ok('по площадке считается своё', calc.kwork === 25000 && calc.other === 0);
 ok('в сфере три счёта для целей', ['freeOrders', 'freeMoney', 'freeNet'].every(k => calc.srcs.includes(k)), calc.srcs.join(', '));

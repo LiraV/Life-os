@@ -10,7 +10,15 @@ export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;'
  * трёх экранах, и на «Фрилансе» он не округлял: одна и та же сумма выглядела
  * то «1 500,5 ₽», то «1 501 ₽». Одна запись — одно написание.
  */
-export const money = n => `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ₽`;
+/**
+ * Знаки валют, которые умеем показывать. Рубль — по умолчанию: планер писался
+ * в рублях, и все прошлые суммы в них. Валюта хранится у самой суммы, а не
+ * настройкой на всё приложение: заказ с зарубежной площадки может прийти в
+ * долларах, а расходы при этом остаться в рублях.
+ */
+export const CURRENCIES = { RUB: '₽', USD: '$', EUR: '€', GEL: '₾', KZT: '₸', RSD: 'дин.' };
+export const money = (n, cur = 'RUB') =>
+  `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ${CURRENCIES[cur] || CURRENCIES.RUB}`;
 export const num = n => (Number(n) || 0).toLocaleString('ru-RU');
 
 export const plural = (n, one, few, many) => {

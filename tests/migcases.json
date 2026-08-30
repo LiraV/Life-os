@@ -1,27 +1,290 @@
 {
   "пусто": {},
-  "без версии": { "onboarded": true, "user": { "name": "Лера" } },
-  "версия из будущего": { "v": 999, "onboarded": true },
-  "кривые типы веток": { "goals": "строка", "habits": 42, "user": null, "spheres": [], "budget": 0, "ui": "нет", "sport": 7, "blog": "" },
-  "записи без полей": {
-    "goals": [{ "title": "Без id" }, null, "мусор"],
-    "habits": [{ "name": "Вода" }, {}],
-    "library": { "books": [{ "title": "Книга" }] },
-    "free": { "orders": [{ "title": "Заказ", "price": "1500,7", "fee": 900 }] },
-    "health": { "measures": [{ "date": "2026-01-01", "extra": { "a": "x", "b": "5" } }], "metrics": [{ "name": "" }, { "name": "Шея" }] }
+  "без версии": {
+    "onboarded": true,
+    "user": {
+      "name": "Лера"
+    }
   },
-  "старая копилка в сфере": { "v": 20, "spheres": { "money": { "vault": { "name": "Отпуск", "sum": 5000 } } } },
-  "старые идеи блога": { "v": 30, "spheres": { "blog": { "items": [{ "title": "Идея", "done": false }] } } },
-  "спорт до пилюль": { "v": 25, "sport": { "tags": [{ "id": "t1", "name": "Растяжка" }], "workouts": [{ "id": "w1", "date": "2026-01-05", "done": true }], "exercises": [] } },
-  "цели со ссылкой на упражнение": { "v": 35, "goals": [{ "id": "g1", "title": "Планка", "exerciseId": "e1", "horizon": "month", "period": "2026-01" }] },
-  "темп до отделения от активности": { "v": 40, "onboarded": true, "user": { "name": "Лера", "activity": 80 } },
+  "версия из будущего": {
+    "v": 999,
+    "onboarded": true
+  },
+  "кривые типы веток": {
+    "goals": "строка",
+    "habits": 42,
+    "user": null,
+    "spheres": [],
+    "budget": 0,
+    "ui": "нет",
+    "sport": 7,
+    "blog": ""
+  },
+  "записи без полей": {
+    "goals": [
+      {
+        "title": "Без id"
+      },
+      null,
+      "мусор"
+    ],
+    "habits": [
+      {
+        "name": "Вода"
+      },
+      {}
+    ],
+    "library": {
+      "books": [
+        {
+          "title": "Книга"
+        }
+      ]
+    },
+    "free": {
+      "orders": [
+        {
+          "title": "Заказ",
+          "price": "1500,7",
+          "fee": 900
+        }
+      ]
+    },
+    "health": {
+      "measures": [
+        {
+          "date": "2026-01-01",
+          "extra": {
+            "a": "x",
+            "b": "5"
+          }
+        }
+      ],
+      "metrics": [
+        {
+          "name": ""
+        },
+        {
+          "name": "Шея"
+        }
+      ]
+    }
+  },
+  "старая копилка в сфере": {
+    "v": 20,
+    "spheres": {
+      "money": {
+        "vault": {
+          "name": "Отпуск",
+          "sum": 5000
+        }
+      }
+    }
+  },
+  "старые идеи блога": {
+    "v": 30,
+    "spheres": {
+      "blog": {
+        "items": [
+          {
+            "title": "Идея",
+            "done": false
+          }
+        ]
+      }
+    }
+  },
+  "спорт до пилюль": {
+    "v": 25,
+    "sport": {
+      "tags": [
+        {
+          "id": "t1",
+          "name": "Растяжка"
+        }
+      ],
+      "workouts": [
+        {
+          "id": "w1",
+          "date": "2026-01-05",
+          "done": true
+        }
+      ],
+      "exercises": []
+    }
+  },
+  "цели со ссылкой на упражнение": {
+    "v": 35,
+    "goals": [
+      {
+        "id": "g1",
+        "title": "Планка",
+        "exerciseId": "e1",
+        "horizon": "month",
+        "period": "2026-01"
+      }
+    ]
+  },
+  "темп до отделения от активности": {
+    "v": 40,
+    "onboarded": true,
+    "user": {
+      "name": "Лера",
+      "activity": 80
+    }
+  },
   "богатое": {
-    "v": 45, "onboarded": true,
-    "user": { "name": "Лера", "sex": "f", "height": 170, "wrist": 15, "xp": 320 },
-    "goals": [{ "id": "g1", "title": "Цель", "horizon": "month", "period": "2026-08", "target": 5, "current": 2 }],
-    "budget": { "start": 1000, "ops": [{ "id": "o1", "kind": "income", "sum": 500, "date": "2026-08-01" }], "cats": { "income": [], "expense": [] } },
-    "blog": { "posts": [{ "id": "p1", "title": "Пост", "stage": "out", "day": "2026-08-01" }] },
-    "travel": { "visits": [{ "country": "Грузия", "year": 2025 }] },
-    "health": { "measures": [{ "date": "2026-08-01", "weight": 55 }] }
+    "v": 45,
+    "onboarded": true,
+    "user": {
+      "name": "Лера",
+      "sex": "f",
+      "height": 170,
+      "wrist": 15,
+      "xp": 320
+    },
+    "goals": [
+      {
+        "id": "g1",
+        "title": "Цель",
+        "horizon": "month",
+        "period": "2026-08",
+        "target": 5,
+        "current": 2
+      }
+    ],
+    "budget": {
+      "start": 1000,
+      "ops": [
+        {
+          "id": "o1",
+          "kind": "income",
+          "sum": 500,
+          "date": "2026-08-01"
+        }
+      ],
+      "cats": {
+        "income": [],
+        "expense": []
+      }
+    },
+    "blog": {
+      "posts": [
+        {
+          "id": "p1",
+          "title": "Пост",
+          "stage": "out",
+          "day": "2026-08-01"
+        }
+      ]
+    },
+    "travel": {
+      "visits": [
+        {
+          "country": "Грузия",
+          "year": 2025
+        }
+      ]
+    },
+    "health": {
+      "measures": [
+        {
+          "date": "2026-08-01",
+          "weight": 55
+        }
+      ]
+    }
+  },
+  "склеенные ссылки и площадка по названию": {
+    "v": 50,
+    "lessons": [
+      {
+        "id": "l1",
+        "name": "Вёрстка",
+        "items": [
+          {
+            "id": "m1",
+            "title": "HTML",
+            "lessons": [
+              {
+                "id": "ls1",
+                "title": "Урок",
+                "done": true
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "biz": {
+      "projects": [
+        {
+          "id": "pr1",
+          "name": "Life OS",
+          "metrics": [
+            {
+              "id": "mt1",
+              "name": "Люди",
+              "unit": "чел"
+            }
+          ],
+          "marks": [
+            {
+              "id": "mk1",
+              "metricId": "mt1",
+              "date": "2026-08-01",
+              "value": 20
+            }
+          ]
+        }
+      ]
+    },
+    "goals": [
+      {
+        "id": "g1",
+        "title": "Пройти модуль",
+        "horizon": "year",
+        "period": "2026",
+        "target": 1,
+        "src": {
+          "kind": "courseModule",
+          "ref": "l1:m1"
+        }
+      },
+      {
+        "id": "g2",
+        "title": "Дойти до ста",
+        "horizon": "year",
+        "period": "2026",
+        "target": 100,
+        "src": {
+          "kind": "bizMetric",
+          "ref": "pr1:mt1"
+        }
+      }
+    ],
+    "free": {
+      "orders": [
+        {
+          "id": "o1",
+          "title": "Лендинг",
+          "place": "Кворк",
+          "price": 5000,
+          "fee": 20,
+          "stage": "paid",
+          "paidAt": "2026-08-01"
+        },
+        {
+          "id": "o2",
+          "title": "Правки",
+          "place": "Кворк",
+          "price": 1000,
+          "fee": 20,
+          "stage": "paid",
+          "paidAt": "2026-08-02"
+        }
+      ],
+      "places": []
+    }
   }
 }

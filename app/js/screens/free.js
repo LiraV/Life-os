@@ -99,12 +99,15 @@ function orderRow(o, stage) {
     <div class="chk-row">
       <button class="pill" data-act="move" data-id="${o.id}" title="дальше: ${next.name}">${o.kind || '—'}</button>
       <span class="grow ellip" data-act="edit" data-id="${o.id}" style="cursor:pointer">${o.title}</span>
-      <span class="lab">${o.price ? money(o.price) : ''}${o.place ? ` · ${o.place}` : ''}</span>
+      <span class="lab">${o.price ? money(o.price, o.cur) : ''}${placeName(o.placeId) ? ` · ${placeName(o.placeId)}` : ''}</span>
       <button class="q-edit" data-act="edit" data-id="${o.id}">›</button>
     </div>`;
 }
 
 /** Площадки: что реально приносит заказы, а что только кажется. */
+/** Название площадки по её имени: заказ помнит площадку, а не строку. */
+const placeName = id => (S.free.places || []).find(x => x.id === id)?.name || '';
+
 function placesCard() {
   const list = freePlaceStats();
   return h`
@@ -129,7 +132,7 @@ function servicesCard() {
       <div class="row between"><div class="caps">Что продаю</div>
         <button class="q-edit" data-act="services">править ›</button></div>
       ${list.length ? raw(h`<div class="pills">${list.map(x => raw(h`
-        <button class="pill" data-act="fromservice" data-id="${x.id}">${x.name} · ${money(x.price)}</button>`))}</div>`)
+        <button class="pill" data-act="fromservice" data-id="${x.id}">${x.name} · ${money(x.price, x.cur)}</button>`))}</div>`)
         : raw('<div class="lab">Пусто. Лендинг, вёрстка макета, правки — с ценой, чтобы не считать её заново каждый раз.</div>')}
       ${list.length ? raw('<div class="lab">Тап по услуге заводит заказ с её названием и ценой.</div>') : ''}
     </div>`;
@@ -150,7 +153,7 @@ function funnelCard() {
 /** Заказ целиком. Комиссию подставляем от площадки, но она остаётся своей. */
 function orderSheet(id, preset) {
   const o = id ? freeOrders().find(x => x.id === id) : null;
-  const base = o || { title: preset?.name || '', place: '', kind: '', price: preset?.price || '', fee: 0,
+  const base = o || { title: preset?.name || '', placeId: '', kind: '', price: preset?.price || '', fee: 0,
     stage: 'talk', due: '', paidAt: '', link: '', note: '' };
   const places = freePlaces();
   openSheet({
@@ -160,7 +163,7 @@ function orderSheet(id, preset) {
       field.text('title', 'Что за заказ', base.title, 'лендинг для студии'),
       field.opts('kind', 'Что делаю', FREE_KINDS.map(k => ({ value: k, label: k })), base.kind || ''),
       places.length
-        ? field.select('place', 'Откуда', [{ value: '', label: 'не указано' }, ...places.map(x => ({ value: x.name, label: x.name }))], base.place || '')
+        ? field.select('placeId', 'Откуда', [{ value: '', label: 'не указано' }, ...places.map(x => ({ value: x.id, label: x.name }))], base.placeId || '')
         : field.note('Площадок пока нет — заведи их в карточке «Площадки», и заказ можно будет к ним привязать.'),
       field.number('price', 'Цена', base.price === '' ? '' : base.price, { min: 0, suffix: '₽' }),
       field.number('fee', 'Комиссия площадки', base.fee, { min: 0, max: 100, suffix: '%' }),
@@ -179,7 +182,7 @@ function orderSheet(id, preset) {
       const next = {
         title,
         kind: FREE_KINDS.includes(v.kind) ? v.kind : '',
-        place: (v.place || '').trim(),
+        placeId: (v.placeId || '').trim(),
         price: Math.max(0, Math.round(Number(v.price) || 0)),
         fee: Math.max(0, Math.min(100, Number(v.fee) || 0)),
         stage: FREE_STAGES.some(x => x.key === v.stage) ? v.stage : 'talk',

@@ -1438,6 +1438,20 @@ const customWith = kind => (S.customSpheres || [])
   .map(sp => ({ value: sp.key, label: sp.name }));
 const customName = key => (S.customSpheres || []).find(sp => sp.key === key)?.name || '';
 
+/**
+ * Модуль по его собственному имени. Раньше цель ссылалась на модуль строкой
+ * «занятие:модуль» — двумя именами через двоеточие. У модуля есть своё имя,
+ * уникальное на всё приложение, и одного достаточно: склеенная ссылка ни в
+ * какую таблицу не ложится и разъезжается при первом же переносе.
+ */
+export function moduleById(id) {
+  for (const lesson of liveLessons()) {
+    const module = (lesson.items || []).find(m => m.id === id);
+    if (module) return { lesson, module };
+  }
+  return null;
+}
+
 export const SOURCES = {
   books: {
     sphere: 'books', name: 'Прочитано книг', unit: 'книг', horizons: ['year', 'quarter', 'month'],
@@ -1521,23 +1535,16 @@ export const SOURCES = {
     // «Пройти модуль». Уроки внутри модуля дат не имеют, поэтому счёт за
     // всё время: срок у такой цели — когда хочется дойти, а не окно.
     sphere: 'edu', name: 'Пройти модуль', unit: 'уроков', horizons: ['year', 'quarter', 'month'], lifetime: true,
-    ref: () => liveLessons().flatMap(l => (l.items || []).map(m => ({ value: `${l.id}:${m.id}`, label: `${l.name} · ${m.title}` }))),
+    ref: () => liveLessons().flatMap(l => (l.items || []).map(m => ({ value: m.id, label: `${l.name} · ${m.title}` }))),
     refName: id => {
-      const [lid, mid] = String(id || '').split(':');
-      const l = liveLessons().find(x => x.id === lid);
-      const m = (l?.items || []).find(x => x.id === mid);
-      return l && m ? `${l.name} · ${m.title}` : '';
+      const found = moduleById(id);
+      return found ? `${found.lesson.name} · ${found.module.title}` : '';
     },
     // Сколько всего — подсказка для поля «сколько»: у модуля с уроками это
     // их число, у модуля без уроков — единица, он либо пройден, либо нет.
-    suggest: id => {
-      const [lid, mid] = String(id || '').split(':');
-      const m = (liveLessons().find(x => x.id === lid)?.items || []).find(x => x.id === mid);
-      return (m?.lessons || []).length || 1;
-    },
+    suggest: id => (moduleById(id)?.module.lessons || []).length || 1,
     count: ref => {
-      const [lid, mid] = String(ref || '').split(':');
-      const m = (liveLessons().find(x => x.id === lid)?.items || []).find(x => x.id === mid);
+      const m = moduleById(ref)?.module;
       if (!m) return 0;
       return (m.lessons || []).length ? m.lessons.filter(x => x.done).length : (m.done ? 1 : 0);
     },
@@ -1642,33 +1649,27 @@ export const SOURCES = {
     sphere: 'biz', name: 'Показатель проекта', unit: '', horizons: ['year', 'quarter', 'month'], lifetime: true,
     ref: () => bizMetricRefs(),
     refName: id => bizMetricRefs().find(x => x.value === id)?.label || '',
-    unitOf: id => {
-      const [pid, mid] = String(id || '').split(':');
-      return bizMetrics(bizById(pid)).find(m => m.id === mid)?.unit || '';
-    },
-    count: ref => {
-      const [pid, mid] = String(ref || '').split(':');
-      return bizBest(pid, mid);
-    },
+    unitOf: id => bizMetricById(id)?.metric.unit || '',
+    count: ref => bizBest(ref),
   },
   freeOrders: {
     sphere: 'free', name: 'Заказов оплачено', unit: 'заказов', horizons: ['year', 'quarter', 'month'],
-    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.name, label: x.name }))],
-    refName: id => id,
+    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.id, label: x.name }))],
+    refName: id => freePlaces().find(x => x.id === id)?.name || '',
     count: (ref, r) => freePaidIn(r.from, r.to, ref).length,
   },
   freeMoney: {
     sphere: 'free', name: 'Заработано на фрилансе', unit: '₽', horizons: ['year', 'quarter', 'month'],
-    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.name, label: x.name }))],
-    refName: id => id,
+    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.id, label: x.name }))],
+    refName: id => freePlaces().find(x => x.id === id)?.name || '',
     count: (ref, r) => freeGross(r.from, r.to, ref),
   },
   freeNet: {
     // Чистыми — то, что осталось после комиссии площадки. Кворк забирает
     // пятую часть, и цель «заработать N» без этого была бы обманом.
     sphere: 'free', name: 'Чистыми после комиссии', unit: '₽', horizons: ['year', 'quarter', 'month'],
-    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.name, label: x.name }))],
-    refName: id => id,
+    ref: () => [{ value: '', label: 'везде' }, ...freePlaces().map(x => ({ value: x.id, label: x.name }))],
+    refName: id => freePlaces().find(x => x.id === id)?.name || '',
     count: (ref, r) => freeNet(r.from, r.to, ref),
   },
   income: {
@@ -2053,14 +2054,28 @@ export function bizLast(pr, metricId) {
   const last = list[list.length - 1], prev = list[list.length - 2];
   return { value: last.value, date: last.date, delta: prev ? +(last.value - prev.value).toFixed(1) : null, n: list.length };
 }
+/**
+ * Показатель по его собственному имени. Как и модуль занятия, раньше он
+ * назывался парой «проект:показатель» через двоеточие; своего имени
+ * показателю хватает, а склеенная ссылка ни в какую таблицу не ложится.
+ */
+export function bizMetricById(id) {
+  for (const project of bizProjects()) {
+    const metric = bizMetrics(project).find(m => m.id === id);
+    if (metric) return { project, metric };
+  }
+  return null;
+}
+
 /** Лучшее значение показателя за всё время — по нему ставится цель. */
-export function bizBest(projectId, metricId) {
-  const list = bizMarks(bizById(projectId), metricId).map(m => m.value);
+export function bizBest(metricId) {
+  const found = bizMetricById(metricId);
+  const list = found ? bizMarks(found.project, metricId).map(m => m.value) : [];
   return list.length ? Math.max(...list) : 0;
 }
 /** Пары «проект · показатель» для выбора в цели. */
 export const bizMetricRefs = () => bizProjects().flatMap(pr =>
-  bizMetrics(pr).map(m => ({ value: `${pr.id}:${m.id}`, label: `${pr.name} · ${m.name}` })));
+  bizMetrics(pr).map(m => ({ value: m.id, label: `${pr.name} · ${m.name}` })));
 
 // ── фриланс ─────────────────────────────────────────────────────
 // Деньги считаются от оплаченных заказов и только по дню оплаты: «сдан» —
@@ -2075,7 +2090,7 @@ export const freeServices = () => S.free?.services || [];
 export const freeSteps = () => S.free?.steps || [];
 
 export const freePaid = (place = '') => freeOrders()
-  .filter(o => isPaid(o) && o.paidAt && (!place || o.place === place))
+  .filter(o => isPaid(o) && o.paidAt && (!place || o.placeId === place))
   .sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1));
 export const freePaidIn = (from, to, place = '') =>
   freePaid(place).filter(o => o.paidAt >= from && o.paidAt <= to);
@@ -2096,7 +2111,7 @@ export const freeDue = (within = 30) => freeLive()
 export function freePlaceStats() {
   const all = freePaid();
   return freePlaces().map(pl => {
-    const mine = all.filter(o => o.place === pl.name);
+    const mine = all.filter(o => o.placeId === pl.id);
     const gross = mine.reduce((a, o) => a + (Number(o.price) || 0), 0);
     return { ...pl, n: mine.length, gross, net: mine.reduce((a, o) => a + netOf(o), 0),
       avg: mine.length ? Math.round(gross / mine.length) : null };
