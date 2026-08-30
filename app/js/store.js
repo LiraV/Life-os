@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 50;
+const VERSION = 51;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -922,7 +922,27 @@ function load() {
   }
 }
 
-export const S = load();
+/**
+ * Открывая приложение, человек ждёт сегодняшний день, этот месяц и этот год.
+ * Где он листал в прошлый раз — это не данные, а место, на котором он тогда
+ * остановился: помнить его через сутки, а тем более через год, значит встречать
+ * его чужим днём. Внутри сеанса листание, конечно, сохраняется.
+ */
+function toNow(s) {
+  const t = todayISO();
+  const u = s.ui || (s.ui = {});
+  u.date = t;
+  u.weekAnchor = t;
+  u.habitAnchor = t;
+  u.monthAnchor = monthKey(t);
+  u.budMonth = monthKey(t);
+  u.year = yearOf(t);
+  u.trackYear = yearOf(t);
+  u.tripYear = yearOf(t);
+  return s;
+}
+
+export const S = toNow(load());
 
 const listeners = new Set();
 export const onChange = fn => { listeners.add(fn); return () => listeners.delete(fn); };
