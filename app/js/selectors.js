@@ -338,7 +338,9 @@ export const templates = () => S.sport.templates;
 export const templateById = id => templates().find(t => t.id === id);
 export const templateName = id => (templateById(id) || {}).name || '';
 
-export const workoutsOn = date => S.sport.workouts.filter(w => w.date === date);
+/** Тренировки дня: со временем — по времени, без него — следом, как есть. */
+export const workoutsOn = date => S.sport.workouts.filter(w => w.date === date)
+  .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
 
 // ── пилюли тренировок ───────────────────────────────────────────
 // Тренировка со временем меняется, а «пресс» остаётся прессом: считаем

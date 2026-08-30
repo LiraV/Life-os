@@ -5,7 +5,7 @@ import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, isWater, MEALS } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
-import { hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
+import { aiReady, hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
 import { proteinHint, fatHint, waterHint, carbRest, energyNeed, liveHabits, mealEntries, mealsOn, foodSums as sums } from '../selectors.js';
 
 const plural = (n, a, b, c) => {
@@ -76,7 +76,7 @@ export function render() {
 
     <button class="add" data-act="photo">📷 Определить по фото</button>
     <button class="add" data-act="describe">✎ Описать словами</button>
-    ${!hasKey() ? raw(h`<div class="lab" style="padding:0 4px">Оценка по фото и по описанию работает через OpenAI: добавь свой ключ в Настройках.</div>`) : ''}
+    ${!aiReady() ? raw(h`<div class="lab" style="padding:0 4px">Оценка по фото и по описанию работает через OpenAI: войди в облако или добавь свой ключ в Настройках.</div>`) : ''}
     <div style="height:4px"></div>`;
 }
 
@@ -320,7 +320,7 @@ export const actions = {
 
   /** Снимок уходит в OpenAI и не сохраняется — в хранилище остаются только числа. */
   photo: () => {
-    if (!hasKey()) return askForKey();
+    if (!aiReady()) return askForKey();
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -339,7 +339,7 @@ export const actions = {
 
   /** То же самое, но словами: когда фотографировать неудобно или уже съедено. */
   describe: () => {
-    if (!hasKey()) return askForKey();
+    if (!aiReady()) return askForKey();
     openSheet({
       title: 'Описать словами',
       sub: 'чем подробнее порция, тем точнее оценка',

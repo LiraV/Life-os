@@ -1,8 +1,19 @@
-// Работа с OpenAI напрямую из браузера: сервера у приложения нет.
+// Работа с OpenAI. Двумя путями, и первый лучше второго.
 //
-// Ключ хранится ОТДЕЛЬНО от состояния приложения и намеренно не попадает в
-// экспорт: иначе он уехал бы в файл резервной копии. В репозитории ключа нет
-// и быть не может — его вводит пользователь у себя на устройстве.
+// Если человек вошёл в облако, запрос идёт через его же функцию: ключ лежит
+// там, в браузер не попадает и один на все устройства. Вписать ключ в код
+// приложения нельзя в принципе — оно статическое, и всё, что лежит в его
+// файлах, браузер отдаёт любому посетителю.
+//
+// Если входа нет, остаётся прежний путь: ключ на устройстве, запрос напрямую.
+// Он хранится ОТДЕЛЬНО от состояния и намеренно не попадает ни в файл копии,
+// ни в облако: копию человек кому-нибудь перешлёт.
+
+import { CLOUD, cloudReady } from './cloud-config.js';
+import { signedIn, authHeader } from './cloud.js';
+
+/** Через посредника — когда есть облако и вход. Иначе напрямую по своему ключу. */
+export const viaCloud = () => cloudReady() && signedIn();
 
 const KEY_STORE = 'lifeos.openai.key';
 const MODEL_STORE = 'lifeos.openai.model';
@@ -32,6 +43,8 @@ const rememberModels = ids => {
 
 export const getKey = () => { try { return localStorage.getItem(KEY_STORE) || ''; } catch { return ''; } };
 export const hasKey = () => getKey().trim().length > 20;
+/** Готов ли ИИ работать: через облако или по своему ключу. */
+export const aiReady = () => viaCloud() || hasKey();
 export const getModel = () => { try { return localStorage.getItem(MODEL_STORE) || DEFAULT_MODEL; } catch { return DEFAULT_MODEL; } };
 
 export function setKey(key) {
@@ -64,13 +77,19 @@ function humanError(status, body) {
 }
 
 async function callOpenAI(path, init) {
-  if (!hasKey()) throw new Error('Ключ OpenAI не задан — добавь его в настройках');
+  if (!viaCloud() && !hasKey()) throw new Error('Ключ OpenAI не задан — добавь его в настройках');
   let res;
   try {
-    res = await fetch('https://api.openai.com/v1' + path, {
-      ...init,
-      headers: { Authorization: `Bearer ${getKey()}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
-    });
+    res = viaCloud()
+      ? await fetch(`${CLOUD.api}/ai`, {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, body: init?.body ? JSON.parse(init.body) : null }),
+      })
+      : await fetch('https://api.openai.com/v1' + path, {
+        ...init,
+        headers: { Authorization: `Bearer ${getKey()}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
+      });
   } catch {
     throw new Error('Нет связи с OpenAI — проверь интернет');
   }

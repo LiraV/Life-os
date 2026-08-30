@@ -38,14 +38,17 @@ await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);
 
 // ── источник и его свойства
 const info = await p.evaluate(async () => {
+  const exs = JSON.parse(localStorage.getItem('lifeos.state')).sport.exercises;
+  const exId = name => (exs.find(e => e.name === name) || {}).id;
   const m = await import('./app/js/selectors.js');
   const src = m.SOURCES.exercise;
   return {
     keys: m.sourcesOf('sport').map(x => x.key),
     refs: src.ref().map(x => x.label),
-    unitPlank: src.unitOf('ex1'), unitSplit: src.unitOf('ex3'),
-    dirPlank: src.dirOf('ex1'), dirSplit: src.dirOf('ex3'),
-    bestPlank: src.count('ex1', null, '', null), bestSplit: src.count('ex3', null, '', null),
+    // У заготовок имя выводится из названия, поэтому ищем по названию.
+    unitPlank: src.unitOf(exId('Планка')), unitSplit: src.unitOf(exId('Шпагат')),
+    dirPlank: src.dirOf(exId('Планка')), dirSplit: src.dirOf(exId('Шпагат')),
+    bestPlank: src.count(exId('Планка'), null, '', null), bestSplit: src.count(exId('Шпагат'), null, '', null),
   };
 });
 console.log(' ', JSON.stringify(info));
@@ -66,12 +69,13 @@ ok('уточнение — упражнения', /Планка/.test(await p.lo
 ok('срок у рекорда можно выбрать', await p.locator('.sheet .opts[data-name="horizon"] .opt').count() === 3,
   String(await p.locator('.sheet .opts[data-name="horizon"] .opt').count()));
 ok('и объяснено, что рекорд не обнуляется', /рекорд не обнуляется в начале срока/.test(await p.locator('.sheet').innerText()));
-await p.selectOption('.sheet select[name="ref"]', 'ex1'); await p.waitForTimeout(200);
+// Имя заготовки выводится из названия, поэтому выбираем по подписи.
+await p.selectOption('.sheet select[name="ref"]', { label: 'Планка' }); await p.waitForTimeout(200);
 await p.fill('.sheet input[name="target"]', '180');
 await p.locator('[data-sheet="save"]').click(); await p.waitForTimeout(700);
 
 let g = (await st()).goals.slice(-1)[0];
-ok('цель завелась на упражнение', g.src.kind === 'exercise' && g.src.ref === 'ex1', JSON.stringify(g.src));
+ok('цель завелась на упражнение', g.src.kind === 'exercise' && g.src.ref === (await p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')).sport.exercises.find(e => e.name === 'Планка').id)), JSON.stringify(g.src));
 ok('единица цели — секунды', g.unit === 'сек', g.unit);
 ok('точки отсчёта у цели «вверх» нет', g.src.from === undefined);
 let pr = await p.evaluate(async gg => {
@@ -84,12 +88,13 @@ ok('набрано 95 из 180', pr.cur === 95 && pr.pct === 53, JSON.stringify(
 await p.evaluate(() => { location.hash = '#/sport'; }); await p.waitForTimeout(600);
 await p.locator('[data-act="spheregoal"]').first().click(); await p.waitForTimeout(500);
 await p.selectOption('.sheet select[name="kind"]', 'exercise'); await p.waitForTimeout(350);
-await p.selectOption('.sheet select[name="ref"]', 'ex3'); await p.waitForTimeout(200);
+await p.selectOption('.sheet select[name="ref"]', { label: 'Шпагат' }); await p.waitForTimeout(200);
 await p.locator('.sheet .opts[data-name="horizon"] .opt[data-value="quarter"]').click(); await p.waitForTimeout(200);
 await p.fill('.sheet input[name="target"]', '0');
 await p.locator('[data-sheet="save"]').click(); await p.waitForTimeout(700);
 g = (await st()).goals.slice(-1)[0];
-ok('цель с нулём завелась', g && g.src.ref === 'ex3' && g.target === 0, JSON.stringify(g?.src) + ' target=' + g?.target);
+const splitId = await p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')).sport.exercises.find(e => e.name === 'Шпагат').id);
+ok('цель с нулём завелась', g && g.src.ref === splitId && g.target === 0, JSON.stringify(g?.src) + ' target=' + g?.target);
 ok('и встала на квартал', g.horizon === 'quarter' && /^\d{4}-Q\d$/.test(g.period), `${g.horizon} · ${g.period}`);
 ok('точка отсчёта записана', g.src.from === 12, String(g.src.from));
 ok('единица — сантиметры', g.unit === 'см');
@@ -103,8 +108,11 @@ ok('сейчас 12 см, пути пройдено 0 %', pr.cur === 12 && pr.pc
 // новый результат двигает цель «вниз»
 await p.evaluate(d => {
   const s = JSON.parse(localStorage.getItem('lifeos.state'));
+  // Имя упражнения-заготовки выведено из названия при переезде, поэтому
+  // новую отметку вешаем на то, что лежит сейчас, а не на прежнее имя.
+  const ex = s.sport.exercises.find(e => e.name === 'Шпагат').id;
   s.sport.workouts.push({ id: 'w4', date: d, title: 'Три', done: true, sets: [
-    { id: 's6', exerciseId: 'ex3', value: 3, reps: 1, done: true }], tags: [], note: '' });
+    { id: 's6', exerciseId: ex, value: 3, reps: 1, done: true }], tags: [], note: '' });
   localStorage.setItem('lifeos.state', JSON.stringify(s));
 }, iso(0));
 await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);
@@ -119,8 +127,9 @@ ok('стало 3 см — пройдено 75 %', pr.cur === 3 && pr.pct === 75,
 // достижение цели
 await p.evaluate(d => {
   const s = JSON.parse(localStorage.getItem('lifeos.state'));
+  const ex = s.sport.exercises.find(e => e.name === 'Шпагат').id;
   s.sport.workouts.push({ id: 'w5', date: d, title: 'Четыре', done: true, sets: [
-    { id: 's7', exerciseId: 'ex3', value: 0, reps: 1, done: true }], tags: [], note: '' });
+    { id: 's7', exerciseId: ex, value: 0, reps: 1, done: true }], tags: [], note: '' });
   localStorage.setItem('lifeos.state', JSON.stringify(s));
 }, iso(0));
 await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);

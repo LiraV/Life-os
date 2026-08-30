@@ -155,7 +155,7 @@ function tagsFrom(v, s) {
 
 export function workoutSheet(workout, date) {
   const isNew = !workout;
-  const w = workout || { id: uid(), date: date || todayISO(), title: '', templateId: '', lessonId: '', goalId: '', done: false, sets: [], note: '' };
+  const w = workout || { id: uid(), date: date || todayISO(), time: '', title: '', templateId: '', lessonId: '', goalId: '', done: false, sets: [], note: '' };
   const lessons = liveLessons().filter(l => l.kind === 'practice');
   const goals = liveGoals();
   openSheet({
@@ -169,6 +169,9 @@ export function workoutSheet(workout, date) {
       isNew && templates().length ? field.note('Состав подставится из шаблона, дальше правится как обычно.') : '',
       field.text('title', 'Название', w.title, 'например, «Зал А · ноги»'),
       field.date('date', 'Когда', w.date),
+      // Время необязательное: тренировка без часа — это «когда-нибудь сегодня»,
+      // и выдумывать ей час нельзя. Но если он есть, в дне она встанет на место.
+      field.time('time', 'Во сколько', w.time || ''),
       lessons.length
         ? field.select('lessonId', 'Занятие с полки', [{ value: '', label: 'не связано' }, ...lessons.map(l => ({ value: l.id, label: l.name }))], w.lessonId || '')
         : '',
@@ -189,7 +192,7 @@ export function workoutSheet(workout, date) {
         const next = {
           ...w, title: (v.title || '').trim() || templateName(v.templateId) || 'Тренировка',
           templateId: v.templateId || w.templateId || '',
-          date: v.date || w.date, lessonId: v.lessonId || '', goalId: v.goalId || '',
+          date: v.date || w.date, time: (v.time || '').trim(), lessonId: v.lessonId || '', goalId: v.goalId || '',
           note: (v.note || '').trim(), done: !!v.done, tags: tagsFrom(v, s),
         };
         // Шаблон подставляет состав один раз, при создании.

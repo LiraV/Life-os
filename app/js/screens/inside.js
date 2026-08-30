@@ -11,7 +11,7 @@ import { reviewOf, reviewWeeks, reviewScoreOf, reviewParts, mondayOf,
 import { PRACTICES, practiceById, practiceName, phaseAt, stepAt, cycleSecs } from '../mind.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 import { questSheet } from './day.js';
-import { hasKey, chatChronicler } from '../ai.js';
+import { aiReady, hasKey, chatChronicler } from '../ai.js';
 import { byId, nameOf } from '../traits.js';
 import { TESTS, testLength, scoreTest } from '../tests.js';
 import { REVIEW_Q, REVIEW_OPEN, REVIEW_SCALE, REVIEW_ENDS, reviewScore } from '../review.js';
@@ -157,7 +157,7 @@ const QUICK = [
 function chatView() {
   const log = S.chat.length ? S.chat : [{ who: 'ai', text: greeting() }];
   const busy = !!S.ui.chatBusy;
-  const online = hasKey();
+  const online = aiReady();
   return h`
     ${log.slice(-40).map(m => raw(m.who === 'ai' ? h`<div class="ai">${m.text}</div>` : h`<div class="me">${m.text}</div>`))}
     ${busy ? raw('<div class="ai typing">думаю…</div>') : ''}

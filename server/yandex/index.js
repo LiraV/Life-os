@@ -13,6 +13,7 @@
 const crypto = require('crypto');
 
 const BUCKET = process.env.BUCKET;
+const OPENAI = process.env.OPENAI_API;
 const KEY_ID = process.env.KEY_ID;
 const SECRET = process.env.SECRET;
 const HOST = 'storage.yandexcloud.net';
@@ -43,6 +44,28 @@ exports.handler = async (event) => {
     who = await whoIs(token);
   } catch (e) {
     return reply(401, { error: 'вход не подтвердился' });
+  }
+
+  // Второй адрес: посредник к OpenAI. Ключ живёт здесь, а не в браузере —
+  // приложение статическое, и всё, что попадает в его файлы, видит любой
+  // посетитель. Заодно ключ один на все устройства: вводить его нигде не надо.
+  const path = String(event.path || event.requestContext?.path || '/state');
+  if (path.endsWith('/ai')) {
+    if (!OPENAI) return reply(503, { error: 'ключ OpenAI не задан в функции' });
+    try {
+      const raw = event.isBase64Encoded
+        ? Buffer.from(event.body || '', 'base64').toString('utf8')
+        : (event.body || '{}');
+      const ask = JSON.parse(raw);
+      // Пускаем только к разговору и к списку моделей: посредник не должен
+      // становиться отмычкой ко всему счёту OpenAI.
+      const allowed = ['/chat/completions', '/models'];
+      if (!allowed.includes(ask.path)) return reply(400, { error: 'этот путь через посредника не ходит' });
+      const out = await toOpenAI(ask.path, ask.body || null);
+      return { statusCode: out.status, headers: { 'Content-Type': 'application/json', ...CORS }, body: out.text };
+    } catch (e) {
+      return reply(502, { error: String(e && e.message ? e.message : e) });
+    }
   }
 
   const key = `state/${who.id}.json`;
@@ -142,6 +165,29 @@ function s3(method, key, body = '') {
     });
     req.on('error', reject);
     if (method === 'PUT') req.write(body);
+    req.end();
+  });
+}
+
+/** Запрос к OpenAI от имени хозяина функции. Ответ отдаём как есть: приложение
+ *  уже умеет разбирать и ошибки OpenAI, и переводить их на человеческий. */
+function toOpenAI(path, body) {
+  const payload = body ? JSON.stringify(body) : null;
+  return new Promise((resolve, reject) => {
+    const req = require('https').request({
+      host: 'api.openai.com', path: `/v1${path}`, method: payload ? 'POST' : 'GET',
+      headers: {
+        Authorization: `Bearer ${OPENAI}`,
+        'Content-Type': 'application/json',
+        ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
+      },
+    }, (res) => {
+      let text = '';
+      res.on('data', (c) => { text += c; });
+      res.on('end', () => resolve({ status: res.statusCode, text }));
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
     req.end();
   });
 }

@@ -25,9 +25,14 @@ await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
 await p.waitForTimeout(900);
 const s = await p.evaluate(async () => (await import('./app/js/store.js')).S);
 console.log('1) пилюли:', s.sport.tags.map(t => t.name).join(', '));
-console.log('   переименовалась:', s.sport.tags.find(t => t.id === 'T1').name === 'Шпагат');
-console.log('   своя не тронута:', s.sport.tags.find(t => t.id === 'T9').name === 'Своя пилюля');
+// «Растяжка» стала «Шпагатом» — это заготовка, поэтому её имя записи теперь
+// выводится из названия и одинаково на всех устройствах. Проверяем по названию
+// и отдельно — что тренировка поехала за ней, а не осталась со старым именем.
+const splitId = s.sport.tags.find(t => t.name === 'Шпагат')?.id;
+console.log('   переименовалась:', !!splitId);
+console.log('   своя не тронута:', s.sport.tags.find(t => t.id === 'T9')?.name === 'Своя пилюля');
 console.log('   тренировка держит те же пилюли:', JSON.stringify(s.sport.workouts[0].tags));
+console.log('   и ссылка переехала:', s.sport.workouts[0].tags.includes(splitId));
 await p.evaluate(() => { location.hash = '#/tracker'; }); await p.waitForTimeout(600);
 console.log('2) в трекере:', (await p.locator('.tr tbody .tr-name').allInnerTexts()).join(' / '));
 console.log('ошибки:', errs.length ? errs : 'нет');

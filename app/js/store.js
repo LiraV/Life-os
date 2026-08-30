@@ -267,6 +267,80 @@ function blank() {
   };
 }
 
+
+/**
+ * Имя для заготовки — одинаковое на всех устройствах. Заготовки (пилюли,
+ * статьи бюджета, копилки, форматы блога) заводились со случайными именами на
+ * каждом устройстве отдельно, и первая же синхронизация честно решала, что
+ * «Пресс» с телефона и «Пресс» с ноутбука — две разные пилюли. Имя, выведенное
+ * из названия, делает их одной и той же вещью где угодно.
+ *
+ * Только для заготовок: у того, что человек завёл сам, имя случайное и живёт
+ * своей жизнью — переименование не должно менять личность записи.
+ */
+function seedId(kind, name) {
+  const s = `${kind}:${normName(name)}`;
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return `s${(h >>> 0).toString(36)}${s.length.toString(36)}`;
+}
+
+/** Заготовки по разделам: имя каталога → названия, которые мы сеем сами. */
+const SEEDS = {
+  tag: ['Пресс', 'Руки', 'Ягодицы', 'Ноги', 'Спина', 'Кардио', 'Шпагат', 'Зал с тренером'],
+  exercise: ['Планка', 'Турник', 'Пресс', 'Шпагат'],
+  expense: ['Здоровье', 'Буся', 'Подписки', 'Обучение', 'Спорт', 'Жильё', 'Еда', 'Транспорт', 'Одежда', 'Другое'],
+  income: ['От отца', 'Подработка', 'Фриланс', 'Моё дело', 'Работа', 'Льготы'],
+  vault: ['Накопительный', 'Сейв 1', 'Сейв 2'],
+};
+
+/**
+ * Привести каталог в порядок: заготовкам вернуть общее имя, тёзок схлопнуть в
+ * одну запись, а все ссылки на убранные перевести на оставшуюся. Ссылку терять
+ * нельзя: без неё тренировка забудет свою пилюлю, а операция — свою статью.
+ */
+function collapseTwins(list, kind, moved) {
+  if (!Array.isArray(list)) return list;
+  const known = new Set((SEEDS[kind] || []).map(normName));
+  const byName = new Map();
+  const out = [];
+  for (const rec of list) {
+    if (!rec || typeof rec !== 'object') continue;
+    const key = normName(rec.name || rec.text || '');
+    if (!key) { out.push(rec); continue; }
+    const want = known.has(key) ? seedId(kind, key) : null;
+    if (want && rec.id !== want) { moved.set(rec.id, want); rec.id = want; }
+    const twin = byName.get(key);
+    if (twin) { moved.set(rec.id, twin.id); continue; }
+    byName.set(key, rec);
+    out.push(rec);
+  }
+  return out;
+}
+
+/** Перевести ссылки: любое строковое значение, равное убранному имени. */
+function remapIds(node, moved, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 8) return;
+  for (const [k, v] of Object.entries(node)) {
+    if (typeof v === 'string') {
+      const to = moved.get(v);
+      if (to && k !== 'id') node[k] = to;
+    } else if (Array.isArray(v)) {
+      for (let i = 0; i < v.length; i++) {
+        if (typeof v[i] === 'string' && moved.has(v[i])) v[i] = moved.get(v[i]);
+        else remapIds(v[i], moved, depth + 1);
+      }
+    } else if (v && typeof v === 'object') {
+      remapIds(v, moved, depth + 1);
+      // Ящики, где имя записи стоит ключом: значения трекера, отметки привычек.
+      for (const key of Object.keys(v)) {
+        const to = moved.get(key);
+        if (to && to !== key) { v[to] = { ...(v[to] || {}), ...v[key] }; delete v[key]; }
+      }
+    }
+  }
+}
+
 /**
  * Списки приводим к спискам, ящики — к ящикам, по образцу пустого состояния.
  * Если в сохранении на месте списка оказалось что-то другое, дальше его
@@ -380,6 +454,8 @@ export function migrate(s) {
     workouts: (Array.isArray(sp.workouts) ? sp.workouts : []).map(w => ({
       ...w,
       title: (w.title || '').trim() || kindName(w.kind) || 'Тренировка',
+      // Час необязательный: тренировка без него — это «когда-нибудь сегодня».
+      time: /^\d{2}:\d{2}$/.test(String(w.time || '')) ? w.time : '',
       templateId: w.templateId || (templates.some(t => t.id === w.kind) ? w.kind : ''),
       sets: (Array.isArray(w.sets) ? w.sets : []).map(x => ({ ...x, done: typeof x.done === 'boolean' ? x.done : !!w.done })),
       // v23 → v24: пилюли тренировки — «пресс», «руки», «зал с тренером».
@@ -397,8 +473,7 @@ export function migrate(s) {
 
   // Первый запуск: несколько привычных пилюль, чтобы было с чего начать.
   if (!merged.sport.tags.length && !merged.sport.workouts.some(w => w.tags?.length)) {
-    merged.sport.tags = ['Пресс', 'Руки', 'Ягодицы', 'Ноги', 'Спина', 'Кардио', 'Шпагат', 'Зал с тренером']
-      .map(name => ({ id: uid(), name }));
+    merged.sport.tags = SEEDS.tag.map(name => ({ id: seedId('tag', name), name }));
   }
 
   // Автоматическое закрытие целей убрано: цели отмечаются вручную,
@@ -407,12 +482,12 @@ export function migrate(s) {
   // Первый запуск: заводим упражнения, которые уже считались в таблице.
   if (!merged.sport.exercises.length && !merged.sport.workouts.length) {
     merged.sport.exercises = [
-      { id: uid(), name: 'Планка', unit: 'сек', dir: 'up' },
-      { id: uid(), name: 'Турник', unit: 'раз', dir: 'up' },
-      { id: uid(), name: 'Пресс', unit: 'раз', dir: 'up' },
+      { name: 'Планка', unit: 'сек', dir: 'up' },
+      { name: 'Турник', unit: 'раз', dir: 'up' },
+      { name: 'Пресс', unit: 'раз', dir: 'up' },
       // У шпагата меньше — лучше: это расстояние до пола, а не достижение.
-      { id: uid(), name: 'Шпагат', unit: 'см до пола', dir: 'down' },
-    ];
+      { name: 'Шпагат', unit: 'см до пола', dir: 'down' },
+    ].map(e => ({ id: seedId('exercise', e.name), ...e }));
   }
 
   // v18 → v19: забота — повторяющиеся дела с периодичностью и профиль питомца.
@@ -522,15 +597,17 @@ export function migrate(s) {
 
   // Первый запуск бюджета: заводим статьи и правила, чтобы не начинать с пустоты.
   if (!merged.budget.cats.expense.length && !merged.budget.ops.length) {
-    const mk = name => ({ id: uid(), name });
-    merged.budget.cats.expense = ['Здоровье', 'Буся', 'Подписки', 'Обучение', 'Спорт', 'Жильё', 'Еда', 'Транспорт', 'Одежда', 'Другое'].map(mk);
-    merged.budget.cats.income = ['От отца', 'Подработка', 'Фриланс', 'Моё дело', 'Работа', 'Льготы'].map(mk);
-    merged.budget.vaults = ['Накопительный', 'Сейв 1', 'Сейв 2'].map(n => ({ ...mk(n), start: 0 }));
+    // Имена заготовок выводим из названий: см. seedId — иначе на двух
+    // устройствах заведутся разные «Еда» и «Спорт», и синхронизация покажет обе.
+    const mk = kind => name => ({ id: seedId(kind, name), name });
+    merged.budget.cats.expense = SEEDS.expense.map(mk('expense'));
+    merged.budget.cats.income = SEEDS.income.map(mk('income'));
+    merged.budget.vaults = SEEDS.vault.map(n => ({ ...mk('vault')(n), start: 0 }));
     merged.budget.rules = [
       'Никакой Лавки', 'По максимуму общественный транспорт', 'Живу красиво только на выходных',
       'За неделю планировать, сколько тратить в какой день', 'Каждый день класть себе фиксированную сумму',
       'Не брать в долг', 'Никакого такси',
-    ].map(text => ({ id: uid(), text }));
+    ].map(text => ({ id: seedId('rule', text), text }));
     // Прежняя «казна» из сферы «Бюджет» переезжает в копилку, чтобы не потерять сумму.
     const old = merged.spheres?.money?.vault;
     if (old && Number(old.saved) > 0) {
@@ -958,6 +1035,30 @@ export function migrate(s) {
     const ref = String(g.src.ref || '');
     if (ref.includes(':')) g.src.ref = ref.split(':')[1] || '';
   });
+
+  // Заготовки и тёзки: см. collapseTwins. Делаем до учёта записей, чтобы
+  // порядок и время проставлялись уже по вычищенному списку.
+  {
+    const moved = new Map();
+    merged.sport.tags = collapseTwins(merged.sport.tags, 'tag', moved);
+    merged.sport.exercises = collapseTwins(merged.sport.exercises, 'exercise', moved);
+    merged.budget.cats.expense = collapseTwins(merged.budget.cats.expense, 'expense', moved);
+    merged.budget.cats.income = collapseTwins(merged.budget.cats.income, 'income', moved);
+    merged.budget.vaults = collapseTwins(merged.budget.vaults, 'vault', moved);
+    merged.budget.rules = collapseTwins(merged.budget.rules, 'rule', moved);
+    merged.free.places = collapseTwins(merged.free.places, 'place', moved);
+    merged.free.services = collapseTwins(merged.free.services, 'service', moved);
+    merged.blog.formats = collapseTwins(merged.blog.formats, 'format', moved);
+    merged.blog.rubrics = collapseTwins(merged.blog.rubrics, 'rubric', moved);
+    merged.habits = collapseTwins(merged.habits, 'habit', moved);
+    if (moved.size) {
+      remapIds(merged, moved);
+      // Починку надо записать на диск, а не только показать. Тёзки заводятся
+      // синхронизацией, то есть при том же номере формата: без этой пометки
+      // хранилище так и осталось бы с беспорядком, а в облако уехал бы он же.
+      needsRewrite = true;
+    }
+  }
 
   // Учёт записей заводим один раз, честно: место в списке мы знаем точно, а
   // время появления — только если у записи есть своя дата. Выдумывать «создано

@@ -31,12 +31,16 @@ await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);
 
 // ── счёт
 const calc = await p.evaluate(async ([yy, mm]) => {
+  const cats = JSON.parse(localStorage.getItem('lifeos.state')).budget.cats.income;
+  const catId = name => (cats.find(c => c.name === name) || {}).id;
   const m = await import('./app/js/selectors.js');
   const R = h => m.periodRange(h, h === 'month' ? mm : yy);
   return {
     all: m.SOURCES.income.count('', R('month')),
-    salary: m.SOURCES.income.count('ci1', R('month')),
-    free: m.SOURCES.income.count('ci2', R('month')),
+    // Имена статей ищем по названию: у заготовок они выводятся из названия
+    // и одинаковы на всех устройствах, а не вписаны в тест.
+    salary: m.SOURCES.income.count(catId('Зарплата'), R('month')),
+    free: m.SOURCES.income.count(catId('Фриланс'), R('month')),
     year: m.SOURCES.income.count('', R('year')),
     srcs: m.sourcesOf('money').map(x => x.key),
     refs: m.SOURCES.income.ref().map(x => x.label),

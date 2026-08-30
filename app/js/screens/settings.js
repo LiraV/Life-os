@@ -3,7 +3,7 @@
 import { S, update, exportJSON, importJSON, resetAll, level, prevRaw } from '../store.js';
 import { todayISO, stampLabel } from '../dates.js';
 import { BUILD } from '../version.js';
-import { hasKey, maskKey, setKey, setModel, getModel, checkKey, fetchModels, knownModels, DEFAULT_MODEL } from '../ai.js';
+import { hasKey, maskKey, setKey, setModel, getModel, checkKey, fetchModels, knownModels, viaCloud, DEFAULT_MODEL } from '../ai.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import { tipsOn, tipsReset, tipsDisable } from '../tips.js';
 import { APP_ICONS, iconKey, setAppIcon, iconById } from '../appicon.js';
@@ -101,7 +101,13 @@ export function render() {
 
     <div class="card">
       <div class="caps">ИИ · OpenAI</div>
-      ${hasKey() ? raw(h`
+      ${viaCloud() ? raw(h`
+        <div class="ink">Работает через твоё облако.</div>
+        <div class="lab" style="margin-top:6px">Ключ лежит в настройках функции и в браузер не попадает —
+          значит, и вводить его на каждом устройстве не нужно.</div>
+        <div class="row between" style="margin-top:8px"><span class="ink">Модель</span><span class="lab">${getModel()}</span></div>
+        <button class="add" data-act="aikey">Выбрать модель</button>`)
+      : hasKey() ? raw(h`
         <div class="row between"><span class="ink">Ключ</span><span class="lab">${maskKey()}</span></div>
         <div class="row between"><span class="ink">Модель</span><span class="lab">${getModel()}</span></div>
         <button class="add" data-act="aicheck">Проверить ключ</button>
@@ -198,9 +204,9 @@ export const actions = {
     title: 'Ключ OpenAI',
     sub: 'создаётся на platform.openai.com → API keys',
     body: [
-      field.text('key', 'Ключ', '', 'sk-...'),
+      viaCloud() ? '' : field.text('key', 'Ключ', '', 'sk-...'),
       modelField(),
-      field.note(hasKey()
+      viaCloud() ? field.note('Ключ живёт в твоей функции — здесь только выбор модели.') : field.note(hasKey()
         ? 'Ключ уже задан и показан выше звёздочками. Оставь поле пустым — он останется прежним, можно менять только модель. Удаляется отдельной кнопкой внизу.'
         : 'Ключ вводится один раз и остаётся на этом устройстве.'),
     ].join(''),
@@ -217,7 +223,7 @@ export const actions = {
       update(() => {});
       toast(key ? 'Ключ сохранён' : 'Ключ удалён');
     },
-    danger: hasKey() ? 'Удалить ключ' : null,
+    danger: hasKey() && !viaCloud() ? 'Удалить ключ' : null,
     onDanger: (_v, close) => { setKey(''); close(); update(() => {}); toast('Ключ удалён'); },
     });
     // Списка ещё нет — спросим у OpenAI и перерисуем одно поле, не трогая

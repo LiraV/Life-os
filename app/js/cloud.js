@@ -39,6 +39,8 @@ export const configured = cloudReady;
 export const signedIn = () => !!session?.access_token;
 /** Кто вошёл — говорит не токен, а сама функция: она спрашивает у Яндекса. */
 export const account = () => session?.account || null;
+/** Заголовок для обращения к своей функции — им же ходит посредник к OpenAI. */
+export const authHeader = () => (session ? { Authorization: `OAuth ${session.access_token}` } : {});
 export const lastSync = () => session?.syncedAt || '';
 export const busy = () => syncing;
 

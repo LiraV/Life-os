@@ -249,6 +249,7 @@ function workoutRow(w) {
         <div class="q-title">${w.title || 'Тренировка'}</div>
         <div class="q-meta">
           <span class="tag">тренировка</span>
+          ${w.time ? raw(h`<span class="q-time">${w.time}</span>`) : ''}
           ${(w.tags || []).map(id => tagName(id)).filter(Boolean).map(n => raw(h`<span class="tag">${n}</span>`))}
           ${w.goalId && goalTitleOf(w.goalId) ? raw(h`<span class="tag">→ ${goalTitleOf(w.goalId)}</span>`) : ''}
           <span class="q-time">${sets.length
