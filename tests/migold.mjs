@@ -27,7 +27,7 @@ const got = await p.evaluate(async cs => {
         if (!seen.has(v)) seen.set(v, 'id' + seen.size);
         return seen.get(v);
       }
-      if (k === 'updatedAt' && typeof v === 'string') return 'когда-то';
+      if (k === 'updatedAt' || k === 'createdAt' || k === 'at') return typeof v === 'string' && v ? 'когда-то' : v;
       return v;
     }));
   };

@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 51;
+const VERSION = 52;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -255,6 +255,7 @@ function blank() {
       rubrics: [],       // рубрикатор: [{ id, name, note }]
     },
                          // before/after — своя отметка напряжения 0..100, обе необязательны
+    deleted: [],         // следы удалённых записей: { id, from, at } — чтобы удалённое не вернулось
     diary: [],
     chat: [],
     tests: {},
@@ -506,7 +507,13 @@ export function migrate(s) {
     plans: b.plans && typeof b.plans === 'object' ? b.plans : {},
     ops: Array.isArray(b.ops) ? b.ops : [],
     vaults: Array.isArray(b.vaults) ? b.vaults : [],
-    rules: Array.isArray(b.rules) ? b.rules : [],
+    // Правило — такая же запись, как остальные: со своим id. Раньше это были
+    // просто строки, и удалялись они по номеру в списке — единственное место,
+    // где запись адресовалась не собой.
+    rules: (Array.isArray(b.rules) ? b.rules : [])
+      .map(r => (typeof r === 'string' ? { id: uid(), text: r } : r))
+      .filter(r => r && typeof r === 'object' && String(r.text || '').trim())
+      .map(r => ({ ...r, id: r.id || uid(), text: String(r.text).trim() })),
     start: Number(b.start) || 0,
     updatedAt: typeof b.updatedAt === 'string' ? b.updatedAt : '',
   };
@@ -521,7 +528,7 @@ export function migrate(s) {
       'Никакой Лавки', 'По максимуму общественный транспорт', 'Живу красиво только на выходных',
       'За неделю планировать, сколько тратить в какой день', 'Каждый день класть себе фиксированную сумму',
       'Не брать в долг', 'Никакого такси',
-    ];
+    ].map(text => ({ id: uid(), text }));
     // Прежняя «казна» из сферы «Бюджет» переезжает в копилку, чтобы не потерять сумму.
     const old = merged.spheres?.money?.vault;
     if (old && Number(old.saved) > 0) {
@@ -904,6 +911,25 @@ export function migrate(s) {
     });
   });
 
+
+  // Учёт записей заводим один раз, честно: место в списке мы знаем точно, а
+  // время появления — только если у записи есть своя дата. Выдумывать «создано
+  // сегодня» для всего разом нельзя: это было бы неправдой про каждую строку.
+  const dateOf = r => [r.createdAt, r.date, r.day, r.start, r.paidAt, r.finished]
+    .find(x => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}/.test(x)) || '';
+  eachList(merged, list => {
+    list.forEach((rec, i) => {
+      if (!rec || typeof rec !== 'object') return;
+      if (idOf(rec) == null) rec.id = uid();
+      if (rec.order !== i) rec.order = i;
+      if (rec.createdAt == null) rec.createdAt = dateOf(rec);
+      if (rec.updatedAt == null) rec.updatedAt = '';
+    });
+  });
+  merged.deleted = (Array.isArray(merged.deleted) ? merged.deleted : [])
+    .filter(x => x && typeof x.id === 'string')
+    .map(x => ({ id: x.id, from: String(x.from || ''), at: String(x.at || '') }));
+
   return merged;
 }
 
@@ -1008,14 +1034,108 @@ export function acceptFreshStart() {
  * Сохранить, не перерисовывая экран. Нужно там, где перерисовка сломала бы
  * жест: ползунок пересоздался бы прямо под пальцем.
  */
+
+// ── учёт записей ────────────────────────────────────────────────
+// Запись — объект в списке. Списки ищем обходом, а не по перечню имён: новая
+// ветка попадает под учёт сама, без того чтобы кто-то вспомнил её дописать.
+
+/**
+ * Обойти все списки записей: fn(список, путь). Сам список следов от удаления
+ * под учёт не попадает: это записи о записях, и если считать их живыми, то
+ * след объявляется воскресшим и стирается ровно в момент появления.
+ */
+function eachList(node, fn, path = '', depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 6) return;
+  for (const [k, v] of Object.entries(node)) {
+    if (!path && k === 'deleted') continue;
+    const at = path ? `${path}.${k}` : k;
+    if (Array.isArray(v)) {
+      if (v.some(x => x && typeof x === 'object')) fn(v, at);
+      v.forEach(x => eachList(x, fn, at + '[]', depth + 1));
+    } else if (v && typeof v === 'object') {
+      eachList(v, fn, at, depth + 1);
+    }
+  }
+}
+
+/**
+ * Отпечаток записи — всё, кроме времени правки: иначе сама отметка о правке
+ * считалась бы правкой и время обновлялось бы на каждом сохранении.
+ */
+function fingerprint(rec) {
+  const { updatedAt, ...rest } = rec;
+  return JSON.stringify(rest);
+}
+
+/**
+ * Чем запись себя называет. У большинства это id, у своих сфер — key: он и
+ * есть их имя во всём приложении. Второго имени заводить нельзя — запись
+ * перестаёт узнавать саму себя там, где сверяется по имени.
+ */
+function idOf(rec) { return rec.id ?? rec.key ?? null; }
+
+/** Слепок «что было»: имя записи → отпечаток и путь. Снимается до изменения. */
+function snapshot(state) {
+  const map = new Map();
+  eachList(state, (list, at) => {
+    for (const rec of list) {
+      const id = rec && typeof rec === 'object' ? idOf(rec) : null;
+      if (id) map.set(id, { fp: fingerprint(rec), at });
+    }
+  });
+  return map;
+}
+
+/**
+ * Проставить учёт после изменения: у записи есть свой id, место в списке,
+ * время появления и время последней правки; у удалённой остаётся след.
+ *
+ * Делается в одном месте, а не в сотне мест записи: иначе однажды кто-нибудь
+ * забудет поставить отметку — и запись станет невидимой для сверки, а удаление
+ * бесследным. Время нужно, чтобы две версии одних данных можно было слить;
+ * след от удаления — чтобы удалённое не вернулось с другого устройства.
+ */
+function stampRecords(state, before) {
+  const now = new Date().toISOString();
+  const alive = new Set();
+  eachList(state, list => {
+    list.forEach((rec, i) => {
+      if (!rec || typeof rec !== 'object') return;
+      if (idOf(rec) == null) rec.id = uid();
+      const id = idOf(rec);
+      alive.add(id);
+      // Место в списке — это данные: порядок этапов, правил и карточек человек
+      // задал сам, а у строк в таблице позиции не бывает.
+      if (rec.order !== i) rec.order = i;
+      const was = before.get(id);
+      if (!was) {
+        // Запись появилась при нас — вот теперь время известно точно.
+        if (!rec.createdAt) rec.createdAt = now;
+        rec.updatedAt = now;
+        return;
+      }
+      if (was.fp !== fingerprint(rec)) rec.updatedAt = now;
+    });
+  });
+  const gone = [];
+  for (const [id, was] of before) if (!alive.has(id)) gone.push({ id, from: was.at, at: now });
+  // Запись с тем же id вернулась — след больше не нужен.
+  const kept = (state.deleted || []).filter(x => !alive.has(x.id));
+  if (gone.length || kept.length !== (state.deleted || []).length) state.deleted = [...kept, ...gone];
+}
+
 export function updateQuiet(mutator) {
+  const before = snapshot(S);
   mutator(S);
+  stampRecords(S, before);
   save();
 }
 
 /** Единственный способ менять состояние: мутируем внутри, дальше — сохранение и перерисовка. */
 export function update(mutator) {
+  const before = snapshot(S);
   mutator(S);
+  stampRecords(S, before);
   save();
   listeners.forEach(fn => fn());
 }

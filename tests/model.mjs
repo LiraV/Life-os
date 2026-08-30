@@ -40,11 +40,12 @@ const check = () => p.evaluate(() => {
     for (const rec of arr) {
       if (!rec || typeof rec !== 'object') continue;
       out.total++;
-      if (rec.id == null || rec.id === '') { out.noId.push(`${path}: запись без id`); continue; }
-      if (ids.has(rec.id)) out.dupIn.push(`${path}: id ${rec.id} встречается дважды`);
-      ids.add(rec.id);
-      if (seen.has(rec.id) && seen.get(rec.id) !== path) out.dupAcross.push(`${rec.id}: и в ${seen.get(rec.id)}, и в ${path}`);
-      seen.set(rec.id, path);
+      const rid = rec.id ?? rec.key;
+      if (rid == null || rid === '') { out.noId.push(`${path}: запись без имени`); continue; }
+      if (ids.has(rid)) out.dupIn.push(`${path}: имя ${rid} встречается дважды`);
+      ids.add(rid);
+      if (seen.has(rid) && seen.get(rid) !== path) out.dupAcross.push(`${rid}: и в ${seen.get(rid)}, и в ${path}`);
+      seen.set(rid, path);
     }
   }
 

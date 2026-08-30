@@ -107,9 +107,9 @@ function monthView() {
       <div class="row between"><div class="caps">Правила</div>
         <button class="q-edit" data-act="ruleadd">+ добавить</button></div>
       ${B().rules.length ? raw(h`<div class="list">
-        ${B().rules.map((r, i) => raw(h`<div class="int-row"><span class="dash">—</span>
-          <span class="grow">${r}</span>
-          <button class="q-edit" data-act="ruledel" data-i="${i}">×</button></div>`))}
+        ${B().rules.map(r => raw(h`<div class="int-row"><span class="dash">—</span>
+          <span class="grow">${r.text}</span>
+          <button class="q-edit" data-act="ruledel" data-id="${r.id}">×</button></div>`))}
       </div>`) : raw('<div class="lab">Свои принципы трат: «не брать в долг», «никакого такси».</div>')}
     </div>
 
@@ -406,11 +406,11 @@ export const actions = {
     onSave: (v, close) => {
       const lines = (v.text || '').split('\n').map(x => x.replace(/^[-–—•\s]+/, '').trim()).filter(Boolean);
       if (!lines.length) return toast('Пусто');
-      upd(s => s.budget.rules.push(...lines));
+      upd(s => s.budget.rules.push(...lines.map(text => ({ id: uid(), text }))));
       close();
     },
   }),
-  ruledel: v => upd(s => { s.budget.rules.splice(Number(v.i), 1); }),
+  ruledel: v => upd(s => { s.budget.rules = s.budget.rules.filter(r => r.id !== v.id); }),
 
   /** Выгрузка задаёт и формат загрузки: тот же файл можно поправить и вернуть. */
   export: async () => {
