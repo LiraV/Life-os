@@ -4,6 +4,7 @@
 import { S, SPHERES, visibleSpheres, onChange, update, updateQuiet, level, loadError, rescueRaw, acceptFreshStart } from './store.js';
 import { todayISO } from './dates.js';
 import { go, route, markStep, startHere } from './nav.js';
+import { consumeRedirect, onCloud, pushSoon, pullIfStale, signedIn } from './cloud.js';
 import { closeSheet, toast } from './ui.js';
 import { reconcile } from './traits.js';
 import { applyAppIcon } from './appicon.js';
@@ -391,7 +392,13 @@ nav.addEventListener('click', e => {
   go(btn.dataset.nav);
 });
 
-window.addEventListener('hashchange', () => { closeSheet(); drawerOpen = false; markStep(); render(); });
+window.addEventListener('hashchange', () => {
+  // Токен может прийти и в уже открытое приложение — например, когда браузер
+  // возвращает страницу из памяти. Забираем его раньше роутера: иначе тот
+  // увидит неизвестный адрес, заменит его на «День» и унесёт токен с собой.
+  if (consumeRedirect()) { pullIfStale(); render(); return; }
+  closeSheet(); drawerOpen = false; markStep(); render();
+});
 onChange(render);
 
 // Смена суток на открытом экране: перерисовать, чтобы «сегодня» осталось сегодня.
@@ -401,6 +408,11 @@ setInterval(() => {
   if (todayISO() !== seenDay) { seenDay = todayISO(); update(s => { s.ui.date = seenDay; }); }
 }, 30000);
 
+// Возврат от Google приходит токеном в адресной строке — там же, где живёт
+// маршрут экрана. Забираем его до роутера, иначе приложение попыталось бы
+// открыть экран с именем «access_token».
+const cameBack = consumeRedirect();
+
 // Заменяем, а не добавляем: лишняя запись без хеша означала бы, что первое
 // же «назад» уводит на пустой адрес и приложение тут же возвращает себя.
 if (!location.hash) location.replace('#/day');
@@ -409,6 +421,16 @@ render();
 
 // Предложение про подсказки — после того, как персонаж уже заведён.
 setTimeout(offerTips, 600);
+
+// Облако: перерисовываем, когда меняется состояние входа, забираем чужие
+// правки при запуске и при возвращении на вкладку, а свои отправляем следом
+// за изменением — но не на каждый тап, а чуть погодя.
+onCloud(render);
+if (signedIn()) setTimeout(pullIfStale, cameBack ? 200 : 1200);
+onChange(() => pushSoon());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') pullIfStale();
+});
 
 // Приложение должно само догонять выложенную версию: спрашиваем воркер об
 // обновлении при запуске и при возврате на вкладку, а когда новый воркер

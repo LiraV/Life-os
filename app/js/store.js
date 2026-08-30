@@ -1313,9 +1313,29 @@ export function exportJSON() {
 export function importJSON(text) {
   const parsed = JSON.parse(text);
   if (!parsed || typeof parsed !== 'object' || !parsed.user) throw new Error('Это не файл «Жизни в одном месте»');
-  const next = migrate(parsed);
-  update(s => { Object.keys(s).forEach(k => delete s[k]); Object.assign(s, next); });
+  adoptState(parsed);
 }
+
+/**
+ * Принять состояние целиком — из копии или из облака. Отметки времени при этом
+ * не трогаем: записи, пришедшие с другого устройства, менялись там и тогда, а
+ * не здесь и сейчас. Проставь мы им нынешнее время — при следующем слиянии
+ * они притворились бы самыми свежими и затёрли бы то, что новее на самом деле.
+ */
+export function adoptState(raw) {
+  const next = migrate(raw);
+  S_replace(next);
+  save();
+  listeners.forEach(fn => fn());
+}
+
+function S_replace(next) {
+  Object.keys(S).forEach(k => delete S[k]);
+  Object.assign(S, next);
+}
+
+/** Снимок состояния для отправки — ровно то, что лежит на диске. */
+export const stateSnapshot = () => JSON.parse(JSON.stringify(S));
 
 export function resetAll() {
   update(s => { Object.keys(s).forEach(k => delete s[k]); Object.assign(s, blank()); });

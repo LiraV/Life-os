@@ -1,13 +1,50 @@
 // «Настройки»: профиль, данные и честный список того, что приложение умеет.
 
 import { S, update, exportJSON, importJSON, resetAll, level, prevRaw } from '../store.js';
-import { todayISO } from '../dates.js';
+import { todayISO, stampLabel } from '../dates.js';
 import { BUILD } from '../version.js';
 import { hasKey, maskKey, setKey, setModel, getModel, checkKey, DEFAULT_MODEL } from '../ai.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import { tipsOn, tipsReset, tipsDisable } from '../tips.js';
 import { APP_ICONS, iconKey, setAppIcon, iconById } from '../appicon.js';
 import { THEMES, themeKey, setTheme, themeById } from '../theme.js';
+import { configured, signedIn, account, lastSync, busy, signIn, signOut, syncNow } from '../cloud.js';
+
+
+/**
+ * Синхронизация. Пока облако не настроено — говорим об этом прямо, а не
+ * рисуем кнопку, которая ничего не делает. Войти можно в любой момент: до
+ * входа планер работает как работал, а при входе то, что уже записано на
+ * устройстве, не заменяется облачным, а сливается с ним.
+ */
+function syncCard() {
+  if (!configured()) {
+    return h`<div class="card">
+      <div class="caps">Синхронизация</div>
+      <div class="lab">Не настроена: данные живут только в этом браузере.
+        Как включить — в docs/облако.md рядом с приложением.</div>
+    </div>`;
+  }
+  if (!signedIn()) {
+    return h`<div class="card">
+      <div class="caps">Синхронизация</div>
+      <div class="ink">Телефон и ноутбук на одних данных.</div>
+      <div class="lab" style="margin-top:6px">Всё, что уже записано здесь, при входе никуда не денется:
+        оно сольётся с тем, что в облаке, а не заменится им.</div>
+      <button class="add" data-act="signin">Войти через Google</button>
+    </div>`;
+  }
+  const who = account();
+  const when = lastSync();
+  return h`<div class="card">
+    <div class="caps">Синхронизация</div>
+    <div class="ink">${who?.email || 'вход выполнен'}</div>
+    <div class="lab">${busy() ? 'синхронизирую…' : when ? `последний раз ${stampLabel(when)}` : 'ещё не синхронизировано'}</div>
+    <button class="add" data-act="syncnow">Синхронизировать сейчас</button>
+    <button class="btn-ghost" data-act="signout">Выйти</button>
+    <div class="lab">Выход не трогает записи на устройстве — они остаются здесь.</div>
+  </div>`;
+}
 
 export function render() {
   const size = (() => {
@@ -56,6 +93,8 @@ export function render() {
       <div class="lab">Что уходит: при оценке блюда — снимок (он нигде не сохраняется) или твоё описание; при вопросе
         Летописцу — короткая выжимка: сегодняшние квесты, энергия, потребности. Дневник и цикл не отправляются.</div>
     </div>
+
+    ${raw(syncCard())}
 
     <div class="card">
       <div class="caps">Данные</div>
@@ -229,6 +268,15 @@ export const actions = {
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     toast('Копия скачана');
+  },
+
+  signin: () => signIn(),
+  signout: () => confirmSheet('Выйти?', 'Записи на этом устройстве останутся на месте — уйдёт только связь с облаком.', 'Выйти',
+    () => { signOut(); toast('Вышла'); }),
+  syncnow: async () => {
+    toast('Синхронизирую…');
+    const r = await syncNow();
+    toast(r.ok ? (r.first ? 'Данные отправлены в облако' : 'Синхронизировано') : `Не вышло: ${r.reason}`);
   },
 
   import: () => {
