@@ -5,7 +5,7 @@
 // Упражнение меряется не количеством походов, а результатом — и у шпагата
 // «лучше» значит меньше, а не больше.
 
-import { goBack } from '../nav.js';
+import { goBack, syncTab, goTab } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, touchTracker, nameTaken } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -20,7 +20,9 @@ import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../sphereg
 const TABS = [['tpl', 'Шаблоны'], ['ex', 'Упражнения']];
 const tab = () => (S.ui.sportTab === 'ex' ? 'ex' : 'tpl');
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'sportTab');
+
   return h`
     <div class="row between">
       <button class="q-edit" data-act="back">‹ назад</button>
@@ -401,7 +403,7 @@ export const actions = {
   tagadd: () => tagSheet(null),
   tagedit: v => tagSheet(sportTags().find(t => t.id === v.id)),
   back: () => goBack('spheres'),
-  tab: v => update(s => { s.ui.sportTab = v.v; }),
+  tab: v => goTab('sport', 'sportTab', v.v),
 
   tpladd: () => tplSheet(null),
   tpledit: v => tplSheet(templateById(v.id)),

@@ -9,7 +9,7 @@
 // тут не считается нигде: считаются часы, дни подряд, офис и отпуск — то,
 // что говорит, когда пора остановиться.
 
-import { goBack } from '../nav.js';
+import { goBack, syncTab, goTab } from '../nav.js';
 import { S, update, uid, XP, addXp, WORK_KINDS, blankSched, touchTracker, nameTaken } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, monthTitle, yearOf, MONTHS, weekDates, DOW, dowIndex, diffDays, relativeDay } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
@@ -43,7 +43,9 @@ const DAY_TYPES = [
 ];
 const typeName = k => DAY_TYPES.find(x => x.key === k)?.name || k;
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'workTab');
+
   return h`
     <div class="row between">
       <button class="q-edit" data-act="back">‹ назад</button>
@@ -885,7 +887,7 @@ function importSheet() {
 export const actions = {
   back: () => goBack('spheres'),
   kimport: () => importSheet(),
-  tab: v => update(s2 => { s2.ui.workTab = v.v; }),
+  tab: v => goTab('work', 'workTab', v.v),
   job: v => update(s2 => { s2.ui.workJob = v.v === 'all' ? null : v.v; }),
 
   jobadd: () => jobSheet(null),

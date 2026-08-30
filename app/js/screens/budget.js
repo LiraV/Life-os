@@ -4,7 +4,7 @@
 // Единственный источник правды — список операций. Балансы и итоги считаются
 // из него, чтобы нигде не разошлись две копии одной суммы.
 
-import { goBack } from '../nav.js';
+import { goBack, syncTab, goTab } from '../nav.js';
 import { S, update, uid, touchBudget, nameTaken } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort, stampLabel } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -49,7 +49,9 @@ const TABS = [['month', 'Месяц'], ['ops', 'Операции'], ['vaults', '
  *  Переключение вкладок и месяцев идёт обычным update — это не заполнение. */
 const upd = fn => update(s => { fn(s); touchBudget(s); });
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'budTab');
+
   return h`
     <div class="row between">
       <button class="q-edit" data-act="back">‹ назад</button>
@@ -281,7 +283,7 @@ const numOf = v => {
 export const actions = {
   ...sphereGoalActions('money'),
   back: () => goBack('spheres'),
-  tab: v => update(s => { s.ui.budTab = v.v; }),
+  tab: v => goTab('budget', 'budTab', v.v),
   prev: () => update(s => { s.ui.budMonth = addMonths(ym(), -1); }),
   next: () => update(s => { s.ui.budMonth = addMonths(ym(), 1); }),
 

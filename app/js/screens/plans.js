@@ -1,6 +1,7 @@
 // «Планы»: неделя, месяц, год — реальные периоды с навигацией в обе стороны.
 // Цепочка «задача → цель месяца → квартал → тема года» строится из данных.
 
+import { syncTab, goTab } from '../nav.js';
 import { S, update, uid, XP, addXp, allSpheres, touchTracker } from '../store.js';
 import {
   todayISO, addDays, addMonths, weekKey, weekDates, isoWeek,
@@ -21,7 +22,9 @@ const month = () => S.ui.monthAnchor || monthKey(todayISO());
 const year = () => S.ui.year || yearOf(todayISO());
 const quarterOfMonth = ym => quarterKey(ym).slice(5);
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'planTab');
+
   return h`
     <div class="title">Планы</div>
     <div class="pills">${TABS.map(([k, l]) => raw(h`<button class="pill ${tab() === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`))}</div>
@@ -534,10 +537,13 @@ function goalSheet(goal, preset) {
         const i = s.goals.findIndex(x => x.id === g.id);
         if (i >= 0) s.goals[i] = next; else s.goals.push(next);
         // Уводим экран туда, где цель теперь живёт, — иначе она «пропадает».
-        if (horizon === 'month') { s.ui.planTab = 'month'; s.ui.monthAnchor = period; }
-        else if (horizon === 'quarter') { s.ui.planTab = 'year'; s.ui.year = Number(period.slice(0, 4)); }
-        else { s.ui.planTab = 'year'; s.ui.year = Number(period); }
+        if (horizon === 'month') s.ui.monthAnchor = period;
+        else if (horizon === 'quarter') s.ui.year = Number(period.slice(0, 4));
+        else s.ui.year = Number(period);
       });
+      // Вкладку переключаем адресом, а не записью в память: адрес главнее,
+      // и следующая же отрисовка вернула бы вкладку из строки адреса.
+      goTab('plans', 'planTab', horizon === 'month' ? 'month' : 'year');
       close();
       toast(isNew ? 'Цель добавлена' : 'Сохранено');
     },
@@ -610,9 +616,10 @@ function planSheet(g) {
         goal.slots = Array.isArray(goal.slots) ? goal.slots : [];
         if (!goal.slots.includes(slot)) goal.slots.push(slot);
         goal.slots.sort();
-        if (slot.includes('Q')) { s2.ui.planTab = 'year'; s2.ui.year = Number(slot.slice(0, 4)); }
-        else { s2.ui.planTab = 'month'; s2.ui.monthAnchor = slot; }
+        if (slot.includes('Q')) s2.ui.year = Number(slot.slice(0, 4));
+        else s2.ui.monthAnchor = slot;
       });
+      goTab('plans', 'planTab', slot.includes('Q') ? 'year' : 'month');
       close();
       toast(`Положила в ${slotLabel(slot)}`);
     },
@@ -647,7 +654,7 @@ function bumpCounter(id, delta) {
 const weekRec = s => (s.weeks[weekKey(anchor())] ||= {});
 
 export const actions = {
-  tab: v => update(s => { s.ui.planTab = v.v; }),
+  tab: v => goTab('plans', 'planTab', v.v),
 
   wprev: () => update(s => { s.ui.weekAnchor = addDays(anchor(), -7); }),
   wnext: () => update(s => { s.ui.weekAnchor = addDays(anchor(), 7); }),
@@ -716,9 +723,9 @@ export const actions = {
             steps: [], slots: [], parentId: '', intentId: val.intentId || '', sphere: '', deadline: '',
             ...(src ? { src: { kind: src.key, ref } } : {}),
           });
-          s2.ui.planTab = 'month';
           s2.ui.monthAnchor = v.p;
         });
+        goTab('plans', 'planTab', 'month');
         close();
         toast('Добавила');
       },

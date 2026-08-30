@@ -4,7 +4,7 @@
 // а «за жизнь» всё равно считается по разу. Год обязателен, всё остальное —
 // нет: смысл в отметке, а не в анкете.
 
-import { goBack } from '../nav.js';
+import { goBack, syncTab, goTab } from '../nav.js';
 import { S, update, updateQuiet, uid, XP, addXp } from '../store.js';
 import { todayISO, yearOf } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -16,7 +16,9 @@ const TABS = [['life', 'За жизнь'], ['year', 'По годам'], ['add', 
 const tab = () => (TABS.some(([k]) => k === S.ui.tripTab) ? S.ui.tripTab : 'life');
 const year = () => S.ui.tripYear || yearOf(todayISO());
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'tripTab');
+
   return h`
     <div class="row between">
       <button class="q-edit" data-act="back">‹ назад</button>
@@ -202,7 +204,7 @@ function addVisit(code, y, note = '') {
 export const actions = {
   ...sphereGoalActions('trips'),
   back: () => goBack('spheres'),
-  tab: v => update(s => { s.ui.tripTab = v.v; }),
+  tab: v => goTab('trips', 'tripTab', v.v),
   // Сохраняем тихо и перерисовываем только список: экран целиком трогать
   // нельзя, иначе поле ввода пересоздаётся и клавиатура закрывается.
   search: v => {
@@ -213,7 +215,7 @@ export const actions = {
   mark: v => addVisit(v.v, year()),
   open: v => countrySheet(v.v),
   edit: v => visitSheet(v.id),
-  goyear: v => update(s => { s.ui.tripYear = Number(v.v); s.ui.tripTab = 'year'; }),
+  goyear: v => { update(s => { s.ui.tripYear = Number(v.v); }); goTab('trips', 'tripTab', 'year'); },
   prev: () => update(s => { s.ui.tripYear = year() - 1; }),
   next: () => update(s => { s.ui.tripYear = year() + 1; }),
 };

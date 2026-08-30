@@ -2,6 +2,7 @@
 // дом и питомца. Ритм считается от последней отметки, а не от календаря:
 // сделала раньше или позже — план едет за жизнью, а не наоборот.
 
+import { syncTab, goTab } from '../nav.js';
 import { S, update, uid, XP, addXp, nameTaken } from '../store.js';
 import { todayISO, dayShort, monthTitle, monthKey, yearOf, MONTHS } from '../dates.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
@@ -49,7 +50,9 @@ const plural = (n, one, few, many) => {
   return b === 1 ? one : many;
 };
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'careTab');
+
   const due = careDueNow();
   const soon = careSoon(45);
   return h`
@@ -351,7 +354,7 @@ function weightSheet() {
 }
 
 export const actions = {
-  tab: v => update(s => { s.ui.careTab = v.v; }),
+  tab: v => goTab('care', 'careTab', v.v),
   add: v => itemSheet(null, v.g),
   suggest: () => suggestSheet(),
   edit: v => itemSheet(careItems().find(x => x.id === v.id)),

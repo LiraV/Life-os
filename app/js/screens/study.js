@@ -4,7 +4,7 @@
 // Этап живёт на доске и двигается по стадиям. Стадия «у преподавателя»
 // считает дни ожидания: в учёбе больно не «сделать», а «отправила и жду».
 
-import { goBack } from '../nav.js';
+import { goBack, syncTab, goTab } from '../nav.js';
 import { S, update, uid, XP, addXp, nameTaken } from '../store.js';
 import { todayISO, dayShort, diffDays, monthKey, weekKey } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -27,7 +27,9 @@ const dueLabel = due => {
   return `через ${d} дн.`;
 };
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'studyTab');
+
   return h`
     <div class="row between">
       <button class="q-edit" data-act="back">‹ назад</button>
@@ -245,7 +247,7 @@ export function taskSheet(task, subjectId) {
 export const actions = {
   ...scheduleActions,
   back: () => goBack('spheres'),
-  tab: v => update(s => { s.ui.studyTab = v.v; }),
+  tab: v => goTab('study', 'studyTab', v.v),
 
   placeadd: () => openSheet({
     title: 'Заведение',
@@ -257,7 +259,8 @@ export const actions = {
       if (!name) return toast('Нужно название');
       const twin = nameTaken(livePlaces(), name);
       if (twin) return toast(`«${twin.name}» уже заведено`);
-      update(s => { s.study.places.push({ id: uid(), name }); s.ui.studyTab = 'subjects'; });
+      update(s => { s.study.places.push({ id: uid(), name }); });
+      goTab('study', 'studyTab', 'subjects');
       close();
     },
   }),

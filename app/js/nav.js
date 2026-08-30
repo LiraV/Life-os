@@ -1,6 +1,8 @@
 // Переходы между экранами. Отдельный модуль, потому что «назад» нужен экранам,
 // а экраны нужны роутеру: импортируй они друг друга — вышло бы кольцо.
 
+import { S, updateQuiet } from './store.js';
+
 export const go = path => { location.hash = '#/' + path; };
 export const route = () => location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
 
@@ -15,8 +17,18 @@ export const route = () => location.hash.replace(/^#\/?/, '').split('/').filter(
  * нему и видно, есть ли куда возвращаться внутри приложения.
  */
 let step = 0;
+let replacing = false;
+
+/** Сменить адрес, не добавляя шаг истории: было одно место — осталось одно. */
+export function replaceHash(path) {
+  const next = '#/' + path;
+  if (location.hash === next) return;
+  replacing = true;
+  location.replace(next);
+}
 
 export function markStep() {
+  if (replacing) { replacing = false; history.replaceState({ step }, ''); return; }
   if (history.state?.step != null) { step = history.state.step; return; }
   history.replaceState({ step: ++step }, '');
 }
@@ -32,4 +44,32 @@ export function startHere() { history.replaceState({ step: 0 }, ''); step = 0; }
 export function goBack(fallback = 'spheres') {
   if (step > 0) history.back();
   else go(fallback);
+}
+
+const tabKeys = tabs => tabs.map(x => (Array.isArray(x) ? x[0] : x));
+
+/**
+ * Вкладка экрана живёт в адресе. Раньше она лежала только в памяти, и от этого
+ * на вкладку нельзя было дать ссылку, а перезагрузка возвращала не туда.
+ * Адрес главнее памяти: по ссылке человек должен попадать именно туда, куда
+ * она ведёт. Выбранную вкладку всё равно запоминаем — вход из меню, где
+ * вкладки в адресе нет, вернёт на последнюю открытую.
+ *
+ * Пишем тихо: экран как раз рисуется, обычная запись закольцевала бы рендер.
+ */
+export function syncTab(params, tabs, key) {
+  const want = params?.[0];
+  if (!want || !tabKeys(tabs).includes(want) || S.ui[key] === want) return;
+  updateQuiet(s => { s.ui[key] = want; });
+}
+
+/**
+ * Переключение вкладки *заменяет* адрес, а не добавляет шаг истории: вкладка —
+ * это взгляд на один и тот же экран, а не другое место. Иначе, походив по
+ * четырём вкладкам «Работы», пришлось бы жать «назад» четыре раза, чтобы с
+ * экрана уйти, — а уйти человек хочет туда, откуда пришёл.
+ */
+export function goTab(screen, key, value) {
+  updateQuiet(s => { s.ui[key] = value; });
+  replaceHash(screen + '/' + value);
 }

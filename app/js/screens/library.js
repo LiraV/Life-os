@@ -4,7 +4,7 @@
 //
 // Отложенная книга — не провал: это отдельный статус, а не удаление.
 
-import { goBack } from '../nav.js';
+import { goBack, syncTab, goTab } from '../nav.js';
 import { S, update, uid, XP, addXp, touchTracker, nameTaken } from '../store.js';
 import { todayISO, dayShort, monthKey, yearOf, MONTHS } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -21,7 +21,9 @@ const KINDS = { paper: 'бумажная', ebook: 'электронная', audi
 const num = n => Number(n).toLocaleString('ru-RU');
 const stars = n => (n ? '★'.repeat(n) + '☆'.repeat(5 - n) : '');
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'bookTab');
+
   return h`
     <div class="row between">
       <button class="q-edit" data-act="back">‹ назад</button>
@@ -253,7 +255,7 @@ function finishSheet(b) {
 export const actions = {
   ...sphereGoalActions('books'),
   back: () => goBack('spheres'),
-  tab: v => update(s => { s.ui.bookTab = v.v; }),
+  tab: v => goTab('library', 'bookTab', v.v),
   add: () => bookSheet(null),
   open: v => bookSheet(bookById(v.id)),
   page: v => pageSheet(bookById(v.id)),

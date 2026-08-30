@@ -2,6 +2,7 @@
 // и с правкой. Всё остальное (день цикла, фаза, средняя длина, прогноз) считается
 // из этих отметок.
 
+import { syncTab, goTab } from '../nav.js';
 import { S, update, uid, XP, addXp, nameTaken, normName } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
@@ -16,7 +17,9 @@ const calMonth = () => S.ui.calMonth || monthKey(todayISO());
 const TABS = [['now', 'Сейчас'], ['form', 'Форма']];
 const tab = () => (TABS.some(([k]) => k === S.ui.bodyTab) ? S.ui.bodyTab : 'now');
 
-export function render() {
+export function render(params = []) {
+  syncTab(params, TABS, 'bodyTab');
+
   return h`
     <div class="title">Тело</div>
     <div class="sub">Дом, а не проект. Отмечай как есть — задним числом тоже можно.</div>
@@ -351,7 +354,7 @@ export const actions = {
     },
   }),
 
-  tab: v => update(s => { s.ui.bodyTab = v.v; }),
+  tab: v => goTab('health', 'bodyTab', v.v),
   span: v => update(s => { s.ui.formDays = Number(v.v); }),
   noticeoff: () => update(s => { delete s.health.startsOnlyNotice; }),
   cprev: () => update(s => { s.ui.calMonth = addMonths(calMonth(), -1); }),
