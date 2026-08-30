@@ -1,7 +1,7 @@
 // Роутер и оболочка: рисует активный экран, нижний бар и drawer,
 // раздаёт клики экрану через data-act.
 
-import { S, onChange, update, updateQuiet, level, loadError, rescueRaw, acceptFreshStart } from './store.js';
+import { S, SPHERES, onChange, update, updateQuiet, level, loadError, rescueRaw, acceptFreshStart } from './store.js';
 import { todayISO } from './dates.js';
 import { closeSheet, toast } from './ui.js';
 import { reconcile } from './traits.js';
@@ -173,8 +173,26 @@ function renderStatus() {
     : '<span></span><span></span>';
 }
 
-const DRAWER_KEYS = ['inbox', 'spheres', 'work', 'food', 'budget', 'edu', 'study', 'sport',
-  'habits', 'tracker', 'health', 'care', 'library', 'trips', 'settings'];
+/** Экраны сфер: открываются из «Сфер» и подсвечивают их. Берём из списка сфер,
+ *  чтобы новая сфера не выпала из меню — так уже случилось с фрилансом. */
+const SPHERE_SCREENS = new Set(SPHERES.filter(s => s.screen).map(s => s.screen));
+
+/** Ключи нижнего бара — всё остальное живёт под «Ещё». */
+const BAR = NAV.filter(n => n.key !== 'more').map(n => n.key);
+
+/**
+ * Какой пункт меню отвечает за текущий адрес. Точное совпадение важнее всего
+ * (вкладки «Внутри» — отдельные пункты меню), потом сам экран, потом родитель:
+ * «Питание» открывается из «Сфер», и подсветиться должны именно они.
+ * Без этого меню молчало на семи экранах — человек не понимал, где он.
+ */
+function navKey(keys) {
+  const cur = route().join('/');
+  const name = activeScreen();
+  if (keys.includes(cur)) return cur;
+  if (keys.includes(name)) return name;
+  return SPHERE_SCREENS.has(name) && keys.includes('spheres') ? 'spheres' : '';
+}
 
 /**
  * Навигация. На телефоне — пять кнопок снизу и ящик «Ещё»: больше туда не
@@ -182,16 +200,16 @@ const DRAWER_KEYS = ['inbox', 'spheres', 'work', 'food', 'budget', 'edu', 'study
  * сразу и ящик не нужен — лишний тап ради того, что и так помещается.
  */
 function renderNav() {
-  const cur = route().join('/') || activeScreen();
+  const act = navKey([...BAR, ...DRAWER.map(d => d.key)]);
   nav.hidden = !S.onboarded;
   if (!isDesk()) {
     nav.innerHTML = NAV.map(n => {
-      const on = n.key === 'more' ? DRAWER_KEYS.includes(activeScreen()) : n.key === activeScreen();
+      const on = n.key === 'more' ? !BAR.includes(activeScreen()) : n.key === activeScreen();
       return `<button data-nav="${n.key}" class="${on ? 'on' : ''}">${n.label}</button>`;
     }).join('');
     return;
   }
-  const item = (key, label) => `<button data-nav="${key}" class="${cur === key ? 'on' : ''}">${label}</button>`;
+  const item = (key, label) => `<button data-nav="${key}" class="${act === key ? 'on' : ''}">${label}</button>`;
   nav.innerHTML = `
     <div class="side-head">
       ${avatarHtml(S.user, 30)}
@@ -206,7 +224,7 @@ function renderNav() {
 function renderDrawer() {
   document.querySelector('.drawer-wrap')?.remove();
   if (!drawerOpen) return;
-  const cur = route().join('/');
+  const act = navKey(DRAWER.map(d => d.key));
   const wrap = document.createElement('div');
   wrap.className = 'drawer-wrap';
   wrap.innerHTML = `
@@ -222,7 +240,7 @@ function renderDrawer() {
         // Тихий счётчик: рабочее на сегодня видно, только когда открываешь меню.
         // На «Дне» рабочих задач нет намеренно — они не должны отвлекать.
         const n = d.key === 'work' ? workTodayCount() : 0;
-        return `<button class="item ${cur === d.key ? 'on' : ''}" data-drawer="${d.key}">${d.label}${
+        return `<button class="item ${act === d.key ? 'on' : ''}" data-drawer="${d.key}">${d.label}${
           n ? `<span class="item-n">${n}</span>` : ''}</button>`;
       }).join('')}
     </div>`;

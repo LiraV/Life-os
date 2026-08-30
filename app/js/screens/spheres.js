@@ -905,7 +905,12 @@ const curKey = () => location.hash.replace(/^#\/?/, '').split('/')[1];
 
 export const actions = {
   // У питания свой экран: календарь КБЖУ не влезает в общую механику этапов.
-  open: v => { location.hash = { food: '#/food', money: '#/budget', edu: '#/edu', study: '#/study', sport: '#/sport', books: '#/library', trips: '#/trips', work: '#/work', health: '#/health', free: '#/free', biz: '#/biz' }[v.v] || '#/spheres/' + v.v; },
+  // Куда ведёт плитка, знает сама сфера: список экранов один на приложение,
+  // иначе новая сфера открывается, но нигде не подсвечивается.
+  open: v => {
+    const own = SPHERES.find(x => x.key === v.v);
+    location.hash = own?.screen ? '#/' + own.screen : '#/spheres/' + v.v;
+  },
   back: () => { location.hash = '#/spheres'; },
 
   // Сфера тут не одна на экран, поэтому берём ту, что открыта, а не зашитую.

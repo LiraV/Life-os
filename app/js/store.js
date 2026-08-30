@@ -28,21 +28,23 @@ import { FREE_STAGES, FREE_KINDS } from './free.js';
 import { BIZ_STAGES, BIZ_KINDS } from './biz.js';
 import { REVIEW_Q, REVIEW_OPEN } from './review.js';
 
+// screen — собственный экран сферы. Он же отвечает за подсветку меню:
+// экраны сфер живут под «Сферами», и знать об этом должно одно место.
 export const SPHERES = [
-  { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png' },
-  { key: 'study', name: 'Учёба',    mech: 'курсы',      img: 'assets/illustration_03.png' },
-  { key: 'work',  name: 'Работа',   mech: 'квесты',     img: 'assets/illustration_02.png' },
+  { key: 'edu',   name: 'Обучение', mech: 'древо',      img: 'assets/illustration_09.png', screen: 'edu' },
+  { key: 'study', name: 'Учёба',    mech: 'курсы',      img: 'assets/illustration_03.png', screen: 'study' },
+  { key: 'work',  name: 'Работа',   mech: 'квесты',     img: 'assets/illustration_02.png', screen: 'work' },
   { key: 'blog',  name: 'Блог',     mech: 'редакция',    img: 'assets/illustration_06.png' },
-  { key: 'sport', name: 'Спорт',    mech: 'статы',      img: 'assets/illustration_05.png' },
-  { key: 'food',  name: 'Питание',  mech: 'зелья',      img: 'assets/illustration_04.png' },
+  { key: 'sport', name: 'Спорт',    mech: 'статы',      img: 'assets/illustration_05.png', screen: 'sport' },
+  { key: 'food',  name: 'Питание',  mech: 'зелья',      img: 'assets/illustration_04.png', screen: 'food' },
   // «Тело» — такая же сфера жизни, как остальные, просто со своим экраном:
   // цикл, замеры и сон живут там, а плитка открывает именно его.
-  { key: 'health', name: 'Тело',     mech: 'состояние',  img: 'assets/spheres/care.webp' },
-  { key: 'free',  name: 'Фриланс',  mech: 'заказы',     img: 'assets/spheres/plan.webp' },
-  { key: 'biz',   name: 'Моё дело',  mech: 'проекты',    img: 'assets/illustration_08.png' },
-  { key: 'money', name: 'Бюджет',   mech: 'казна',      img: 'assets/illustration_10.png' },
-  { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png' },
-  { key: 'trips', name: 'Страны',   mech: 'карта',      img: 'assets/illustration_01.png' },
+  { key: 'health', name: 'Тело',     mech: 'состояние',  img: 'assets/spheres/care.webp', screen: 'health' },
+  { key: 'free',  name: 'Фриланс',  mech: 'заказы',     img: 'assets/spheres/plan.webp', screen: 'free' },
+  { key: 'biz',   name: 'Моё дело',  mech: 'проекты',    img: 'assets/illustration_08.png', screen: 'biz' },
+  { key: 'money', name: 'Бюджет',   mech: 'казна',      img: 'assets/illustration_10.png', screen: 'budget' },
+  { key: 'books', name: 'Библиотека', mech: 'полка',    img: 'assets/illustration_07.png', screen: 'library' },
+  { key: 'trips', name: 'Страны',   mech: 'карта',      img: 'assets/illustration_01.png', screen: 'trips' },
 ];
 
 /** Пустая запись сферы: по ящику на каждую механику. Одна фабрика на всё
