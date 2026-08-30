@@ -1506,6 +1506,20 @@ export const SOURCES = {
     refName: id => tagById(id)?.name || '',
     count: (ref, r) => doneWorkouts(r).filter(w => (w.tags || []).includes(ref)).length,
   },
+  habit: {
+    // Привычка — не сфера, поэтому в «Цель отсюда» этот счёт не попадает:
+    // он живёт только там, где выбирают источник вручную. Считаем дни с
+    // закрытой нормой — ровно то, что показывает строка привычки в трекере.
+    sphere: 'habits', group: 'Ритм дня', name: 'Дней с привычкой', unit: 'дней',
+    horizons: ['year', 'quarter', 'month'],
+    ref: () => liveHabits().map(hb => ({ value: hb.id, label: hb.name })),
+    refName: id => liveHabits().find(hb => hb.id === id)?.name || '',
+    count: (ref, r) => {
+      const hb = liveHabits().find(x => x.id === ref);
+      if (!hb) return 0;
+      return datesBetween(r.from, r.to).filter(d => habitDone(hb, d)).length;
+    },
+  },
   lessons: {
     sphere: 'edu', name: 'Занятий с полки', unit: 'занятий', horizons: ['year', 'quarter', 'month'],
     ref: () => [{ value: '', label: 'все занятия' }, ...liveLessons().map(l => ({ value: l.id, label: l.name }))],
@@ -1531,11 +1545,11 @@ export const SOURCES = {
   // «Осознанность» — не сфера, поэтому цель на неё ставится из «Внутри»:
   // источник живёт под ключом 'inside' и туда же приводит кнопка.
   mindDays: {
-    sphere: 'inside', name: 'Дней с практикой', unit: 'дней', horizons: ['year', 'quarter', 'month'],
+    sphere: 'inside', group: 'Осознанность', name: 'Дней с практикой', unit: 'дней', horizons: ['year', 'quarter', 'month'],
     count: (_ref, r) => mindDays(r.from, r.to),
   },
   mindMinutes: {
-    sphere: 'inside', name: 'Минут практики', unit: 'мин', horizons: ['year', 'quarter', 'month'],
+    sphere: 'inside', group: 'Осознанность', name: 'Минут практики', unit: 'мин', horizons: ['year', 'quarter', 'month'],
     count: (_ref, r) => mindMinutes(r.from, r.to),
   },
   workHours: {
@@ -1629,6 +1643,25 @@ export const SOURCES = {
     count: ref => vaultBalance((S.budget.vaults || []).find(v => v.id === ref)),
   },
 };
+
+/** Все даты отрезка — нужен там, где счёт идёт по дням, а не по записям. */
+export function datesBetween(from, to) {
+  const out = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+
+/**
+ * Всё, что приложение умеет считать за этот срок, — для ручного выбора
+ * источника у динамичной цели. Здесь и сферы, и то, что сферой не является:
+ * привычки живут в «Ритме», а не в сфере, но считать их так же законно.
+ */
+export const countableFor = horizon => Object.entries(SOURCES)
+  .filter(([, s2]) => s2.horizons.includes(horizon))
+  .map(([key, s2]) => ({
+    key, ...s2,
+    group: s2.group || (s2.sphere === '*' ? 'Свои сферы' : sphereOf(s2.sphere)?.name || s2.sphere),
+  }));
 
 /** Источники, которые эта сфера умеет считать. */
 /**

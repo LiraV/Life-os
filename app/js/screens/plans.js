@@ -11,7 +11,7 @@ import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
   quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
   goalSlots, goalsPlannedIn, monthGoals, isCounter, counterOf, autoLabel,
-  intentionsAbove, intentionOf, goalsOfIntent,
+  intentionsAbove, intentionOf, goalsOfIntent, countableFor, SOURCES,
 } from '../selectors.js';
 
 const TABS = [['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']];
@@ -236,6 +236,22 @@ function counterRow(g) {
 }
 
 /**
+ * Откуда цель берёт число. «Отмечаю сама» — счётчик с плюсами, как было;
+ * любой другой пункт превращает цель в считаемую, и плюсы пропадают.
+ */
+function srcPicker(horizon, g) {
+  const able = countableFor(horizon);
+  if (!able.length) return '';
+  const cur = g?.src?.kind || '';
+  const opts = [{ value: '', label: 'отмечаю сама' },
+    ...able.map(x => ({ value: x.key, label: `${x.group} · ${x.name}` }))];
+  const src = able.find(x => x.key === cur);
+  const refs = src?.ref ? src.ref() : [];
+  return field.select('kind', 'Откуда число', opts, cur)
+    + `<div id="g_ref">${refs.length ? field.select('ref', 'Что именно', refs, g?.src?.ref ?? refs[0].value) : ''}</div>`;
+}
+
+/**
  * Выбор намерения для цели месяца: свои и всех уровней выше. Это не родитель
  * и не срок — прогресс по этой связи никуда не поднимается. Она отвечает на
  * вопрос «ради чего», а не «из чего складывается».
@@ -451,6 +467,13 @@ function goalSheet(goal, preset) {
   const period0 = goal?.period || preset?.period || (horizon0 === 'year' ? String(year()) : horizon0 === 'quarter' ? quarterKey(month()) : month());
   const g = goal || { id: uid(), title: '', steps: [], slots: [], progress: 0, deadline: '', sphere: '', parentId: '' };
 
+  const redrawRef = key => {
+    const able = countableFor(horizon0);
+    const src = able.find(x => x.key === key);
+    const refs = src?.ref ? src.ref() : [];
+    const box = document.querySelector('.sheet #g_ref');
+    if (box) box.innerHTML = refs.length ? field.select('ref', 'Что именно', refs, refs[0].value) : '';
+  };
   const wrap = openSheet({
     title: isNew ? `Новая цель · ${HORIZONS[horizon0].toLowerCase()}` : 'Цель',
     sub: 'Цель месяца может вести к цели квартала, та — к цели года',
@@ -465,6 +488,9 @@ function goalSheet(goal, preset) {
       field.opts('sphere', 'Сфера', [{ value: '', label: 'без сферы' }, ...allSpheres().map(x => ({ value: x.key, label: x.name }))], g.sphere || ''),
       field.date('deadline', 'Срок — если он есть', g.deadline || ''),
       field.number('target', 'Счётчик — сколько всего', g.target ?? '', { min: 0 }),
+      // Источник можно подвязать и потом: цель, которую отмечали руками,
+      // становится считаемой без пересоздания — и наоборот.
+      srcPicker(horizon0, g),
       g.src ? field.note(`Набранное считается само: ${autoLabel(g)}. Вписывать его руками не нужно — и нельзя, иначе получилось бы два числа про одно.`)
             : field.text('unit', 'В чём считаем', g.unit || '', 'книг, ₽, км — необязательно'),
       field.note('Со счётчиком прогресс считается от набранного. Без него — по этапам, которые добавляются в самой цели.'),
@@ -495,10 +521,17 @@ function goalSheet(goal, preset) {
           intentId: horizon === 'month' ? (v.intentId ?? g.intentId ?? '') : '',
           sphere: v.sphere || '', deadline: v.deadline || '',
           target,
-          // У цели с источником единица его, а поля для неё на экране нет.
-          unit: g.src ? g.unit : (v.unit || '').trim(),
           current: target ? (Number(g.current) || 0) : 0,
         };
+        // Источник могли подвязать или снять прямо здесь.
+        const picked = countableFor(horizon).find(x => x.key === v.kind);
+        if (picked) {
+          next.src = { kind: picked.key, ref: picked.ref ? (v.ref ?? '') : '' };
+          next.unit = (picked.unitOf ? picked.unitOf(next.src.ref) : picked.unit) || picked.unit;
+        } else {
+          delete next.src;
+          next.unit = (v.unit ?? g.unit ?? '').trim();
+        }
         const i = s.goals.findIndex(x => x.id === g.id);
         if (i >= 0) s.goals[i] = next; else s.goals.push(next);
         // Уводим экран туда, где цель теперь живёт, — иначе она «пропадает».
@@ -520,6 +553,11 @@ function goalSheet(goal, preset) {
       close();
       toast('В архиве — не потеряется');
     },
+  });
+
+  // Смена источника перестраивает уточнение: у каждого счёта оно своё.
+  wrap.addEventListener('change', e => {
+    if (e.target?.name === 'kind') redrawRef(e.target.value);
   });
 
   // Смена горизонта перестраивает зависимые списки: период и «ведёт к».
@@ -641,34 +679,57 @@ export const actions = {
   goaladd: v => goalSheet(null, { horizon: v.h, period: v.p }),
   plan: v => { const g = goalById(v.id); if (g) planSheet(g); },
 
-  dynadd: v => openSheet({
-    title: 'Динамичная цель',
-    sub: 'то, что набирается за месяц',
-    body: [
-      field.text('title', 'Что делаем', '', 'например, «Сходить на вокал»'),
-      field.number('target', 'Сколько раз за месяц', 4, { min: 1 }),
-      field.text('unit', 'В чём считаем', '', 'раз, дней, часов — необязательно'),
-      intentField(v.p),
-      field.note('Останется внутри месяца: в кварталы и год такие цели не переносятся. Намерение — не срок и не родитель: цель просто говорит, ради чего она.'),
-    ].join(''),
-    primary: 'Добавить',
-    onSave: (val, close) => {
-      const title = (val.title || '').trim();
-      if (!title) return toast('Нужно название');
-      const target = Math.max(1, Number(val.target) || 1);
-      update(s2 => {
-        s2.goals.push({
-          id: uid(), title, horizon: 'month', period: v.p, dynamic: true,
-          target, unit: (val.unit || '').trim(), current: 0,
-          steps: [], slots: [], parentId: '', intentId: val.intentId || '', sphere: '', deadline: '',
+  dynadd: v => {
+    const able = countableFor('month');
+    // Откуда берётся число: сама отмечаю или считает приложение. Список —
+    // всё, что оно уже умеет считать: привычки, занятия, спорт, сферы.
+    const srcOpts = [{ value: '', label: 'отмечаю сама' },
+      ...able.map(x => ({ value: x.key, label: `${x.group} · ${x.name}` }))];
+    const refBlock = key => {
+      const src = able.find(x => x.key === key);
+      const refs = src?.ref ? src.ref() : [];
+      return refs.length ? field.select('ref', 'Что именно', refs, refs[0].value)
+        : (key ? field.note('Уточнять нечего — этот счёт один на всю сферу.') : '');
+    };
+    const wrap = openSheet({
+      title: 'Динамичная цель',
+      sub: 'то, что набирается за месяц',
+      body: [
+        field.text('title', 'Что делаем', '', 'например, «Сходить на вокал»'),
+        field.select('kind', 'Откуда число', srcOpts, ''),
+        `<div id="dyn_ref">${refBlock('')}</div>`,
+        field.number('target', 'Сколько раз за месяц', 4, { min: 1 }),
+        field.text('unit', 'В чём считаем', '', 'раз, дней, часов — необязательно'),
+        intentField(v.p),
+        field.note('Со счётом от приложения плюсов у строки не будет: число возьмётся из отметок, и вписывать его руками значило бы завести второе про то же самое. Останется внутри месяца: в кварталы и год такие цели не переносятся.'),
+      ].join(''),
+      primary: 'Добавить',
+      onSave: (val, close) => {
+        const title = (val.title || '').trim();
+        if (!title) return toast('Нужно название');
+        const target = Math.max(1, Number(val.target) || 1);
+        const src = able.find(x => x.key === val.kind);
+        const ref = src?.ref ? (val.ref ?? '') : '';
+        update(s2 => {
+          s2.goals.push({
+            id: uid(), title, horizon: 'month', period: v.p, dynamic: true,
+            target, unit: src ? src.unit : (val.unit || '').trim(), current: 0,
+            steps: [], slots: [], parentId: '', intentId: val.intentId || '', sphere: '', deadline: '',
+            ...(src ? { src: { kind: src.key, ref } } : {}),
+          });
+          s2.ui.planTab = 'month';
+          s2.ui.monthAnchor = v.p;
         });
-        s2.ui.planTab = 'month';
-        s2.ui.monthAnchor = v.p;
-      });
-      close();
-      toast('Добавила');
-    },
-  }),
+        close();
+        toast('Добавила');
+      },
+    });
+    wrap?.addEventListener('change', e => {
+      if (e.target?.name !== 'kind') return;
+      const box = wrap.querySelector('#dyn_ref');
+      if (box) box.innerHTML = refBlock(e.target.value);
+    });
+  },
 
   intadd: v => openSheet({
     title: 'Намерения',
