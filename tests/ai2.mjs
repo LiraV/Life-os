@@ -1,0 +1,85 @@
+// Модель выбирается списком, а не набирается руками, и список берётся у самого
+// OpenAI. Плюс текст про приватность обязан говорить правду про синхронизацию.
+//
+// Сеть не подменяем: браузер не пустит подставной ответ чужого домена, и
+// проверка мерила бы не приложение, а свои же настройки. Подменяем сам fetch —
+// ровно ту границу, за которой начинается OpenAI.
+import { chromium, devices } from './pw.mjs';
+const b = await chromium.launch();
+const ctx = await b.newContext({ serviceWorkers: 'block', locale: 'ru-RU', ...devices['iPhone 13'] });
+await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+const p = await ctx.newPage();
+const errs = []; let bad = 0;
+const ok = (n, c, extra = '') => { if (!c) bad++; console.log(`${c ? '✓' : '✗'} ${n}${extra ? ' — ' + extra : ''}`); };
+p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
+
+// Подставной OpenAI ставим до загрузки приложения, чтобы он был на месте всегда.
+await p.addInitScript(() => {
+  const real = window.fetch;
+  window.fetch = (url, init) => {
+    if (String(url).includes('api.openai.com/v1/models')) {
+      return Promise.resolve(new Response(JSON.stringify({ data: [
+        { id: 'gpt-4o-mini' }, { id: 'gpt-4o' }, { id: 'o3-mini' }, { id: 'chatgpt-4o-latest' },
+        { id: 'text-embedding-3-small' }, { id: 'whisper-1' }, { id: 'dall-e-3' }, { id: 'tts-1' },
+        { id: 'gpt-4o-audio-preview' },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    }
+    return real(url, init);
+  };
+});
+
+await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
+await p.waitForTimeout(700);
+await p.getByText('пропустить онбординг').click(); await p.waitForTimeout(600);
+await p.evaluate(() => {
+  const s = JSON.parse(localStorage.getItem('lifeos.state'));
+  s.ui.tips = 'off'; localStorage.setItem('lifeos.state', JSON.stringify(s));
+  localStorage.setItem('lifeos.openai.key', 'sk-проверочный-ключ-достаточной-длины');
+});
+await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);
+await p.evaluate(() => { location.hash = '#/settings'; }); await p.waitForTimeout(500);
+
+// ── текст про данные говорит правду ─────────────────────────────
+const txt = await p.locator('#scr').innerText();
+ok('без входа сказано, что копии нет', /Синхронизация выключена|копии нигде нет/i.test(txt),
+  (txt.match(/Синхронизация выключена.{0,40}/) || [''])[0]);
+ok('обещания «без сервера и аккаунта» больше нет', !/без сервера и аккаунта/i.test(txt));
+ok('сказано, что дневник и цикл не уходят', /Дневник, цикл/i.test(txt));
+ok('и что ключ не уезжает ни в копию, ни в облако', /не попадает ни в копию, ни в облако/i.test(txt));
+
+// ── список моделей приходит от OpenAI ───────────────────────────
+await p.locator('[data-act="aikey"]').click(); await p.waitForTimeout(300);
+ok('модель выбирается списком, а не полем ввода', await p.locator('.sheet select[name="model"]').count() === 1);
+await p.waitForFunction(() => document.querySelectorAll('.sheet select[name="model"] option').length > 1, null, { timeout: 10000 })
+  .catch(() => {});
+const opts = await p.locator('.sheet select[name="model"] option').allTextContents();
+ok('список пришёл от OpenAI', opts.includes('gpt-4o') && opts.includes('o3-mini'), opts.join(', '));
+ok('неразговорчивые модели отсеяны', !opts.some(o => /whisper|dall|tts|embedding|audio/.test(o)), opts.join(', '));
+ok('нынешняя модель отмечена', await p.locator('.sheet select[name="model"]').inputValue() === 'gpt-4o-mini',
+  await p.locator('.sheet select[name="model"]').inputValue());
+
+await p.selectOption('.sheet select[name="model"]', 'gpt-4o');
+await p.locator('[data-sheet="save"]').click();
+await p.waitForFunction(() => !document.querySelector('.overlay'), null, { timeout: 5000 }).catch(() => {});
+await p.waitForTimeout(300);
+ok('выбор сохранился', await p.evaluate(() => localStorage.getItem('lifeos.openai.model')) === 'gpt-4o');
+// .caps в вёрстке поднимает буквы, поэтому ищем без учёта регистра.
+const after = await p.locator('#scr').innerText();
+ok('и виден в настройках', /Модель\s*\n?\s*gpt-4o/i.test(after), (after.match(/Модель[\s\S]{0,20}/) || [''])[0]);
+ok('ключ при этом не стёрся: менялась только модель',
+  await p.evaluate(() => (localStorage.getItem('lifeos.openai.key') || '').length > 20),
+  await p.evaluate(() => String(localStorage.getItem('lifeos.openai.key')).slice(0, 8)));
+
+// ── модель, которой нет в списке, не подменяется чужой ──────────
+await p.evaluate(() => { localStorage.setItem('lifeos.openai.model', 'своя-особая-модель'); });
+await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(700);
+await p.evaluate(() => { location.hash = '#/settings'; }); await p.waitForTimeout(400);
+await p.locator('[data-act="aikey"]').click(); await p.waitForTimeout(500);
+ok('незнакомая модель остаётся выбранной, а не подменяется',
+  await p.locator('.sheet select[name="model"]').inputValue() === 'своя-особая-модель',
+  await p.locator('.sheet select[name="model"]').inputValue());
+
+await b.close();
+if (errs.length) { console.log(errs.join('\n')); bad += errs.length; }
+console.log(bad ? `✗ ошибок: ${bad}` : '✓ выбор модели и текст про данные в порядке');
+process.exit(bad ? 1 : 0);

@@ -6,7 +6,29 @@
 
 const KEY_STORE = 'lifeos.openai.key';
 const MODEL_STORE = 'lifeos.openai.model';
+const LIST_STORE = 'lifeos.openai.models';
 export const DEFAULT_MODEL = 'gpt-4o-mini';
+
+/**
+ * Список моделей берём у самого OpenAI, а не пишем руками: написанный руками
+ * устаревает молча, и человек выбирает из того, чего у него нет. Отсеиваем то,
+ * что не умеет разговаривать: озвучку, картинки, распознавание речи, векторы.
+ */
+const CHATTY = id => /^(gpt|o\d|chatgpt)/i.test(id)
+  && !/(embedding|whisper|tts|audio|realtime|image|dall|moderation|transcribe|search|codex)/i.test(id);
+
+export const knownModels = () => {
+  try {
+    const list = JSON.parse(localStorage.getItem(LIST_STORE) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch { return []; }
+};
+
+const rememberModels = ids => {
+  try {
+    localStorage.setItem(LIST_STORE, JSON.stringify(ids.filter(CHATTY).sort()));
+  } catch { /* не критично: список — удобство, а не данные */ }
+};
 
 export const getKey = () => { try { return localStorage.getItem(KEY_STORE) || ''; } catch { return ''; } };
 export const hasKey = () => getKey().trim().length > 20;
@@ -59,9 +81,16 @@ async function callOpenAI(path, init) {
 
 /** Проверка ключа: самый дешёвый запрос, который вообще есть. */
 export async function checkKey() {
+  const ids = await fetchModels();
+  return { count: ids.length, hasModel: ids.includes(getModel()) };
+}
+
+/** Спросить у OpenAI, какие модели доступны этому ключу, и запомнить список. */
+export async function fetchModels() {
   const body = await callOpenAI('/models', { method: 'GET' });
   const ids = (body?.data || []).map(m => m.id);
-  return { count: ids.length, hasModel: ids.includes(getModel()) };
+  rememberModels(ids);
+  return ids;
 }
 
 /** Уменьшаем снимок перед отправкой: большие фото дороже и медленнее, а точность не растёт. */

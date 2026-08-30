@@ -3,7 +3,7 @@
 import { S, update, exportJSON, importJSON, resetAll, level, prevRaw } from '../store.js';
 import { todayISO, stampLabel } from '../dates.js';
 import { BUILD } from '../version.js';
-import { hasKey, maskKey, setKey, setModel, getModel, checkKey, DEFAULT_MODEL } from '../ai.js';
+import { hasKey, maskKey, setKey, setModel, getModel, checkKey, fetchModels, knownModels, DEFAULT_MODEL } from '../ai.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import { tipsOn, tipsReset, tipsDisable } from '../tips.js';
 import { APP_ICONS, iconKey, setAppIcon, iconById } from '../appicon.js';
@@ -17,6 +17,23 @@ import { configured, signedIn, account, lastSync, busy, signIn, signOut, syncNow
  * входа планер работает как работал, а при входе то, что уже записано на
  * устройстве, не заменяется облачным, а сливается с ним.
  */
+/**
+ * Выбор модели списком, а не полем ввода: опечатка в названии выясняется
+ * только в момент запроса, и выглядит это как «ИИ сломался». Список берём у
+ * самого OpenAI — свой устаревал бы молча. Нынешнюю модель добавляем всегда,
+ * даже если её в списке нет: иначе выбор молча подменил бы её на чужую.
+ */
+function modelField() {
+  const have = knownModels();
+  const cur = getModel();
+  const ids = have.includes(cur) ? have : [cur, ...have];
+  if (!have.length) {
+    return field.select('model', 'Модель', [{ value: cur, label: cur }], cur)
+      + field.note('Список моделей появится после проверки ключа — его отдаёт сам OpenAI.');
+  }
+  return field.select('model', 'Модель', ids.map(id => ({ value: id, label: id })), cur);
+}
+
 function syncCard() {
   if (!configured()) {
     return h`<div class="card">
@@ -72,9 +89,14 @@ export function render() {
 
     <div class="card">
       <div class="caps">Данные и приватность</div>
-      <div class="ink">Всё живёт только на этом устройстве: браузерное хранилище, без сервера и аккаунта.</div>
-      <div class="lab">Само по себе приложение ничего наружу не отправляет. Исключение — то, что ты включишь ниже:
-        оценка блюда и вопросы Летописцу уходят в OpenAI, потому что сервера у приложения нет.</div>
+      <div class="ink">Записи живут на этом устройстве. Наружу уходит только то, что ты включила сама.</div>
+      <div class="lab" style="margin-top:6px">${signedIn()
+        ? 'Синхронизация включена: копия данных лежит в твоём облаке, в твоём же аккаунте. Кто их читает, решает не приложение, а проверка на той стороне: она спрашивает у Яндекса, чей вход, и чужому файл не отдаст.'
+        : 'Синхронизация выключена: копии нигде нет, и данные не переживут очистку браузера. Копию в файл стоит делать хоть иногда.'}</div>
+      <div class="lab">В OpenAI уходит только то, что ты просишь сама: снимок блюда или его описание и короткая
+        выжимка дня для вопроса Летописцу. Дневник, цикл и записи «Внутри» не отправляются никогда и никуда.</div>
+      <div class="lab">Ключ OpenAI хранится отдельно от остальных данных и намеренно не попадает ни в копию, ни в облако:
+        он бы уехал в файл, который ты кому-нибудь перешлёшь.</div>
     </div>
 
     <div class="card">
@@ -87,11 +109,8 @@ export function render() {
       : raw(h`
         <div class="ink">Ключ не задан. Без него работают все экраны, кроме оценки фото и свободных вопросов Летописцу.</div>
         <button class="add" data-act="aikey">Добавить ключ OpenAI</button>`)}
-      <div class="lab">Ключ хранится только на этом устройстве и намеренно не попадает в резервную копию.
-        Запросы идут с телефона прямо в OpenAI и оплачиваются по твоему счёту — на platform.openai.com
-        стоит выставить месячный лимит.</div>
-      <div class="lab">Что уходит: при оценке блюда — снимок (он нигде не сохраняется) или твоё описание; при вопросе
-        Летописцу — короткая выжимка: сегодняшние квесты, энергия, потребности. Дневник и цикл не отправляются.</div>
+      <div class="lab">Запросы идут с этого устройства прямо в OpenAI и оплачиваются по твоему счёту —
+        на platform.openai.com стоит выставить месячный лимит.</div>
     </div>
 
     ${raw(syncCard())}
@@ -174,19 +193,25 @@ export const actions = {
     toast(`Иконка · ${iconById(key).name}`);
   },
   tips: () => { if (tipsOn()) { tipsDisable(); toast('Выключила'); } else { tipsReset(); toast('Подсказки вернулись'); } },
-  aikey: () => openSheet({
+  aikey: () => {
+    const wrap = openSheet({
     title: 'Ключ OpenAI',
     sub: 'создаётся на platform.openai.com → API keys',
     body: [
       field.text('key', 'Ключ', '', 'sk-...'),
-      field.text('model', 'Модель', getModel(), DEFAULT_MODEL),
-      field.note('Ключ вводится один раз и остаётся на этом устройстве. Если оставить поле пустым и сохранить, ключ будет удалён.'),
+      modelField(),
+      field.note(hasKey()
+        ? 'Ключ уже задан и показан выше звёздочками. Оставь поле пустым — он останется прежним, можно менять только модель. Удаляется отдельной кнопкой внизу.'
+        : 'Ключ вводится один раз и остаётся на этом устройстве.'),
     ].join(''),
     primary: 'Сохранить',
     onSave: (v, close) => {
       const key = (v.key || '').trim();
       if (key && !key.startsWith('sk-')) return toast('Ключ OpenAI начинается с sk-');
-      setKey(key);
+      // Пустое поле значит «не трогай ключ», а не «удали». Удаление — это
+      // отдельная кнопка: со списком моделей менять одну только модель стало
+      // обычным делом, и сохранение молча уносило бы ключ с собой.
+      if (key) setKey(key);
       setModel(v.model);
       close();
       update(() => {});
@@ -194,7 +219,16 @@ export const actions = {
     },
     danger: hasKey() ? 'Удалить ключ' : null,
     onDanger: (_v, close) => { setKey(''); close(); update(() => {}); toast('Ключ удалён'); },
-  }),
+    });
+    // Списка ещё нет — спросим у OpenAI и перерисуем одно поле, не трогая
+    // остальные: человек в этот момент может печатать ключ.
+    if (hasKey() && !knownModels().length) {
+      fetchModels().then(() => {
+        const box = wrap?.querySelector('select[name="model"]')?.closest('.fld');
+        if (box) box.outerHTML = modelField();
+      }).catch(() => { /* не вышло — останется поле с тем, что есть */ });
+    }
+  },
 
   aicheck: async () => {
     toast('Проверяю…');
