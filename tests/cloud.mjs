@@ -145,6 +145,19 @@ const enter = async p => {
   await ctx.close();
 }
 
+// ── 5. адрес возврата один и тот же, как ни открой приложение ────
+{
+  const { ctx, p } = await open(null);
+  const fromBrowser = await p.evaluate(async () => (await import('/app/js/cloud.js')).redirectUri());
+  await p.goto('http://127.0.0.1:8765/index.html', { waitUntil: 'load' });
+  await p.waitForTimeout(500);
+  const fromHome = await p.evaluate(async () => (await import('/app/js/cloud.js')).redirectUri());
+  ok('адрес возврата не зависит от того, как открыто приложение', fromBrowser === fromHome,
+    `${fromBrowser} vs ${fromHome}`);
+  ok('и заканчивается косой чертой, как записано у Яндекса', fromBrowser.endsWith('/'), fromBrowser);
+  await ctx.close();
+}
+
 await b.close();
 if (errs.length) { console.log(errs.join('\n')); bad += errs.length; }
 console.log(bad ? `✗ ошибок: ${bad}` : '✓ облако не съедает то, что было');

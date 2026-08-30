@@ -64,10 +64,19 @@ export function consumeRedirect() {
   return true;
 }
 
+/**
+ * Адрес возврата. Яндекс сверяет его с записанным символ в символ, а открыть
+ * приложение можно по-разному: с экрана «Домой» оно стартует с index.html на
+ * конце, из браузера — без него. Поэтому приводим к одному виду, иначе вход
+ * работал бы на ноутбуке и молча отказывал на телефоне.
+ */
+export const redirectUri = () =>
+  (location.origin + location.pathname).replace(/index\.html$/, '');
+
 /** Уйти к Яндексу. Возвращаемся на ту же страницу — приложение статическое. */
 export function signIn() {
   if (!configured()) return;
-  const back = location.origin + location.pathname;
+  const back = redirectUri();
   location.href = 'https://oauth.yandex.ru/authorize?response_type=token'
     + `&client_id=${encodeURIComponent(CLOUD.clientId)}`
     + `&redirect_uri=${encodeURIComponent(back)}`;
