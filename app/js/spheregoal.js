@@ -117,16 +117,37 @@ export function sphereGoalSheet(sphere) {
 
   // Смена счёта перерисовывает только уточнение и сроки: число и название,
   // если их уже вписали, остаются на месте.
+  /** Поле «сколько» подставляем от уточнения, если счёт знает своё «всего».
+   *  Введённое руками не трогаем: подсказка не должна спорить с человеком. */
+  const suggestTarget = (src, ref) => {
+    if (!src?.suggest) return;
+    const el = wrap?.querySelector('input[name="target"]');
+    if (!el || el.dataset.touched === '1') return;
+    const n = src.suggest(ref);
+    if (n) el.value = String(n);
+  };
+
   const redrawDyn = horizon => {
     const box = wrap?.querySelector('#sg_dyn');
     if (box) box.innerHTML = dynBlock(periodFor('month'), horizon);
   };
   wrap?.addEventListener('change', e => {
+    if (e.target?.name === 'target') { e.target.dataset.touched = '1'; return; }
+    if (e.target?.name === 'ref') {
+      const cur = list.find(x => x.key === wrap.querySelector('select[name="kind"]')?.value) || first;
+      return suggestTarget(cur, e.target.value);
+    }
     if (e.target?.name !== 'kind') return;
     const src = list.find(x => x.key === e.target.value) || first;
     const box = wrap.querySelector('#sg_opts');
     if (box) box.innerHTML = optsBlock(src);
     redrawDyn(src.horizons.includes('year') ? 'year' : src.horizons[0]);
+    suggestTarget(src, wrap.querySelector('select[name="ref"]')?.value ?? '');
+  });
+  // Ввод руками помечаем сразу, а не по «change»: иначе подсказка успела бы
+  // затереть начатое, пока поле ещё в фокусе.
+  wrap?.addEventListener('input', e => {
+    if (e.target?.name === 'target') e.target.dataset.touched = '1';
   });
   // Срок выбирается пилюлями: они шлют своё событие, а не change.
   wrap?.addEventListener('opt', e => {

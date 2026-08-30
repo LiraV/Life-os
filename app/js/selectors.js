@@ -1506,6 +1506,41 @@ export const SOURCES = {
     refName: id => tagById(id)?.name || '',
     count: (ref, r) => doneWorkouts(r).filter(w => (w.tags || []).includes(ref)).length,
   },
+  courseModule: {
+    // «Пройти модуль». Уроки внутри модуля дат не имеют, поэтому счёт за
+    // всё время: срок у такой цели — когда хочется дойти, а не окно.
+    sphere: 'edu', name: 'Пройти модуль', unit: 'уроков', horizons: ['year', 'quarter', 'month'], lifetime: true,
+    ref: () => liveLessons().flatMap(l => (l.items || []).map(m => ({ value: `${l.id}:${m.id}`, label: `${l.name} · ${m.title}` }))),
+    refName: id => {
+      const [lid, mid] = String(id || '').split(':');
+      const l = liveLessons().find(x => x.id === lid);
+      const m = (l?.items || []).find(x => x.id === mid);
+      return l && m ? `${l.name} · ${m.title}` : '';
+    },
+    // Сколько всего — подсказка для поля «сколько»: у модуля с уроками это
+    // их число, у модуля без уроков — единица, он либо пройден, либо нет.
+    suggest: id => {
+      const [lid, mid] = String(id || '').split(':');
+      const m = (liveLessons().find(x => x.id === lid)?.items || []).find(x => x.id === mid);
+      return (m?.lessons || []).length || 1;
+    },
+    count: ref => {
+      const [lid, mid] = String(ref || '').split(':');
+      const m = (liveLessons().find(x => x.id === lid)?.items || []).find(x => x.id === mid);
+      if (!m) return 0;
+      return (m.lessons || []).length ? m.lessons.filter(x => x.done).length : (m.done ? 1 : 0);
+    },
+  },
+  courseAll: {
+    sphere: 'edu', name: 'Пройти курс', unit: 'модулей', horizons: ['year', 'quarter', 'month'], lifetime: true,
+    ref: () => liveLessons().filter(l => (l.items || []).length).map(l => ({ value: l.id, label: l.name })),
+    refName: id => liveLessons().find(l => l.id === id)?.name || '',
+    suggest: id => (liveLessons().find(l => l.id === id)?.items || []).length || 1,
+    count: ref => {
+      const l = liveLessons().find(x => x.id === ref);
+      return (l?.items || []).filter(m => ((m.lessons || []).length ? m.lessons.every(x => x.done) : m.done)).length;
+    },
+  },
   habit: {
     // Привычка — не сфера, поэтому в «Цель отсюда» этот счёт не попадает:
     // он живёт только там, где выбирают источник вручную. Считаем дни с
@@ -1657,7 +1692,7 @@ export function datesBetween(from, to) {
  * привычки живут в «Ритме», а не в сфере, но считать их так же законно.
  */
 export const countableFor = horizon => Object.entries(SOURCES)
-  .filter(([, s2]) => s2.horizons.includes(horizon))
+  .filter(([, s2]) => s2.horizons.includes(horizon) && hasRefs(s2))
   .map(([key, s2]) => ({
     key, ...s2,
     group: s2.group || (s2.sphere === '*' ? 'Свои сферы' : sphereOf(s2.sphere)?.name || s2.sphere),
@@ -1669,8 +1704,13 @@ export const countableFor = horizon => Object.entries(SOURCES)
  * только той сфере, которая эту механику ведёт, и только ей одной, а не
  * всему списку своих сфер сразу.
  */
+/** Счёт, которому нечего уточнять, предлагать нельзя: цель на несуществующий
+ *  модуль или пилюлю считалась бы вечным нулём. */
+const hasRefs = s => !s.ref || (s.ref() || []).length > 0;
+
 export const sourcesOf = sphere => Object.entries(SOURCES)
   .filter(([, s]) => (s.sphere === '*' ? (s.ref() || []).some(o => o.value === sphere) : s.sphere === sphere))
+  .filter(([, s]) => s.sphere === '*' || hasRefs(s))
   .map(([key, s]) => ({
     key, ...s,
     ...(s.sphere === '*' ? { ref: null, fixedRef: sphere } : {}),
