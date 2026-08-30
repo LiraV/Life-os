@@ -125,13 +125,16 @@ export function energyOn(date) {
 /** Блок кривой дня по часам; ночью (1–7) — вне блоков. Живёт в хранилище,
  *  потому что и отметка, и кривая, и подсказки считают его одинаково. */
 export function blockAt(hours = new Date().getHours()) {
-  if (hours >= 7 && hours < 10) return 0;
+  // Порядок важен: ночной блок 22–01 переваливает через полночь, и его надо
+  // отсечь первым. Иначе час ночи не доходит до своей строки и попадает
+  // в «10–13» — просто потому, что 1 меньше 13.
+  if (hours >= 22 || hours < 1) return 5;
+  if (hours < 7) return -1;   // 01–07: блока нет, это не время дня
+  if (hours < 10) return 0;
   if (hours < 13) return 1;
   if (hours < 16) return 2;
   if (hours < 19) return 3;
-  if (hours < 22) return 4;
-  if (hours >= 22 || hours < 1) return 5;
-  return -1;
+  return 4;                   // 19–22
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
