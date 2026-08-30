@@ -120,6 +120,13 @@ function monthView() {
           <span class="grow">${r}</span>
           <button class="q-edit" data-act="ruledel" data-i="${i}">×</button></div>`))}
       </div>`) : raw('<div class="lab">Свои принципы трат: «не брать в долг», «никакого такси».</div>')}
+    </div>
+
+    <div class="card mute">
+      <div class="caps">Таблица</div>
+      <div class="lab">В файле весь бюджет, а не только этот месяц: все операции, планы по статьям и копилки — тремя листами. Тот же файл можно поправить и загрузить обратно.</div>
+      <button class="add" data-act="export">Выгрузить в Excel</button>
+      <button class="add" data-act="import">Загрузить из Excel</button>
     </div>`;
 }
 
@@ -204,8 +211,6 @@ function vaultsView() {
         </div>`);
     })}
     <button class="add" data-act="vaultnew">+ Копилка</button>
-    <button class="add" data-act="export">Выгрузить в Excel</button>
-    <button class="add" data-act="import">Загрузить из Excel</button>
     <div class="card mute"><div class="lab">Пополнение уходит с остатка и не считается тратой — как отдельная колонка «накоп» в таблице.
       Стартовая сумма на остаток не влияет: это то, что уже лежало в копилке до начала учёта.</div></div>`;
 }
