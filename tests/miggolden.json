@@ -1,0 +1,3630 @@
+{
+ "пусто": {
+  "v": 51,
+  "onboarded": false,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id13",
+      "name": "Буся"
+     },
+     {
+      "id": "id14",
+      "name": "Подписки"
+     },
+     {
+      "id": "id15",
+      "name": "Обучение"
+     },
+     {
+      "id": "id16",
+      "name": "Спорт"
+     },
+     {
+      "id": "id17",
+      "name": "Жильё"
+     },
+     {
+      "id": "id18",
+      "name": "Еда"
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id20",
+      "name": "Одежда"
+     },
+     {
+      "id": "id21",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца"
+     },
+     {
+      "id": "id23",
+      "name": "Подработка"
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id26",
+      "name": "Работа"
+     },
+     {
+      "id": "id27",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id31",
+     "name": "Пост"
+    },
+    {
+     "id": "id32",
+     "name": "Карусель"
+    },
+    {
+     "id": "id33",
+     "name": "Рилс"
+    },
+    {
+     "id": "id34",
+     "name": "Сторис"
+    },
+    {
+     "id": "id35",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id36",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "без версии": {
+  "v": 51,
+  "onboarded": true,
+  "user": {
+   "name": "Лера",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id13",
+      "name": "Буся"
+     },
+     {
+      "id": "id14",
+      "name": "Подписки"
+     },
+     {
+      "id": "id15",
+      "name": "Обучение"
+     },
+     {
+      "id": "id16",
+      "name": "Спорт"
+     },
+     {
+      "id": "id17",
+      "name": "Жильё"
+     },
+     {
+      "id": "id18",
+      "name": "Еда"
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id20",
+      "name": "Одежда"
+     },
+     {
+      "id": "id21",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца"
+     },
+     {
+      "id": "id23",
+      "name": "Подработка"
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id26",
+      "name": "Работа"
+     },
+     {
+      "id": "id27",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id31",
+     "name": "Пост"
+    },
+    {
+     "id": "id32",
+     "name": "Карусель"
+    },
+    {
+     "id": "id33",
+     "name": "Рилс"
+    },
+    {
+     "id": "id34",
+     "name": "Сторис"
+    },
+    {
+     "id": "id35",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id36",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "версия из будущего": {
+  "v": 51,
+  "onboarded": true,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id13",
+      "name": "Буся"
+     },
+     {
+      "id": "id14",
+      "name": "Подписки"
+     },
+     {
+      "id": "id15",
+      "name": "Обучение"
+     },
+     {
+      "id": "id16",
+      "name": "Спорт"
+     },
+     {
+      "id": "id17",
+      "name": "Жильё"
+     },
+     {
+      "id": "id18",
+      "name": "Еда"
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id20",
+      "name": "Одежда"
+     },
+     {
+      "id": "id21",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца"
+     },
+     {
+      "id": "id23",
+      "name": "Подработка"
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id26",
+      "name": "Работа"
+     },
+     {
+      "id": "id27",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id31",
+     "name": "Пост"
+    },
+    {
+     "id": "id32",
+     "name": "Карусель"
+    },
+    {
+     "id": "id33",
+     "name": "Рилс"
+    },
+    {
+     "id": "id34",
+     "name": "Сторис"
+    },
+    {
+     "id": "id35",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id36",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "кривые типы веток": {
+  "v": 51,
+  "onboarded": false,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id13",
+      "name": "Буся"
+     },
+     {
+      "id": "id14",
+      "name": "Подписки"
+     },
+     {
+      "id": "id15",
+      "name": "Обучение"
+     },
+     {
+      "id": "id16",
+      "name": "Спорт"
+     },
+     {
+      "id": "id17",
+      "name": "Жильё"
+     },
+     {
+      "id": "id18",
+      "name": "Еда"
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id20",
+      "name": "Одежда"
+     },
+     {
+      "id": "id21",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца"
+     },
+     {
+      "id": "id23",
+      "name": "Подработка"
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id26",
+      "name": "Работа"
+     },
+     {
+      "id": "id27",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id31",
+     "name": "Пост"
+    },
+    {
+     "id": "id32",
+     "name": "Карусель"
+    },
+    {
+     "id": "id33",
+     "name": "Рилс"
+    },
+    {
+     "id": "id34",
+     "name": "Сторис"
+    },
+    {
+     "id": "id35",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id36",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "0": "н",
+   "1": "е",
+   "2": "т",
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "записи без полей": {
+  "v": 51,
+  "onboarded": false,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [
+   {
+    "title": "Без id",
+    "intentId": "",
+    "horizon": "month",
+    "period": "2026-08",
+    "parentId": "",
+    "slots": []
+   },
+   {
+    "intentId": "",
+    "horizon": "month",
+    "period": "2026-08",
+    "parentId": "",
+    "slots": []
+   },
+   {
+    "0": "м",
+    "1": "у",
+    "2": "с",
+    "3": "о",
+    "4": "р",
+    "intentId": "",
+    "horizon": "month",
+    "period": "2026-08",
+    "parentId": "",
+    "slots": []
+   }
+  ],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [
+   {
+    "name": "Вода",
+    "target": 1,
+    "step": 1,
+    "unit": "",
+    "log": {},
+    "link": "water",
+    "waterMoved": true
+   },
+   {
+    "target": 1,
+    "step": 1,
+    "unit": "",
+    "log": {},
+    "link": ""
+   }
+  ],
+  "health": {
+   "days": {},
+   "measures": [
+    {
+     "date": "2026-01-01",
+     "extra": {
+      "b": 5
+     }
+    }
+   ],
+   "symptoms": [],
+   "metrics": [
+    {
+     "id": "id0",
+     "name": "Шея",
+     "unit": "см"
+    }
+   ]
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id1",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id4",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id5",
+     "name": "Пресс"
+    },
+    {
+     "id": "id6",
+     "name": "Руки"
+    },
+    {
+     "id": "id7",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id8",
+     "name": "Ноги"
+    },
+    {
+     "id": "id9",
+     "name": "Спина"
+    },
+    {
+     "id": "id10",
+     "name": "Кардио"
+    },
+    {
+     "id": "id11",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id12",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": [
+    {
+     "title": "Книга",
+     "kind": "paper",
+     "status": "want",
+     "pages": 0,
+     "page": 0,
+     "rating": 0
+    }
+   ]
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id13",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id14",
+      "name": "Буся"
+     },
+     {
+      "id": "id15",
+      "name": "Подписки"
+     },
+     {
+      "id": "id16",
+      "name": "Обучение"
+     },
+     {
+      "id": "id17",
+      "name": "Спорт"
+     },
+     {
+      "id": "id18",
+      "name": "Жильё"
+     },
+     {
+      "id": "id19",
+      "name": "Еда"
+     },
+     {
+      "id": "id20",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id21",
+      "name": "Одежда"
+     },
+     {
+      "id": "id22",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id23",
+      "name": "От отца"
+     },
+     {
+      "id": "id24",
+      "name": "Подработка"
+     },
+     {
+      "id": "id25",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id26",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id27",
+      "name": "Работа"
+     },
+     {
+      "id": "id28",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id29",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id31",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [
+    {
+     "id": "id32",
+     "title": "Заказ",
+     "place": "",
+     "kind": "",
+     "price": 0,
+     "fee": 100,
+     "stage": "talk",
+     "due": "",
+     "paidAt": "",
+     "link": "",
+     "note": "",
+     "movedAt": ""
+    }
+   ],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id33",
+     "name": "Пост"
+    },
+    {
+     "id": "id34",
+     "name": "Карусель"
+    },
+    {
+     "id": "id35",
+     "name": "Рилс"
+    },
+    {
+     "id": "id36",
+     "name": "Сторис"
+    },
+    {
+     "id": "id37",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id38",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "старая копилка в сфере": {
+  "v": 51,
+  "onboarded": false,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "even",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {
+   "money": {
+    "items": [],
+    "note": "",
+    "vault": {
+     "name": "Отпуск",
+     "sum": 5000
+    },
+    "log": {},
+    "shelf": [],
+    "coll": [],
+    "board": [],
+    "meas": []
+   }
+  },
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id13",
+      "name": "Буся"
+     },
+     {
+      "id": "id14",
+      "name": "Подписки"
+     },
+     {
+      "id": "id15",
+      "name": "Обучение"
+     },
+     {
+      "id": "id16",
+      "name": "Спорт"
+     },
+     {
+      "id": "id17",
+      "name": "Жильё"
+     },
+     {
+      "id": "id18",
+      "name": "Еда"
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id20",
+      "name": "Одежда"
+     },
+     {
+      "id": "id21",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца"
+     },
+     {
+      "id": "id23",
+      "name": "Подработка"
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id26",
+      "name": "Работа"
+     },
+     {
+      "id": "id27",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id31",
+     "name": "Пост"
+    },
+    {
+     "id": "id32",
+     "name": "Карусель"
+    },
+    {
+     "id": "id33",
+     "name": "Рилс"
+    },
+    {
+     "id": "id34",
+     "name": "Сторис"
+    },
+    {
+     "id": "id35",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id36",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "старые идеи блога": {
+  "v": 51,
+  "onboarded": false,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "even",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {
+   "blog": {
+    "items": [],
+    "note": "",
+    "vault": null,
+    "log": {},
+    "shelf": [],
+    "coll": [],
+    "board": [],
+    "meas": []
+   }
+  },
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id13",
+      "name": "Буся"
+     },
+     {
+      "id": "id14",
+      "name": "Подписки"
+     },
+     {
+      "id": "id15",
+      "name": "Обучение"
+     },
+     {
+      "id": "id16",
+      "name": "Спорт"
+     },
+     {
+      "id": "id17",
+      "name": "Жильё"
+     },
+     {
+      "id": "id18",
+      "name": "Еда"
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id20",
+      "name": "Одежда"
+     },
+     {
+      "id": "id21",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца"
+     },
+     {
+      "id": "id23",
+      "name": "Подработка"
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id26",
+      "name": "Работа"
+     },
+     {
+      "id": "id27",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [
+    {
+     "id": "id31",
+     "title": "Идея",
+     "place": "both",
+     "stage": "idea",
+     "day": "",
+     "link": "",
+     "views": null,
+     "format": "",
+     "rubrics": [],
+     "blocks": [],
+     "seed": "",
+     "note": "",
+     "movedAt": ""
+    }
+   ],
+   "formats": [
+    {
+     "id": "id32",
+     "name": "Пост"
+    },
+    {
+     "id": "id33",
+     "name": "Карусель"
+    },
+    {
+     "id": "id34",
+     "name": "Рилс"
+    },
+    {
+     "id": "id35",
+     "name": "Сторис"
+    },
+    {
+     "id": "id36",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id37",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "спорт до пилюль": {
+  "v": 51,
+  "onboarded": false,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "even",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [
+    {
+     "id": "w1",
+     "date": "2026-01-05",
+     "done": true,
+     "title": "Тренировка",
+     "templateId": "",
+     "sets": [],
+     "tags": []
+    }
+   ],
+   "exercises": [],
+   "templates": [],
+   "tags": [
+    {
+     "id": "t1",
+     "name": "Шпагат"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id0",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id1",
+      "name": "Буся"
+     },
+     {
+      "id": "id2",
+      "name": "Подписки"
+     },
+     {
+      "id": "id3",
+      "name": "Обучение"
+     },
+     {
+      "id": "id4",
+      "name": "Спорт"
+     },
+     {
+      "id": "id5",
+      "name": "Жильё"
+     },
+     {
+      "id": "id6",
+      "name": "Еда"
+     },
+     {
+      "id": "id7",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id8",
+      "name": "Одежда"
+     },
+     {
+      "id": "id9",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id10",
+      "name": "От отца"
+     },
+     {
+      "id": "id11",
+      "name": "Подработка"
+     },
+     {
+      "id": "id12",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id13",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id14",
+      "name": "Работа"
+     },
+     {
+      "id": "id15",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id16",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id17",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id18",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id19",
+     "name": "Пост"
+    },
+    {
+     "id": "id20",
+     "name": "Карусель"
+    },
+    {
+     "id": "id21",
+     "name": "Рилс"
+    },
+    {
+     "id": "id22",
+     "name": "Сторис"
+    },
+    {
+     "id": "id23",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id24",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "цели со ссылкой на упражнение": {
+  "v": 51,
+  "onboarded": false,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "even",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [
+   {
+    "id": "g1",
+    "title": "Планка",
+    "horizon": "month",
+    "period": "2026-01",
+    "intentId": "",
+    "slots": []
+   }
+  ],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id13",
+      "name": "Буся"
+     },
+     {
+      "id": "id14",
+      "name": "Подписки"
+     },
+     {
+      "id": "id15",
+      "name": "Обучение"
+     },
+     {
+      "id": "id16",
+      "name": "Спорт"
+     },
+     {
+      "id": "id17",
+      "name": "Жильё"
+     },
+     {
+      "id": "id18",
+      "name": "Еда"
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id20",
+      "name": "Одежда"
+     },
+     {
+      "id": "id21",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца"
+     },
+     {
+      "id": "id23",
+      "name": "Подработка"
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id26",
+      "name": "Работа"
+     },
+     {
+      "id": "id27",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id31",
+     "name": "Пост"
+    },
+    {
+     "id": "id32",
+     "name": "Карусель"
+    },
+    {
+     "id": "id33",
+     "name": "Рилс"
+    },
+    {
+     "id": "id34",
+     "name": "Сторис"
+    },
+    {
+     "id": "id35",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id36",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "темп до отделения от активности": {
+  "v": 51,
+  "onboarded": true,
+  "user": {
+   "name": "Лера",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 80,
+   "pace": "sprint",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "id12",
+      "name": "Здоровье"
+     },
+     {
+      "id": "id13",
+      "name": "Буся"
+     },
+     {
+      "id": "id14",
+      "name": "Подписки"
+     },
+     {
+      "id": "id15",
+      "name": "Обучение"
+     },
+     {
+      "id": "id16",
+      "name": "Спорт"
+     },
+     {
+      "id": "id17",
+      "name": "Жильё"
+     },
+     {
+      "id": "id18",
+      "name": "Еда"
+     },
+     {
+      "id": "id19",
+      "name": "Транспорт"
+     },
+     {
+      "id": "id20",
+      "name": "Одежда"
+     },
+     {
+      "id": "id21",
+      "name": "Другое"
+     }
+    ],
+    "income": [
+     {
+      "id": "id22",
+      "name": "От отца"
+     },
+     {
+      "id": "id23",
+      "name": "Подработка"
+     },
+     {
+      "id": "id24",
+      "name": "Фриланс"
+     },
+     {
+      "id": "id25",
+      "name": "Моё дело"
+     },
+     {
+      "id": "id26",
+      "name": "Работа"
+     },
+     {
+      "id": "id27",
+      "name": "Льготы"
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "id28",
+     "name": "Накопительный",
+     "start": 0
+    },
+    {
+     "id": "id29",
+     "name": "Сейв 1",
+     "start": 0
+    },
+    {
+     "id": "id30",
+     "name": "Сейв 2",
+     "start": 0
+    }
+   ],
+   "rules": [
+    "Никакой Лавки",
+    "По максимуму общественный транспорт",
+    "Живу красиво только на выходных",
+    "За неделю планировать, сколько тратить в какой день",
+    "Каждый день класть себе фиксированную сумму",
+    "Не брать в долг",
+    "Никакого такси"
+   ],
+   "start": 0,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id31",
+     "name": "Пост"
+    },
+    {
+     "id": "id32",
+     "name": "Карусель"
+    },
+    {
+     "id": "id33",
+     "name": "Рилс"
+    },
+    {
+     "id": "id34",
+     "name": "Сторис"
+    },
+    {
+     "id": "id35",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id36",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "богатое": {
+  "v": 51,
+  "onboarded": true,
+  "user": {
+   "name": "Лера",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "",
+   "wrist": 15,
+   "traits": [],
+   "xp": 320,
+   "createdAt": "2026-08-30",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 170
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [
+   {
+    "id": "g1",
+    "title": "Цель",
+    "horizon": "month",
+    "period": "2026-08",
+    "target": 5,
+    "current": 2,
+    "intentId": "",
+    "slots": []
+   }
+  ],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [
+    {
+     "date": "2026-08-01",
+     "weight": 55,
+     "extra": {}
+    }
+   ],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "id0",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up"
+    },
+    {
+     "id": "id1",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id2",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up"
+    },
+    {
+     "id": "id3",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down"
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "id4",
+     "name": "Пресс"
+    },
+    {
+     "id": "id5",
+     "name": "Руки"
+    },
+    {
+     "id": "id6",
+     "name": "Ягодицы"
+    },
+    {
+     "id": "id7",
+     "name": "Ноги"
+    },
+    {
+     "id": "id8",
+     "name": "Спина"
+    },
+    {
+     "id": "id9",
+     "name": "Кардио"
+    },
+    {
+     "id": "id10",
+     "name": "Шпагат"
+    },
+    {
+     "id": "id11",
+     "name": "Зал с тренером"
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [],
+    "income": []
+   },
+   "plans": {},
+   "ops": [
+    {
+     "id": "o1",
+     "kind": "income",
+     "sum": 500,
+     "date": "2026-08-01"
+    }
+   ],
+   "vaults": [],
+   "rules": [],
+   "start": 1000,
+   "updatedAt": "когда-то"
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": []
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [
+    {
+     "id": "p1",
+     "title": "Пост",
+     "place": "both",
+     "stage": "out",
+     "day": "2026-08-01",
+     "link": "",
+     "views": null,
+     "format": "",
+     "rubrics": [],
+     "blocks": [],
+     "seed": "",
+     "note": "",
+     "movedAt": ""
+    }
+   ],
+   "formats": [
+    {
+     "id": "id12",
+     "name": "Пост"
+    },
+    {
+     "id": "id13",
+     "name": "Карусель"
+    },
+    {
+     "id": "id14",
+     "name": "Рилс"
+    },
+    {
+     "id": "id15",
+     "name": "Сторис"
+    },
+    {
+     "id": "id16",
+     "name": "Лонгрид"
+    },
+    {
+     "id": "id17",
+     "name": "Кружок"
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "2026-08-30",
+   "weekAnchor": "2026-08-30",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "2026-08-30",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ }
+}

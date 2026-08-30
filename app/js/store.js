@@ -264,10 +264,40 @@ function blank() {
   };
 }
 
-function migrate(s) {
+/**
+ * Списки приводим к спискам, ящики — к ящикам, по образцу пустого состояния.
+ * Если в сохранении на месте списка оказалось что-то другое, дальше его
+ * перебирают десятки блоков, и любой из них падает. Падение ловится, данные
+ * целы и человек видит экран спасения — но отправлять туда всё сохранение
+ * из-за одной кривой ветки незачем, когда её достаточно починить.
+ *
+ * Образец берётся из blank(), а не списком имён: новая ветка попадает под
+ * защиту сама, без того чтобы кто-то вспомнил дописать её сюда.
+ */
+function fixShape(node, sample) {
+  for (const [k, v] of Object.entries(sample)) {
+    if (Array.isArray(v)) {
+      if (!Array.isArray(node[k])) node[k] = [];
+    } else if (v && typeof v === 'object') {
+      if (!node[k] || typeof node[k] !== 'object' || Array.isArray(node[k])) {
+        node[k] = JSON.parse(JSON.stringify(v));
+      } else {
+        fixShape(node[k], v);
+      }
+    }
+  }
+}
+
+/**
+ * Приведение сохранения к нынешнему виду. Экспортируется ради проверок: это
+ * единственная функция, которая переписывает данные человека, и её вывод
+ * сверяется с эталоном при каждой правке.
+ */
+export function migrate(s) {
   const base = blank();
   const merged = { ...base, ...s, v: VERSION };
   merged.user = { ...base.user, ...(s.user || {}) };
+  fixShape(merged, base);
   // v22 → v23: аватар профиля. Пусто — рисуем букву имени, как раньше.
   merged.user.avatar = typeof merged.user.avatar === 'string' ? merged.user.avatar : '';
   merged.user.wrist = Number(merged.user.wrist) || 0;
