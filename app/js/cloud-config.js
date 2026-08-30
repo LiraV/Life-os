@@ -7,7 +7,7 @@
 // открывает только файл того человека.
 export const CLOUD = {
   api: '',        // адрес шлюза: https://<id>.apigw.yandexcloud.net
-  clientId: '',   // ID приложения из oauth.yandex.ru
+  clientId: '66cd0f94a9be420b9f56fef9d8206a5c',   // ID приложения из oauth.yandex.ru
 };
 
 export const cloudReady = () => !!(CLOUD.api && CLOUD.clientId);
