@@ -1,4 +1,4 @@
-// Облако: вход, слияние при первом входе, выход. Сервер поддельный — нам нужны
+// Облако: вход через Яндекс ID, слияние при первом входе, выход. Сервер поддельный — нам нужны
 // не чужие ответы, а собственное поведение: что приложение делает с данными.
 //
 // Главное, что проверяется: записанное до входа не умирает.
@@ -7,35 +7,31 @@ const b = await chromium.launch();
 const errs = []; let bad = 0;
 const ok = (n, c, extra = '') => { if (!c) bad++; console.log(`${c ? '✓' : '✗'} ${n}${extra ? ' — ' + extra : ''}`); };
 
-// Токен с почтой внутри: приложение читает его, не проверяя подпись, —
-// подпись проверяет база.
-const tok = payload => {
-  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
-  return `${b64({ alg: 'none' })}.${b64(payload)}.x`;
-};
-const TOKEN = tok({ sub: 'user-1', email: 'lera@example.com', exp: 4102444800 });
+// Токен Яндекса — обычная строка: кто его хозяин, знает только функция.
+const TOKEN = 'y0_AgAAAAAtestTOKEN';
 
 async function open(cloudRow) {
   const ctx = await b.newContext({ serviceWorkers: 'block', locale: 'ru-RU', ...devices['iPhone 13'] });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
   const server = { row: cloudRow, pushed: [] };
-  // Поддельное облако.
-  await ctx.route('**/rest/v1/states*', route => {
+  // Поддельный шлюз: та же договорённость, что и у настоящей функции.
+  const ACCOUNT = { id: '42', login: 'lera', email: 'lera@yandex.ru' };
+  await ctx.route('**/state', route => {
     if (route.request().method() === 'GET') {
       return route.fulfill({ status: 200, contentType: 'application/json',
-        body: JSON.stringify(server.row ? [{ data: server.row }] : []) });
+        body: JSON.stringify({ account: ACCOUNT, data: server.row }) });
     }
     const body = JSON.parse(route.request().postData() || '{}');
-    server.pushed.push(body.data);
-    server.row = body.data;
-    return route.fulfill({ status: 201, body: '' });
+    server.pushed.push(body);
+    server.row = body;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
   });
   const p = await ctx.newPage();
   p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
   // Настройки облака подставляем до загрузки модулей.
   await p.route('**/app/js/cloud-config.js', route => route.fulfill({
     status: 200, contentType: 'application/javascript',
-    body: "export const CLOUD = { url: 'https://фейк.supabase.co', key: 'anon' };\nexport const cloudReady = () => true;\n",
+    body: "export const CLOUD = { api: 'https://фейк.apigw.yandexcloud.net', clientId: 'test' };\nexport const cloudReady = () => true;\n",
   }));
   await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
   await p.waitForTimeout(700);
@@ -58,7 +54,7 @@ const enter = async p => {
   await enter(p);
   await p.evaluate(() => { location.hash = '#/settings'; }); await p.waitForTimeout(500);
   const txt = await p.locator('#scr').innerText();
-  ok('в настройках есть вход через Google', /Войти через Google/i.test(txt));
+  ok('в настройках есть вход через Яндекс', /Войти через Яндекс/i.test(txt));
   ok('и обещание, что записанное не денется', /не заменится|не денется/i.test(txt));
   await ctx.close();
 }
@@ -86,7 +82,7 @@ const enter = async p => {
     };
   })();
   // возврат от Google
-  await p.goto(`http://127.0.0.1:8765/#access_token=${TOKEN}&refresh_token=r&expires_in=3600`, { waitUntil: 'load' });
+  await p.goto(`http://127.0.0.1:8765/#access_token=${TOKEN}&token_type=bearer&expires_in=31536000`, { waitUntil: 'load' });
   await p.waitForTimeout(2500);
 
   const s = await st(p);
@@ -101,7 +97,7 @@ const enter = async p => {
     await p.evaluate(() => location.hash));
 
   await p.evaluate(() => { location.hash = '#/settings'; }); await p.waitForTimeout(500);
-  ok('в настройках видно, кто вошёл', /lera@example\.com/.test(await p.locator('#scr').innerText()));
+  ok('в настройках видно, кто вошёл', /lera@yandex\.ru/.test(await p.locator('#scr').innerText()));
   await ctx.close();
 }
 
@@ -113,7 +109,7 @@ const enter = async p => {
     const { update, uid } = await import('/app/js/store.js');
     update(s => { s.goals.push({ id: 'g9', title: 'Останется', horizon: 'month', period: '2026-08', target: 1, current: 0, steps: [], slots: [] }); });
   });
-  await p.goto(`http://127.0.0.1:8765/#access_token=${TOKEN}&refresh_token=r&expires_in=3600`, { waitUntil: 'load' });
+  await p.goto(`http://127.0.0.1:8765/#access_token=${TOKEN}&token_type=bearer&expires_in=31536000`, { waitUntil: 'load' });
   await p.waitForTimeout(2000);
   await p.evaluate(() => { location.hash = '#/settings'; }); await p.waitForTimeout(400);
   await p.locator('[data-act="signout"]').click(); await p.waitForTimeout(300);
@@ -128,12 +124,12 @@ const enter = async p => {
 {
   const ctx = await b.newContext({ serviceWorkers: 'block', locale: 'ru-RU', ...devices['iPhone 13'] });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  await ctx.route('**/rest/v1/states*', route => route.fulfill({ status: 500, body: 'нет' }));
+  await ctx.route('**/state', route => route.fulfill({ status: 500, body: 'нет' }));
   const p = await ctx.newPage();
   p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
   await p.route('**/app/js/cloud-config.js', route => route.fulfill({
     status: 200, contentType: 'application/javascript',
-    body: "export const CLOUD = { url: 'https://фейк.supabase.co', key: 'anon' };\nexport const cloudReady = () => true;\n",
+    body: "export const CLOUD = { api: 'https://фейк.apigw.yandexcloud.net', clientId: 'test' };\nexport const cloudReady = () => true;\n",
   }));
   await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' }); await p.waitForTimeout(700);
   await enter(p);
@@ -141,7 +137,7 @@ const enter = async p => {
     const { update } = await import('/app/js/store.js');
     update(s => { s.goals.push({ id: 'g8', title: 'Цель при сбое', horizon: 'month', period: '2026-08', target: 1, current: 0, steps: [], slots: [] }); });
   });
-  await p.goto(`http://127.0.0.1:8765/#access_token=${TOKEN}&refresh_token=r&expires_in=3600`, { waitUntil: 'load' });
+  await p.goto(`http://127.0.0.1:8765/#access_token=${TOKEN}&token_type=bearer&expires_in=31536000`, { waitUntil: 'load' });
   await p.waitForTimeout(2000);
   const s = await st(p);
   ok('сбой облака не тронул данные', s.goals.some(g => g.title === 'Цель при сбое'), String(s.goals.length));

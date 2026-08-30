@@ -31,14 +31,14 @@ function syncCard() {
       <div class="ink">Телефон и ноутбук на одних данных.</div>
       <div class="lab" style="margin-top:6px">Всё, что уже записано здесь, при входе никуда не денется:
         оно сольётся с тем, что в облаке, а не заменится им.</div>
-      <button class="add" data-act="signin">Войти через Google</button>
+      <button class="add" data-act="signin">Войти через Яндекс</button>
     </div>`;
   }
   const who = account();
   const when = lastSync();
   return h`<div class="card">
     <div class="caps">Синхронизация</div>
-    <div class="ink">${who?.email || 'вход выполнен'}</div>
+    <div class="ink">${who?.email || who?.login || 'вход выполнен'}</div>
     <div class="lab">${busy() ? 'синхронизирую…' : when ? `последний раз ${stampLabel(when)}` : 'ещё не синхронизировано'}</div>
     <button class="add" data-act="syncnow">Синхронизировать сейчас</button>
     <button class="btn-ghost" data-act="signout">Выйти</button>

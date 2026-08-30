@@ -1,4 +1,4 @@
-// Облако: вход через Google и одна строка с данными на человека.
+// Облако: вход через Яндекс ID и один файл с данными на человека.
 //
 // Главное правило здесь одно: **облако — это копия, а не хозяин**. Записи
 // живут на устройстве и работают без сети; облако нужно, чтобы телефон и
@@ -10,11 +10,10 @@
 // как и всё остальное.
 
 import { CLOUD, cloudReady } from './cloud-config.js';
-import { adoptState, stateSnapshot, S } from './store.js';
+import { adoptState, stateSnapshot } from './store.js';
 import { merge } from './sync.js';
 
 const KEY = 'lifeos.cloud';
-const TABLE = 'states';
 
 let session = load();
 let listeners = [];
@@ -36,23 +35,16 @@ function keep(next) {
   tell();
 }
 
-/** Что в токене: почта и кто это. Читаем без проверки подписи — её проверяет база. */
-function claims(token) {
-  try {
-    const body = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(decodeURIComponent(escape(atob(body))));
-  } catch { return null; }
-}
-
 export const configured = cloudReady;
 export const signedIn = () => !!session?.access_token;
-export const account = () => (session ? claims(session.access_token) : null);
+/** Кто вошёл — говорит не токен, а сама функция: она спрашивает у Яндекса. */
+export const account = () => session?.account || null;
 export const lastSync = () => session?.syncedAt || '';
 export const busy = () => syncing;
 
 /**
- * Возврат из Google. Токены приходят в адресной строке после решётки — там же,
- * где у нас живёт маршрут экрана, — поэтому забираем их до того, как роутер
+ * Возврат от Яндекса. Токен приходит в адресной строке после решётки — там же,
+ * где у нас живёт маршрут экрана, — поэтому забираем его до того, как роутер
  * успеет увидеть чужой адрес, и убираем из строки: токену в истории браузера
  * делать нечего.
  */
@@ -64,19 +56,21 @@ export function consumeRedirect() {
   if (!access_token) return false;
   keep({
     access_token,
-    refresh_token: q.get('refresh_token') || '',
-    expires_at: Date.now() + (Number(q.get('expires_in')) || 3600) * 1000,
+    expires_at: Date.now() + (Number(q.get('expires_in')) || 31536000) * 1000,
+    account: null,
     syncedAt: '',
   });
   history.replaceState(history.state, '', location.pathname + location.search + '#/settings');
   return true;
 }
 
-/** Уйти к Google. Возвращаемся на ту же страницу — приложение статическое. */
+/** Уйти к Яндексу. Возвращаемся на ту же страницу — приложение статическое. */
 export function signIn() {
   if (!configured()) return;
   const back = location.origin + location.pathname;
-  location.href = `${CLOUD.url}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(back)}`;
+  location.href = 'https://oauth.yandex.ru/authorize?response_type=token'
+    + `&client_id=${encodeURIComponent(CLOUD.clientId)}`
+    + `&redirect_uri=${encodeURIComponent(back)}`;
 }
 
 /** Выйти. Данные на устройстве остаются: это его данные, а не облачные. */
@@ -84,48 +78,20 @@ export function signOut() {
   keep(null);
 }
 
-async function fresh() {
-  if (!session) return null;
-  if (Date.now() < session.expires_at - 60000) return session.access_token;
-  if (!session.refresh_token) return session.access_token;
-  const r = await fetch(`${CLOUD.url}/auth/v1/token?grant_type=refresh_token`, {
-    method: 'POST',
-    headers: { apikey: CLOUD.key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: session.refresh_token }),
+/**
+ * Обмен с функцией. Токен Яндекса живёт долго и не обновляется на месте: если
+ * он всё же протух, честнее попросить войти заново, чем делать вид, что
+ * синхронизация идёт.
+ */
+async function call(method, body) {
+  const r = await fetch(CLOUD.api + '/state', {
+    method,
+    headers: { Authorization: `OAuth ${session.access_token}`, 'Content-Type': 'application/json' },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  if (!r.ok) throw new Error('вход устарел');
-  const j = await r.json();
-  keep({
-    access_token: j.access_token,
-    refresh_token: j.refresh_token || session.refresh_token,
-    expires_at: Date.now() + (Number(j.expires_in) || 3600) * 1000,
-    syncedAt: session.syncedAt || '',
-  });
-  return j.access_token;
-}
-
-const headers = token => ({
-  apikey: CLOUD.key,
-  Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json',
-});
-
-/** Что лежит в облаке. null — там пока ничего нет, и это нормально. */
-async function pull(token) {
-  const r = await fetch(`${CLOUD.url}/rest/v1/${TABLE}?select=data`, { headers: headers(token) });
-  if (!r.ok) throw new Error(`облако не ответило (${r.status})`);
-  const rows = await r.json();
-  return rows?.[0]?.data || null;
-}
-
-async function push(token, data) {
-  const uid = claims(token)?.sub;
-  const r = await fetch(`${CLOUD.url}/rest/v1/${TABLE}`, {
-    method: 'POST',
-    headers: { ...headers(token), Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ user_id: uid, data, changed_at: data.changedAt || '' }),
-  });
-  if (!r.ok) throw new Error(`не удалось отправить (${r.status})`);
+  if (r.status === 401) { keep(null); throw new Error('вход устарел — войди снова'); }
+  if (!r.ok) throw new Error(`облако ответило ${r.status}`);
+  return r.json();
 }
 
 /**
@@ -137,15 +103,15 @@ export async function syncNow() {
   if (!configured() || !signedIn() || syncing) return { ok: false, reason: 'нечего делать' };
   syncing = true; tell();
   try {
-    const token = await fresh();
-    const remote = await pull(token);
+    const got = await call('GET');
+    const remote = got.data || null;
     const local = stateSnapshot();
     const next = remote ? merge(local, remote) : local;
     // Принимаем только если облако что-то добавило: лишняя перерисовка на
     // ровном месте сбивает набранный текст и прокрутку.
     if (remote && JSON.stringify(next) !== JSON.stringify(local)) adoptState(next);
-    await push(token, next);
-    keep({ ...session, syncedAt: new Date().toISOString() });
+    await call('POST', next);
+    keep({ ...session, account: got.account || session.account, syncedAt: new Date().toISOString() });
     return { ok: true, first: !remote };
   } catch (e) {
     return { ok: false, reason: String(e?.message || e) };
