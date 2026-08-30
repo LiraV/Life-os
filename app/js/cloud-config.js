@@ -6,7 +6,7 @@
 // проверка на стороне функции: она спрашивает у Яндекса, чей это токен, и
 // открывает только файл того человека.
 export const CLOUD = {
-  api: '',        // адрес шлюза: https://<id>.apigw.yandexcloud.net
+  api: 'https://d5djrp8uk7udp0h0dlpi.bu9mdbe1.apigw.yandexcloud.net',   // шлюз в Yandex Cloud
   clientId: '66cd0f94a9be420b9f56fef9d8206a5c',   // ID приложения из oauth.yandex.ru
 };
 
