@@ -256,6 +256,8 @@ function blank() {
     },
                          // before/after — своя отметка напряжения 0..100, обе необязательны
     deleted: [],         // следы удалённых записей: { id, from, at } — чтобы удалённое не вернулось
+    touched: {},         // когда трогали ежедневную отметку: путь → время; у них нет своего места для времени
+    changedAt: '',       // когда это состояние вообще меняли — грубая отметка для того, у чего своего времени нет
     diary: [],
     chat: [],
     tests: {},
@@ -971,6 +973,10 @@ export function migrate(s) {
       if (rec.updatedAt == null) rec.updatedAt = '';
     });
   });
+  merged.changedAt = typeof merged.changedAt === 'string' ? merged.changedAt : '';
+  merged.touched = merged.touched && typeof merged.touched === 'object' && !Array.isArray(merged.touched)
+    ? Object.fromEntries(Object.entries(merged.touched).filter(([, v]) => typeof v === 'string'))
+    : {};
   merged.deleted = (Array.isArray(merged.deleted) ? merged.deleted : [])
     .filter(x => x && typeof x.id === 'string')
     .map(x => ({ id: x.id, from: String(x.from || ''), at: String(x.at || '') }));
@@ -1104,6 +1110,43 @@ function eachList(node, fn, path = '', depth = 0) {
 }
 
 /**
+ * Ключи-периоды: день, месяц, неделя, год. По ним лежат ежедневные отметки —
+ * сон, энергия, вода, отметки привычек, значения трекера, планы бюджета.
+ */
+const PERIOD_KEY = /^\d{4}(-\d{2}(-\d{2})?|-W\d{2}|-Q[1-4])?$/;
+
+/**
+ * Обойти ежедневные отметки: fn(путь, значение). Единицей считается всё, что
+ * лежит под первым же ключом-периодом: «сон за 30 августа», «план бюджета за
+ * август». Путь через записи идёт по их именам, а не по местам в списке, —
+ * иначе на другом устройстве тот же самый день назывался бы иначе.
+ *
+ * Списки записей под даты не попадают: у записи есть своё время правки, и
+ * считать её ещё и отметкой дня значило бы мерить одно двумя способами.
+ */
+function eachMark(node, fn, path = '', depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 6) return;
+  if (Array.isArray(node)) {
+    for (const rec of node) {
+      const id = rec && typeof rec === 'object' ? idOf(rec) : null;
+      if (id) eachMark(rec, fn, `${path}[${id}]`, depth + 1);
+    }
+    return;
+  }
+  for (const [k, v] of Object.entries(node)) {
+    if (!path && (k === 'deleted' || k === 'touched')) continue;
+    const at = path ? `${path}.${k}` : k;
+    if (PERIOD_KEY.test(k)) {
+      // Массив записей под датой — это записи, а не отметка дня.
+      if (Array.isArray(v) && v.some(x => x && typeof x === 'object' && idOf(x))) continue;
+      fn(at, v);
+    } else {
+      eachMark(v, fn, at, depth + 1);
+    }
+  }
+}
+
+/**
  * Отпечаток записи — всё, кроме времени правки: иначе сама отметка о правке
  * считалась бы правкой и время обновлялось бы на каждом сохранении.
  */
@@ -1119,16 +1162,22 @@ function fingerprint(rec) {
  */
 function idOf(rec) { return rec.id ?? rec.key ?? null; }
 
-/** Слепок «что было»: имя записи → отпечаток и путь. Снимается до изменения. */
+/**
+ * Слепок «что было»: имена записей с отпечатками и ежедневные отметки с их
+ * значениями. Снимается до изменения — по нему потом видно, что именно
+ * поменялось, а что человек просто открыл и закрыл.
+ */
 function snapshot(state) {
-  const map = new Map();
+  const recs = new Map();
   eachList(state, (list, at) => {
     for (const rec of list) {
       const id = rec && typeof rec === 'object' ? idOf(rec) : null;
-      if (id) map.set(id, { fp: fingerprint(rec), at });
+      if (id) recs.set(id, { fp: fingerprint(rec), at });
     }
   });
-  return map;
+  const marks = new Map();
+  eachMark(state, (at, v) => marks.set(at, JSON.stringify(v)));
+  return { recs, marks };
 }
 
 /**
@@ -1143,6 +1192,7 @@ function snapshot(state) {
 function stampRecords(state, before) {
   const now = new Date().toISOString();
   const alive = new Set();
+  const wasRecs = before.recs, wasMarks = before.marks;
   eachList(state, list => {
     list.forEach((rec, i) => {
       if (!rec || typeof rec !== 'object') return;
@@ -1152,7 +1202,7 @@ function stampRecords(state, before) {
       // Место в списке — это данные: порядок этапов, правил и карточек человек
       // задал сам, а у строк в таблице позиции не бывает.
       if (rec.order !== i) rec.order = i;
-      const was = before.get(id);
+      const was = wasRecs.get(id);
       if (!was) {
         // Запись появилась при нас — вот теперь время известно точно.
         if (!rec.createdAt) rec.createdAt = now;
@@ -1163,10 +1213,28 @@ function stampRecords(state, before) {
     });
   });
   const gone = [];
-  for (const [id, was] of before) if (!alive.has(id)) gone.push({ id, from: was.at, at: now });
+  for (const [id, was] of wasRecs) if (!alive.has(id)) gone.push({ id, from: was.at, at: now });
   // Запись с тем же id вернулась — след больше не нужен.
   const kept = (state.deleted || []).filter(x => !alive.has(x.id));
   if (gone.length || kept.length !== (state.deleted || []).length) state.deleted = [...kept, ...gone];
+
+  // Ежедневные отметки лежат ящиками по датам, и своего места для времени у
+  // них нет: ключ — сама дата. Поэтому «когда трогали» держим отдельным
+  // плоским указателем. Так форма отметок не меняется — сон остаётся числом,
+  // а не числом с довеском, — но при слиянии двух устройств видно, чья
+  // отметка свежее. Без этого сон, вода и отметки привычек сливались бы
+  // вслепую: это ровно те данные, которые пишутся каждый день.
+  state.changedAt = now;
+  const touched = state.touched || (state.touched = {});
+  const seenMarks = new Set();
+  eachMark(state, (at, v) => {
+    seenMarks.add(at);
+    const was = wasMarks.get(at);
+    const nowVal = JSON.stringify(v);
+    if (was !== nowVal) touched[at] = now;
+  });
+  // Отметку стёрли — это тоже событие, и у него есть время.
+  for (const at of wasMarks.keys()) if (!seenMarks.has(at)) touched[at] = now;
 }
 
 export function updateQuiet(mutator) {
