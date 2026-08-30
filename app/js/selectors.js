@@ -157,14 +157,15 @@ export function goalProgress(goal, seen = new Set()) {
 const avg = list => list.length ? Math.round(list.reduce((a, b) => a + b, 0) / list.length) : null;
 
 /**
- * Намерения, к которым может вести цель месяца: свои и всех уровней выше —
- * квартала и года. Ниже месяца намерений нет, поэтому список исчерпывающий.
+ * Намерения, к которым может вести цель месяца. Намерения живут на квартале
+ * и годе: в месяце их нет намеренно — месяц про то, что делаешь, а не про
+ * то, как хочется прожить период.
  */
 export function intentionsAbove(ym) {
   const y = ym.slice(0, 4);
   const q = `${y}-Q${Math.ceil(Number(ym.slice(5, 7)) / 3)}`;
-  const lvl = [[ym, 'месяц'], [q, 'квартал'], [y, 'год']];
-  return lvl.flatMap(([key, name]) => (S.intentions?.[key] || []).map(i => ({ ...i, period: key, level: name })));
+  return [[q, 'квартал'], [y, 'год']]
+    .flatMap(([key, name]) => (S.intentions?.[key] || []).map(i => ({ ...i, period: key, level: name })));
 }
 /** Намерение цели: ищем по всем периодам, чтобы не хранить ещё и период. */
 export function intentionOf(g) {

@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 49;
+const VERSION = 50;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -692,6 +692,21 @@ function migrate(s) {
         tg: x.tg == null || x.tg === '' ? null : Math.max(0, Math.round(Number(x.tg) || 0)) }))
       .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
   };
+  // v49 → v50: намерений в месяце больше нет — они про то, как хочется
+  // прожить период, а месяц про дела. Уже написанные не выбрасываем: они
+  // переезжают в свой квартал вместе с идентификаторами, поэтому цели,
+  // которые к ним вели, остаются связанными.
+  const ints = merged.intentions && typeof merged.intentions === 'object' ? merged.intentions : {};
+  Object.keys(ints).filter(k => /^\d{4}-\d{2}$/.test(k)).forEach(k => {
+    const qk = `${k.slice(0, 4)}-Q${Math.ceil(Number(k.slice(5, 7)) / 3)}`;
+    const to = (ints[qk] ||= []);
+    (ints[k] || []).forEach(i => {
+      if (!to.some(x => normName(x.text) === normName(i.text))) to.push(i);
+    });
+    delete ints[k];
+  });
+  merged.intentions = ints;
+
   // v48 → v49: цель может вести к намерению — своему или уровнем выше.
   // Битую ссылку не чиним и не выдумываем: если намерения нет, связь просто
   // не показывается, а поле остаётся — вдруг намерение вернётся из выгрузки.
