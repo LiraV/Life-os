@@ -333,11 +333,18 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .nav button.on{background:var(--deep); color:var(--on-accent)}
 
 .drawer-wrap{position:absolute; inset:0; background:var(--veil); z-index:6; display:flex}
+/* Меню держит все экраны, а их два десятка: без прокрутки нижние пункты
+   просто обрезались бы краем экрана. Полосу прокрутки прячем — она тут
+   лишняя графика поверх мягкой заливки. */
 .drawer{width:236px; max-width:78%; background:var(--drawer); border-radius:var(--r-phone) 28px 28px var(--r-phone);
-        padding:calc(20px + env(safe-area-inset-top)) 14px 14px; display:flex; flex-direction:column; gap:8px;
-        box-shadow:12px 0 40px var(--veil); animation:din .22s ease-out}
+        padding:calc(20px + env(safe-area-inset-top)) 14px 14px; display:flex; flex-direction:column; gap:4px;
+        box-shadow:12px 0 40px var(--veil); animation:din .22s ease-out;
+        overflow-y:auto; scrollbar-width:none}
+.drawer::-webkit-scrollbar{display:none}
+.drawer > *{flex:none}
 @keyframes din{from{transform:translateX(-100%)}to{transform:translateX(0)}}
-.drawer-head{display:flex; gap:10px; align-items:center; padding:0 6px 10px}
+.drawer-head{display:flex; gap:10px; align-items:center; padding:0 6px 10px;
+             position:sticky; top:calc(-20px - env(safe-area-inset-top)); background:var(--drawer); z-index:1}
 .avatar{width:42px; height:42px; border-radius:99px; background:linear-gradient(160deg,var(--deep),var(--warm));
         color:var(--on-accent); display:flex; align-items:center; justify-content:center; font-family:Prata,serif; font-size:18px; flex:none}
 .avatar.has-img{background:var(--card-mute); overflow:hidden}
@@ -352,6 +359,12 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
 .av-row{width:100%; gap:9px; padding:9px 2px; border-top:1px solid var(--track); border-bottom:1px solid var(--track)}
 .drawer button.item{text-align:left; font-size:13.5px; color:var(--ink); padding:10px 12px; border-radius:14px; border:1.5px solid transparent}
 .drawer button.item.on{border-color:var(--line); background:var(--soft)}
+/* Заголовки групп меню: подпись, а не пункт — поэтому тише и мельче всего
+   вокруг. Первый заголовок идёт сразу под шапкой, ему отступ сверху не нужен. */
+.menu-head{font-size:10px; letter-spacing:.09em; text-transform:uppercase; opacity:.5;
+           padding:10px 12px 3px}
+.drawer > .menu-head:first-of-type{padding-top:0}
+.menu-sep{height:1px; background:var(--track); margin:8px 12px 2px}
 
 /* ── шторки, тосты ──────────────────────────────────────────── */
 .overlay{position:absolute; inset:0; background:var(--veil); z-index:8; display:flex; flex-direction:column;
@@ -574,6 +587,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
   .side-head{display:flex; align-items:center; gap:9px; padding:2px 6px 10px; color:var(--nav-ink)}
   .side-head .ink, .side-head .lab{color:var(--nav-ink)}
   .side-sep{height:1px; background:var(--sep); margin:8px 4px}
+  .app.desk .menu-head{color:var(--nav-ink); padding:6px 12px 2px}
 
   /* Карточки раскладываются в две колонки: одна на всю ширину читается плохо.
      А вот списки — квесты, привычки, строки — остаются списками во всю строку:

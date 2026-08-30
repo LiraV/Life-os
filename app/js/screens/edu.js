@@ -2,6 +2,7 @@
 // практика — ритмом: сколько занятий в месяце и когда было последнее.
 // Проценты для практики не считаем: у вокала не бывает «80% пройдено».
 
+import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, touchTracker, nameTaken } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, dayShort, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -30,7 +31,7 @@ export function render() {
 
   return h`
     <div class="row between">
-      <button class="q-edit" data-act="back">‹ сферы</button>
+      <button class="q-edit" data-act="back">‹ назад</button>
       <span class="tag">полка</span>
     </div>
     <div class="title">Обучение</div>
@@ -208,7 +209,7 @@ function lessonSheet(lesson) {
 export const actions = {
   ...sphereGoalActions('edu'),
   ...scheduleActions,
-  back: () => { location.hash = '#/spheres'; },
+  back: () => goBack('spheres'),
   prev: () => update(s => { s.ui.eduMonth = addMonths(cal(), -1); }),
   next: () => update(s => { s.ui.eduMonth = addMonths(cal(), 1); }),
   add: () => lessonSheet(null),

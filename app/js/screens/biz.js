@@ -4,6 +4,7 @@
 // показатели, за которыми автор следит сам. Общего «успеха» приложение не
 // выводит: что тут успех, знает только тот, кто это делает.
 
+import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, nameTaken } from '../store.js';
 import { todayISO, monthKey, yearOf, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet, plural } from '../ui.js';
@@ -24,7 +25,7 @@ function list() {
   const live = bizLive().length;
   return h`
     <div class="row between">
-      <button class="q-edit" data-act="back">‹ сферы</button>
+      <button class="q-edit" data-act="back">‹ назад</button>
       <span class="tag">проекты</span>
     </div>
     <div class="title">Моё дело</div>
@@ -65,7 +66,7 @@ function projectRow(pr) {
 /** Один проект: что это, шаги до запуска и свои показатели. */
 function detail(id) {
   const pr = bizById(id);
-  if (!pr) return h`<div class="empty">Такого проекта нет. <button class="q-edit" data-act="back">← к проектам</button></div>`;
+  if (!pr) return h`<div class="empty">Такого проекта нет. <button class="q-edit" data-act="tolist">← к проектам</button></div>`;
   const pct = bizProgress(pr);
   return h`
     <div class="row between">
@@ -162,7 +163,7 @@ function projectSheet(id) {
 }
 
 export const actions = {
-  back: () => { location.hash = '#/spheres'; },
+  back: () => goBack('spheres'),
   tolist: () => { location.hash = '#/biz'; },
   open: v => { location.hash = '#/biz/' + v.id; },
   add: () => projectSheet(null),

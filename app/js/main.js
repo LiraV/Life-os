@@ -1,8 +1,9 @@
 // Роутер и оболочка: рисует активный экран, нижний бар и drawer,
 // раздаёт клики экрану через data-act.
 
-import { S, SPHERES, onChange, update, updateQuiet, level, loadError, rescueRaw, acceptFreshStart } from './store.js';
+import { S, SPHERES, visibleSpheres, onChange, update, updateQuiet, level, loadError, rescueRaw, acceptFreshStart } from './store.js';
 import { todayISO } from './dates.js';
+import { go, route, markStep, startHere } from './nav.js';
 import { closeSheet, toast } from './ui.js';
 import { reconcile } from './traits.js';
 import { applyAppIcon } from './appicon.js';
@@ -48,20 +49,31 @@ const NAV = [
 const DESK = window.matchMedia('(min-width: 900px)');
 export const isDesk = () => DESK.matches;
 
-const DRAWER = [
-  { key: 'inbox', label: 'Инбокс' },
-  { key: 'spheres', label: 'Сферы' },
-  { key: 'work', label: 'Работа' },
-  { key: 'habits', label: 'Привычки' },
-  { key: 'tracker', label: 'Трекер года' },
-  { key: 'health', label: 'Тело' },
-  { key: 'care', label: 'Забота' },
-  { key: 'library', label: 'Библиотека' },
-  { key: 'trips', label: 'Страны' },
-  { key: 'inside/diary', label: 'Дневник' },
-  { key: 'inside/tests', label: 'Тесты' },
-  { key: 'settings', label: 'Настройки' },
+/**
+ * Меню. Раньше здесь лежала половина экранов, а вторая открывалась только с
+ * сетки сфер — и «Бюджет» с «Питанием», которые нужны каждый день, стоили три
+ * тапа, а «Страны» — два. Теперь в меню есть всё: любой экран в двух тапах, а
+ * сетка сфер остаётся витриной, а не единственной дверью.
+ *
+ * Сферы берём из списка сфер и в том же порядке: убранная с глаз сфера уходит
+ * и из меню — «убрать с глаз» должно значить одно и то же везде.
+ */
+const sph = keys => keys
+  .map(k => visibleSpheres().find(s => s.key === k))
+  .filter(Boolean)
+  .map(s => ({ key: s.screen || 'spheres/' + s.key, label: s.name }));
+
+const MENU = () => [
+  { head: 'Каждый день', items: [{ key: 'inbox', label: 'Инбокс' }, ...sph(['food', 'money', 'work'])] },
+  { head: 'Сферы', items: [{ key: 'spheres', label: 'Все сферы' },
+    ...sph(['sport', 'edu', 'study', 'free', 'biz', 'blog', 'books', 'trips'])] },
+  { head: 'Тело и ритм', items: [...sph(['health']), { key: 'care', label: 'Забота' },
+    { key: 'habits', label: 'Привычки' }, { key: 'tracker', label: 'Трекер года' }] },
+  { head: 'Про себя', items: [{ key: 'inside/diary', label: 'Дневник' }, { key: 'inside/tests', label: 'Тесты' }] },
+  { items: [{ key: 'settings', label: 'Настройки' }] },
 ];
+
+const menuKeys = () => MENU().flatMap(g => g.items.map(i => i.key));
 
 const scr = document.getElementById('scr');
 const nav = document.getElementById('nav');
@@ -69,8 +81,6 @@ const statusbar = document.getElementById('statusbar');
 const app = document.getElementById('app');
 
 let drawerOpen = false;
-export const go = path => { location.hash = '#/' + path; };
-const route = () => location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
 
 /**
  * Шапка экрана прилипает к верху при прокрутке: заголовок, вкладки и стрелки
@@ -200,7 +210,7 @@ function navKey(keys) {
  * сразу и ящик не нужен — лишний тап ради того, что и так помещается.
  */
 function renderNav() {
-  const act = navKey([...BAR, ...DRAWER.map(d => d.key)]);
+  const act = navKey([...BAR, ...menuKeys()]);
   nav.hidden = !S.onboarded;
   if (!isDesk()) {
     nav.innerHTML = NAV.map(n => {
@@ -217,14 +227,14 @@ function renderNav() {
         <div class="lab">ур. ${level(S.user.xp)}</div></div>
     </div>
     ${NAV.filter(n => n.key !== 'more').map(n => item(n.key, n.label)).join('')}
-    <div class="side-sep"></div>
-    ${DRAWER.map(d => item(d.key, d.label)).join('')}`;
+    ${MENU().map(g => `<div class="side-sep"></div>${g.head ? `<div class="menu-head">${g.head}</div>` : ''}${
+      g.items.map(i => item(i.key, i.label)).join('')}`).join('')}`;
 }
 
 function renderDrawer() {
   document.querySelector('.drawer-wrap')?.remove();
   if (!drawerOpen) return;
-  const act = navKey(DRAWER.map(d => d.key));
+  const act = navKey(menuKeys());
   const wrap = document.createElement('div');
   wrap.className = 'drawer-wrap';
   wrap.innerHTML = `
@@ -236,13 +246,14 @@ function renderDrawer() {
           <div class="lab">${S.user.chronotype} · ур. ${level(S.user.xp)}</div>
         </div>
       </div>
-      ${DRAWER.map(d => {
-        // Тихий счётчик: рабочее на сегодня видно, только когда открываешь меню.
-        // На «Дне» рабочих задач нет намеренно — они не должны отвлекать.
-        const n = d.key === 'work' ? workTodayCount() : 0;
-        return `<button class="item ${act === d.key ? 'on' : ''}" data-drawer="${d.key}">${d.label}${
-          n ? `<span class="item-n">${n}</span>` : ''}</button>`;
-      }).join('')}
+      ${MENU().map(g => `${g.head ? `<div class="menu-head">${g.head}</div>` : '<div class="menu-sep"></div>'}${
+        g.items.map(d => {
+          // Тихий счётчик: рабочее на сегодня видно, только когда открываешь меню.
+          // На «Дне» рабочих задач нет намеренно — они не должны отвлекать.
+          const n = d.key === 'work' ? workTodayCount() : 0;
+          return `<button class="item ${act === d.key ? 'on' : ''}" data-drawer="${d.key}">${d.label}${
+            n ? `<span class="item-n">${n}</span>` : ''}</button>`;
+        }).join('')}`).join('')}
     </div>`;
   app.appendChild(wrap);
   wrap.addEventListener('click', e => {
@@ -295,6 +306,10 @@ export function render() {
     scr.innerHTML = onboarding.render(route());
     return;
   }
+  // Неизвестный адрес показывал «День», оставляя в строке чужой хеш: экран
+  // говорил одно, адрес другое, и меню подсвечивало «День» неизвестно от чего.
+  const asked = route()[0];
+  if (asked && !SCREENS[asked]) { location.replace('#/day'); return; }
   const name = activeScreen();
   const params = route().slice(1);
   const key = name + '/' + params.join('/');
@@ -376,7 +391,7 @@ nav.addEventListener('click', e => {
   go(btn.dataset.nav);
 });
 
-window.addEventListener('hashchange', () => { closeSheet(); drawerOpen = false; render(); });
+window.addEventListener('hashchange', () => { closeSheet(); drawerOpen = false; markStep(); render(); });
 onChange(render);
 
 // Смена суток на открытом экране: перерисовать, чтобы «сегодня» осталось сегодня.
@@ -386,7 +401,10 @@ setInterval(() => {
   if (todayISO() !== seenDay) { seenDay = todayISO(); update(s => { s.ui.date = seenDay; }); }
 }, 30000);
 
-if (!location.hash) location.hash = '#/day';
+// Заменяем, а не добавляем: лишняя запись без хеша означала бы, что первое
+// же «назад» уводит на пустой адрес и приложение тут же возвращает себя.
+if (!location.hash) location.replace('#/day');
+startHere();
 render();
 
 // Предложение про подсказки — после того, как персонаж уже заведён.

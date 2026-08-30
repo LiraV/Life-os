@@ -4,6 +4,7 @@
 // это ещё не деньги. Комиссия хранится у заказа, а не только у площадки:
 // площадка может поменять условия, а прошлые заказы от этого не поедут.
 
+import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, nameTaken } from '../store.js';
 import { todayISO, monthKey, monthIn, yearOf, dayShort, diffDays } from '../dates.js';
 import { h, raw, field, toast, openSheet, confirmSheet, plural } from '../ui.js';
@@ -28,7 +29,7 @@ export function render() {
 
   return h`
     <div class="row between">
-      <button class="q-edit" data-act="back">‹ сферы</button>
+      <button class="q-edit" data-act="back">‹ назад</button>
       <span class="tag">заказы</span>
     </div>
     <div class="title">Фриланс</div>
@@ -245,7 +246,7 @@ function listSheet({ title, sub, get, add, del, unit, suggest, note }) {
 }
 
 export const actions = {
-  back: () => { location.hash = '#/spheres'; },
+  back: () => goBack('spheres'),
   add: () => orderSheet(null),
   edit: v => orderSheet(v.id),
 

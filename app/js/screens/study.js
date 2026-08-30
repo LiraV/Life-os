@@ -4,6 +4,7 @@
 // Этап живёт на доске и двигается по стадиям. Стадия «у преподавателя»
 // считает дни ожидания: в учёбе больно не «сделать», а «отправила и жду».
 
+import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, nameTaken } from '../store.js';
 import { todayISO, dayShort, diffDays, monthKey, weekKey } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -29,7 +30,7 @@ const dueLabel = due => {
 export function render() {
   return h`
     <div class="row between">
-      <button class="q-edit" data-act="back">‹ сферы</button>
+      <button class="q-edit" data-act="back">‹ назад</button>
       <span class="tag">курсы</span>
     </div>
     <div class="title">Учёба</div>
@@ -243,7 +244,7 @@ export function taskSheet(task, subjectId) {
 
 export const actions = {
   ...scheduleActions,
-  back: () => { location.hash = '#/spheres'; },
+  back: () => goBack('spheres'),
   tab: v => update(s => { s.ui.studyTab = v.v; }),
 
   placeadd: () => openSheet({

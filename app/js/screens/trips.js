@@ -4,6 +4,7 @@
 // а «за жизнь» всё равно считается по разу. Год обязателен, всё остальное —
 // нет: смысл в отметке, а не в анкете.
 
+import { goBack } from '../nav.js';
 import { S, update, updateQuiet, uid, XP, addXp } from '../store.js';
 import { todayISO, yearOf } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -18,7 +19,7 @@ const year = () => S.ui.tripYear || yearOf(todayISO());
 export function render() {
   return h`
     <div class="row between">
-      <button class="q-edit" data-act="back">‹ сферы</button>
+      <button class="q-edit" data-act="back">‹ назад</button>
       <span class="tag">карта</span>
     </div>
     <div class="title">Страны</div>
@@ -200,7 +201,7 @@ function addVisit(code, y, note = '') {
 
 export const actions = {
   ...sphereGoalActions('trips'),
-  back: () => { location.hash = '#/spheres'; },
+  back: () => goBack('spheres'),
   tab: v => update(s => { s.ui.tripTab = v.v; }),
   // Сохраняем тихо и перерисовываем только список: экран целиком трогать
   // нельзя, иначе поле ввода пересоздаётся и клавиатура закрывается.

@@ -1,6 +1,7 @@
 // «Питание»: календарь по месяцу, КБЖУ и вода на каждый день,
 // плюс оценка приёма пищи по фотографии.
 
+import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, isWater, MEALS } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -32,7 +33,7 @@ export function render() {
 
   return h`
     <div class="row between">
-      <button class="q-edit" data-act="back">‹ сферы</button>
+      <button class="q-edit" data-act="back">‹ назад</button>
       <span class="tag">зелья</span>
     </div>
     <div class="title">Питание</div>
@@ -226,7 +227,7 @@ function askForKey() {
 }
 
 export const actions = {
-  back: () => { location.hash = '#/spheres'; },
+  back: () => goBack('spheres'),
   cprev: () => update(s => { s.ui.foodMonth = addMonths(cal(), -1); }),
   cnext: () => update(s => { s.ui.foodMonth = addMonths(cal(), 1); }),
   pick: v => update(s => { s.ui.foodDate = v.d; s.ui.foodMonth = monthKey(v.d); }),

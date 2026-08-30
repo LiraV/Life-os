@@ -1,6 +1,7 @@
 // «Сферы»: плитки и разбор одной сферы. У каждой — этапы с прогрессом,
 // у блога стадии идей, у бюджета копилка, у спорта — статистика из квестов.
 
+import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken } from '../store.js';
 import { todayISO, addDays, monthKey, monthTitle, monthIn, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
@@ -78,7 +79,7 @@ const hidden = () => allSpheres().filter(sp => (S.spheresHidden || []).includes(
 
 function detail(key) {
   const sp = sphereOf(key);
-  if (!sp) return h`<div class="empty">Такой сферы нет. <button class="q-edit" data-act="back">← к сферам</button></div>`;
+  if (!sp) return h`<div class="empty">Такой сферы нет. <button class="q-edit" data-act="tolist">← к сферам</button></div>`;
   const r = S.spheres[key] || { items: [], note: '', log: {} };
   const items = r.items || [];
   const pct = sphereProgress(key);
@@ -88,7 +89,7 @@ function detail(key) {
 
   return h`
     <div class="row between">
-      <button class="q-edit" data-act="back">‹ сферы</button>
+      <button class="q-edit" data-act="back">‹ назад</button>
       <span class="tag">${sp.mech}</span>
     </div>
     <div class="row between">
@@ -911,7 +912,8 @@ export const actions = {
     const own = SPHERES.find(x => x.key === v.v);
     location.hash = own?.screen ? '#/' + own.screen : '#/spheres/' + v.v;
   },
-  back: () => { location.hash = '#/spheres'; },
+  back: () => goBack('spheres'),
+  tolist: () => { location.hash = '#/spheres'; },
 
   // Сфера тут не одна на экран, поэтому берём ту, что открыта, а не зашитую.
   spheregoal: () => sphereGoalSheet(curKey()),
