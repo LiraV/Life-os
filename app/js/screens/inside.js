@@ -1,6 +1,7 @@
 // «Внутри»: Летописец, тесты и дневник.
 // Летописец работает без сети — это правила поверх твоих данных, не языковая модель.
 
+import { tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, monthTitle, monthIn, weekDates, weekKey } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, closeSheet } from '../ui.js';
@@ -16,7 +17,7 @@ import { TESTS, testLength, scoreTest } from '../tests.js';
 import { REVIEW_Q, REVIEW_OPEN, REVIEW_SCALE, REVIEW_ENDS, reviewScore } from '../review.js';
 
 const TABS = [['chat', 'Чат'], ['week', 'Неделя'], ['mind', 'Осознанность'], ['tests', 'Тесты'], ['diary', 'Дневник']];
-const tab = params => params[0] || S.ui.insideTab || 'chat';
+const tab = params => tabOf(TABS, params[0], S.ui.insideTab);
 
 export function render(params) {
   const t = tab(params);

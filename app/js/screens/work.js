@@ -9,10 +9,10 @@
 // тут не считается нигде: считаются часы, дни подряд, офис и отпуск — то,
 // что говорит, когда пора остановиться.
 
-import { goBack, syncTab, goTab } from '../nav.js';
+import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, WORK_KINDS, blankSched, touchTracker, nameTaken } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, monthTitle, yearOf, MONTHS, weekDates, DOW, dowIndex, diffDays, relativeDay } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, confirmSheet, num } from '../ui.js';
 import {
   workJobs, jobsNow, jobById, jobName, soleJob, jobDayNorm, jobWeekNorm, weekNormAll, isJobDay,
   dayOfJob, dayEntries, workHours, workedDays, officeDays, workMonth, workWeek, workStreak,
@@ -27,12 +27,11 @@ import {
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 
 const TABS = [['now', 'Сейчас'], ['board', 'Доска'], ['road', 'Путь'], ['year', 'Год']];
-const tab = () => (TABS.some(([k]) => k === S.ui.workTab) ? S.ui.workTab : 'now');
+const tab = () => tabOf(TABS, S.ui.workTab);
 const proj = () => S.ui.workProj ?? null;          // null — все, '' — без проекта
 /** Выбранное место: null — все. Пока место одно, выбирать нечего. */
 const curJob = () => (soleJob() ? soleJob().id : (S.ui.workJob ?? null));
 const many = () => jobsNow().length > 1;
-const num = n => Number(n).toLocaleString('ru-RU');
 const hrs = n => `${Math.round(n * 10) / 10} ч`;
 
 const DAY_TYPES = [

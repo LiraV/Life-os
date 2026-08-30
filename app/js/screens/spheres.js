@@ -4,18 +4,17 @@
 import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken } from '../store.js';
 import { todayISO, addDays, monthKey, monthTitle, monthIn, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, confirmSheet, money } from '../ui.js';
 import { SPHERE_ART, DEFAULT_ART, artSrc } from '../sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, BLOG_FEEDS, placeShort, placeName, PACK, packById, UNPACK, UNPACK_ALL } from '../blog.js';
 import { blogPosts, blogBy, blogMonth, blogYear, blogTotal, blogAhead, viewsMonth, viewsRecord,
   subsLast, subsDelta, subsTotal, sleepAvg, blogFormats, blogRubrics, rubricName, formatName,
   rubricMix, rubricUnsorted, formatMix, blockProgress } from '../selectors.js';
+import { foodSums as sums, balanceAt } from '../selectors.js';
 import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMonth, sportLessonSessions,
   sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleOfSphere,
   SHELF_STATUS, sphereShelf, shelfBy, BOARD_STAGES, sphereBoard, boardBy,
   sphereColl, collYear, sphereMeas, measLast, measRecord, workWeek, jobsNow } from '../selectors.js';
-import { sums } from './food.js';
-import { balanceAt, money } from './budget.js';
 import { studyNow, workoutsIn } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 

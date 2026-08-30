@@ -184,9 +184,6 @@ export const goalSlots = g => Array.isArray(g.slots) ? g.slots : [];
 /** Цели, положенные в этот период сверху — живут выше, но запланированы сюда. */
 export const goalsPlannedIn = period => liveGoals().filter(g => g.period !== period && goalSlots(g).includes(period));
 
-/** Цели года, которым ещё не назначен ни квартал, ни месяц. */
-export const unplannedGoals = (horizon, period) => goalsIn(horizon, period).filter(g => !goalSlots(g).length);
-
 /** Цели квартала: свои плюс положенные сюда; если пусто — месячные внутри него. */
 export function quarterGoals(qk) {
   const own = [...goalsIn('quarter', qk), ...goalsPlannedIn(qk)];
@@ -218,9 +215,6 @@ export function goalChain(id) {
   const theme = year && S.years[year]?.theme;
   return { links: out, theme: theme || null };
 }
-
-/** Годы, о которых вообще есть что показать. */
-export const goalYears = () => [...new Set(liveGoals().map(g => g.period.slice(0, 4)))];
 
 // ── сферы ───────────────────────────────────────────────────────
 export const sphereItems = key => (S.spheres[key] || {}).items || [];
@@ -336,8 +330,6 @@ export const liveHabits = () => S.habits.filter(hb => !hb.archived);
 
 /** Полные дни месяца — те, где норма закрыта целиком. */
 export const habitMonthCount = (hb, ym) => monthDates(ym).filter(d => habitDone(hb, d)).length;
-/** Сколько всего раз за месяц — для большого трекера. */
-export const habitMonthTotal = (hb, ym) => monthDates(ym).reduce((a, d) => a + habitCount(hb, d), 0);
 export const habitWeekDone = (hb, date) => weekDates(date).filter(d => habitDone(hb, d)).length;
 
 // ── спорт: тренировки и рекорды ─────────────────────────────────
@@ -403,13 +395,6 @@ export function exerciseRecord(ex) {
     improved: was == null ? null : better(last.value, was),
     count: hist.length,
   };
-}
-
-/** Лучший результат за месяц — строка в годовом трекере. */
-export function exerciseMonthBest(ex, ym) {
-  const list = exerciseHistory(ex.id).filter(x => x.date.startsWith(ym)).map(x => x.value);
-  if (!list.length) return null;
-  return ex.dir === 'down' ? Math.min(...list) : Math.max(...list);
 }
 
 /** Тренировки за период — идут в статистику спорта и в потребность «Движение».
@@ -837,7 +822,6 @@ export const ROLES = [
   { id: 'wanderer', name: 'Странница' },
 ];
 
-export const roleById = id => ROLES.find(r => r.id === id);
 /** Сферы этой роли — по карте привязок, а не по списку в коде. */
 export const spheresOfRole = id => allSpheres().filter(sp => S.roleOf[sp.key] === id);
 export const roleOfSphere = key => S.roleOf[key] || '';
@@ -1237,8 +1221,10 @@ export function formSummary(days = 30) {
   const range = Array.from({ length: days }, (_, i) => addDays(from, i));
 
   // Тело: первый и последний замеры внутри периода.
-  const inRange = [...S.health.measures].filter(m => m.date >= from).sort((a, b) => a.date.localeCompare(b.date));
-  const first = inRange[0], last = inRange[inRange.length - 1];
+  // Имя нарочно не inRange: так называется проверка «дата внутри отрезка»,
+  // и здесь она была заслонена массивом — читалось как ошибка.
+  const measured = [...S.health.measures].filter(m => m.date >= from).sort((a, b) => a.date.localeCompare(b.date));
+  const first = measured[0], last = measured[measured.length - 1];
   const delta = f => (first && last && first !== last && first[f] != null && last[f] != null
     ? +(last[f] - first[f]).toFixed(1) : null);
 
@@ -1406,6 +1392,30 @@ export const vaultBalance = v =>
 // сфера предлагает, что она умеет считать, а взять это или нет — его выбор.
 
 /** Отрезок дат периода цели. ISO-даты сравниваются как строки. */
+// ── бюджет ──────────────────────────────────────────────────────
+// Считалось это в самом экране, а брала цифру ещё и плитка сферы: вычисления
+// живут здесь, чтобы у остатка было одно определение на приложение.
+const inMonthOp = (op, m) => (op.date || '').startsWith(m);
+
+export const sumBy = (m, kind) => S.budget.ops
+  .filter(o => o.kind === kind && inMonthOp(o, m))
+  .reduce((a, o) => a + (Number(o.sum) || 0), 0);
+
+/**
+ * Остаток на конец месяца: стартовая сумма плюс всё, что случилось до конца
+ * этого месяца. «-32» — заведомо больший день: даты сравниваются строками, и
+ * так в срез попадает и 31-е число.
+ */
+export function balanceAt(m) {
+  const end = m + '-32';
+  return S.budget.ops.filter(o => (o.date || '') < end).reduce((acc, o) => {
+    if (o.kind === 'income') return acc + (Number(o.sum) || 0);
+    // Расход уходит совсем, отложенное — с баланса в копилку: для остатка это
+    // одно и то же движение, поэтому и знак один.
+    return acc - (Number(o.sum) || 0);
+  }, S.budget.start);
+}
+
 export function periodRange(horizon, period) {
   if (horizon === 'month') return { from: `${period}-01`, to: `${period}-${String(daysInMonth(period)).padStart(2, '0')}` };
   if (horizon === 'quarter') {
@@ -2005,11 +2015,6 @@ export function reviewMonth(ym) {
   return vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
 }
 
-/** Ряд по вопросу за последние недели — видно, что именно поехало. */
-export function reviewSeries(key, n = 8) {
-  return reviewWeeks().slice(-n).map(wk => ({ wk, v: Number(reviewOf(wk)?.scores?.[key]) || null }));
-}
-
 /** Что просело и что держится: средние по вопросам за последние недели. */
 export function reviewParts(n = 8) {
   const weeks = reviewWeeks().slice(-n);
@@ -2138,7 +2143,6 @@ export function subsDelta(feed) {
   if (marks.length < 2) return null;
   return marks[marks.length - 1][feed] - marks[marks.length - 2][feed];
 }
-export const subsSeries = feed => subsMarks().filter(x => x[feed] != null).map(x => x[feed]);
 
 /** Последнее известное число по площадке — у каждой своё: отметка, где
  *  заполнили только инстаграм, не должна обнулять телеграм. */

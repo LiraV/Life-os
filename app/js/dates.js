@@ -39,7 +39,6 @@ export function weekKey(s) { const { year, week } = isoWeek(s); return `${year}-
 
 export const monthKey = s => s.slice(0, 7);
 export const yearOf = s => Number(s.slice(0, 4));
-export const quarterOf = s => `Q${Math.floor(Number(s.slice(5, 7) - 1) / 3) + 1}`;
 
 /** '2026-08' → '2026-Q3'; ключ периода для целей квартала. */
 export const quarterKey = ym => `${ym.slice(0, 4)}-Q${Math.floor((Number(ym.slice(5, 7)) - 1) / 3) + 1}`;

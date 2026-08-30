@@ -13,12 +13,6 @@ import {
   scheduleMovedFrom, scheduleDone,
 } from './selectors.js';
 
-/** Подпись одной строкой: «пн, чт · 19:30» или что расписания нет. */
-export const scheduleHint = (kind, refId) => {
-  const list = schedulesOf(kind, refId);
-  return list.length ? list.map(scheduleLabel).join(' · ') : 'расписания нет';
-};
-
 /**
  * Блок расписания в карточке сущности. Пусто — значит просто ничего не
  * появляется на дне: расписание нигде не обязательно.

@@ -2,10 +2,10 @@
 // дом и питомца. Ритм считается от последней отметки, а не от календаря:
 // сделала раньше или позже — план едет за жизнью, а не наоборот.
 
-import { syncTab, goTab } from '../nav.js';
+import { syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, nameTaken } from '../store.js';
 import { todayISO, dayShort, monthTitle, monthKey, yearOf, MONTHS } from '../dates.js';
-import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
+import { h, raw, field, toast, openSheet, confirmSheet, num } from '../ui.js';
 import {
   CARE_GROUPS, careGroupName, careItems, careLast, careNext, careDue,
   careDueNow, careSoon, careInGroup, careMonthCost, careYearPlan, petAge,
@@ -14,8 +14,7 @@ import { gv } from '../gender.js';
 import { careSuggestions } from '../carelib.js';
 
 const TABS = [['now', 'Сейчас'], ['all', 'Списком'], ['year', 'Год']];
-const tab = () => (TABS.some(([k]) => k === S.ui.careTab) ? S.ui.careTab : 'now');
-const num = n => Number(n).toLocaleString('ru-RU');
+const tab = () => tabOf(TABS, S.ui.careTab);
 
 /** «раз в 3 месяца», «раз в год» — как это звучит вслух. */
 export function everyLabel(n) {

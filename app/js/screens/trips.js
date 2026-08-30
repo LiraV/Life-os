@@ -4,7 +4,7 @@
 // а «за жизнь» всё равно считается по разу. Год обязателен, всё остальное —
 // нет: смысл в отметке, а не в анкете.
 
-import { goBack, syncTab, goTab } from '../nav.js';
+import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, updateQuiet, uid, XP, addXp } from '../store.js';
 import { todayISO, yearOf } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -13,7 +13,7 @@ import { visits, countriesEver, countriesInYear, regionsEver, travelYears, COUNT
 import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
 const TABS = [['life', 'За жизнь'], ['year', 'По годам'], ['add', 'Отметить']];
-const tab = () => (TABS.some(([k]) => k === S.ui.tripTab) ? S.ui.tripTab : 'life');
+const tab = () => tabOf(TABS, S.ui.tripTab);
 const year = () => S.ui.tripYear || yearOf(todayISO());
 
 export function render(params = []) {

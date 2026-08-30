@@ -4,7 +4,7 @@
 // Этап живёт на доске и двигается по стадиям. Стадия «у преподавателя»
 // считает дни ожидания: в учёбе больно не «сделать», а «отправила и жду».
 
-import { goBack, syncTab, goTab } from '../nav.js';
+import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, nameTaken } from '../store.js';
 import { todayISO, dayShort, diffDays, monthKey, weekKey } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -16,7 +16,7 @@ import {
 import { questSheet } from './day.js';
 
 const TABS = [['now', 'Сейчас'], ['board', 'Доска'], ['subjects', 'Предметы']];
-const tab = () => S.ui.studyTab || 'now';
+const tab = () => tabOf(TABS, S.ui.studyTab);
 
 const dueLabel = due => {
   if (!due) return '';

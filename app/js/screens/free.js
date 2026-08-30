@@ -7,7 +7,7 @@
 import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, nameTaken } from '../store.js';
 import { todayISO, monthKey, monthIn, yearOf, dayShort, diffDays } from '../dates.js';
-import { h, raw, field, toast, openSheet, confirmSheet, plural } from '../ui.js';
+import { h, raw, field, toast, openSheet, confirmSheet, plural, money } from '../ui.js';
 import { FREE_STAGES, FREE_KINDS, FREE_PLACES, FREE_STEPS, stageName, netOf } from '../free.js';
 import {
   freeOrders, freeBy, freeLive, freePlaces, freeServices, freeSteps, freeStepsDone,
@@ -15,7 +15,6 @@ import {
 } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
-const money = n => `${Number(n || 0).toLocaleString('ru-RU')} ₽`;
 
 export function render() {
   const t = todayISO();

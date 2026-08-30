@@ -2,6 +2,10 @@
 // Библиотек в проекте нет, а настоящая книга открывается и в Excel, и в Numbers
 // на телефоне — в отличие от CSV, который iOS показывает текстом.
 
+// Экранирование берём из ui.js: оно было здесь слово в слово, а править такое
+// в двух местах — верный способ разъехаться.
+import { esc } from './ui.js';
+
 const enc = new TextEncoder();
 
 const CRC_TABLE = (() => {
@@ -84,7 +88,6 @@ function zip(files, now = new Date()) {
   return out.bytes();
 }
 
-const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
 
 /** Номер колонки в буквенную адресацию: 1 → A, 27 → AA. */
 function colName(n) {

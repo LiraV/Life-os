@@ -2,7 +2,7 @@
 // и с правкой. Всё остальное (день цикла, фаза, средняя длина, прогноз) считается
 // из этих отметок.
 
-import { syncTab, goTab } from '../nav.js';
+import { syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, nameTaken, normName } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
@@ -15,7 +15,7 @@ const fmt = (v, unit) => v == null || v === '' ? '—' : `${v} ${unit}`;
 const calMonth = () => S.ui.calMonth || monthKey(todayISO());
 
 const TABS = [['now', 'Сейчас'], ['form', 'Форма']];
-const tab = () => (TABS.some(([k]) => k === S.ui.bodyTab) ? S.ui.bodyTab : 'now');
+const tab = () => tabOf(TABS, S.ui.bodyTab);
 
 export function render(params = []) {
   syncTab(params, TABS, 'bodyTab');

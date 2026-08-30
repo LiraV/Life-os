@@ -5,7 +5,7 @@
 // Упражнение меряется не количеством походов, а результатом — и у шпагата
 // «лучше» значит меньше, а не больше.
 
-import { goBack, syncTab, goTab } from '../nav.js';
+import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, touchTracker, nameTaken } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
@@ -18,7 +18,7 @@ import { gv } from '../gender.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
 const TABS = [['tpl', 'Шаблоны'], ['ex', 'Упражнения']];
-const tab = () => (S.ui.sportTab === 'ex' ? 'ex' : 'tpl');
+const tab = () => tabOf(TABS, S.ui.sportTab);
 
 export function render(params = []) {
   syncTab(params, TABS, 'sportTab');

@@ -32,4 +32,3 @@ export const DEFAULT_ART = 'plan';
 /** Путь к картинке. Неизвестный ключ — не картинка, а пусто: подставлять
  *  чужую обложку хуже, чем показать значок, который человек уже видел. */
 export const artSrc = key => SPHERE_ART.find(a => a.key === key)?.src || '';
-export const artName = key => SPHERE_ART.find(a => a.key === key)?.name || '';

@@ -1,13 +1,13 @@
 // «Планы»: неделя, месяц, год — реальные периоды с навигацией в обе стороны.
 // Цепочка «задача → цель месяца → квартал → тема года» строится из данных.
 
-import { syncTab, goTab } from '../nav.js';
+import { syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, allSpheres, touchTracker } from '../store.js';
 import {
   todayISO, addDays, addMonths, weekKey, weekDates, isoWeek,
   monthKey, monthTitle, dayShort, yearOf, quarterKey, quarterMonths, MONTHS,
 } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, num } from '../ui.js';
 import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
   quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
@@ -16,7 +16,7 @@ import {
 } from '../selectors.js';
 
 const TABS = [['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']];
-const tab = () => S.ui.planTab || 'week';
+const tab = () => tabOf(TABS, S.ui.planTab);
 const anchor = () => S.ui.weekAnchor || todayISO();
 const month = () => S.ui.monthAnchor || monthKey(todayISO());
 const year = () => S.ui.year || yearOf(todayISO());
@@ -214,7 +214,6 @@ function goalCard(g, { compact = false, plannedIn = null } = {}) {
     </div>`;
 }
 
-const num = n => Number(n).toLocaleString('ru-RU');
 
 /** Счётчик: «7 из 12 книг» и кнопки прибавления.
  *  Для мелких величин удобны шаги по единице, для крупных — только сумма. */

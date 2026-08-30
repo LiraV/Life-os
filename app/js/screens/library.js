@@ -4,10 +4,10 @@
 //
 // Отложенная книга — не провал: это отдельный статус, а не удаление.
 
-import { goBack, syncTab, goTab } from '../nav.js';
+import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, touchTracker, nameTaken } from '../store.js';
 import { todayISO, dayShort, monthKey, yearOf, MONTHS } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, num } from '../ui.js';
 import {
   BOOK_STATUS, books, booksBy, bookById, bookProgress,
   booksDoneIn, booksDoneYear, pagesInYear, ratingAvg,
@@ -16,9 +16,8 @@ import { gv } from '../gender.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
 const TABS = [['now', 'Сейчас'], ['shelf', 'Полка'], ['year', 'Год']];
-const tab = () => (TABS.some(([k]) => k === S.ui.bookTab) ? S.ui.bookTab : 'now');
+const tab = () => tabOf(TABS, S.ui.bookTab);
 const KINDS = { paper: 'бумажная', ebook: 'электронная', audio: 'аудио' };
-const num = n => Number(n).toLocaleString('ru-RU');
 const stars = n => (n ? '★'.repeat(n) + '☆'.repeat(5 - n) : '');
 
 export function render(params = []) {

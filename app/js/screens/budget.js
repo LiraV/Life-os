@@ -4,21 +4,20 @@
 // Единственный источник правды — список операций. Балансы и итоги считаются
 // из него, чтобы нигде не разошлись две копии одной суммы.
 
-import { goBack, syncTab, goTab } from '../nav.js';
+import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, touchBudget, nameTaken } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort, stampLabel } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, money } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
 // Остаток копилки считается в selectors: то же число нужно целям «накопить».
-import { vaultBalance } from '../selectors.js';
+import { vaultBalance, sumBy, balanceAt } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 export { vaultBalance };
 
 const B = () => S.budget;
 const ym = () => S.ui.budMonth || monthKey(todayISO());
-const tab = () => S.ui.budTab || 'month';
+const tab = () => tabOf(TABS, S.ui.budTab);
 
-export const money = n => `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ₽`;
 const inMonth = (op, m) => (op.date || '').startsWith(m);
 const opsOf = m => B().ops.filter(o => inMonth(o, m)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 const catName = (kind, id) => (B().cats[kind].find(c => c.id === id) || {}).name || 'без статьи';
@@ -27,19 +26,8 @@ const planOf = (m, kind, id) => Number(B().plans[m]?.[kind]?.[id]) || 0;
 /** Неделя месяца как в таблице: первая — первые семь дней, и так далее. */
 const weekOfMonth = date => Math.ceil(parseISO(date).getDate() / 7);
 
-export function sumBy(m, kind) {
-  return B().ops.filter(o => o.kind === kind && inMonth(o, m)).reduce((a, o) => a + (Number(o.sum) || 0), 0);
-}
 
 /** Баланс на конец месяца: стартовая сумма плюс всё, что случилось до его конца. */
-export function balanceAt(m) {
-  const end = m + '-32';
-  return B().ops.filter(o => (o.date || '') < end).reduce((acc, o) => {
-    if (o.kind === 'income') return acc + (Number(o.sum) || 0);
-    if (o.kind === 'expense') return acc - (Number(o.sum) || 0);
-    return acc - (Number(o.sum) || 0);   // отложенное уходит с баланса в копилку
-  }, B().start);
-}
 
 
 

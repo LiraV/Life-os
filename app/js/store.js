@@ -79,7 +79,6 @@ export const MEALS = [
   { key: 'dinner', name: 'Ужин' },
   { key: 'snack', name: 'Перекус' },
 ];
-export const mealName = k => MEALS.find(m => m.key === k)?.name || 'Без приёма';
 
 export const blankSched = () => ({ days: [0, 1, 2, 3, 4], start: '09:00', end: '18:00', lunch: 60 });
 

@@ -6,7 +6,7 @@ import { S, update, uid, XP, addXp, isWater, MEALS } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, monthDates, dowIndex, dayShort, DOW } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
 import { hasKey, analyzeFoodPhoto, analyzeFoodText } from '../ai.js';
-import { proteinHint, fatHint, waterHint, carbRest, energyNeed, liveHabits, mealEntries, mealsOn } from '../selectors.js';
+import { proteinHint, fatHint, waterHint, carbRest, energyNeed, liveHabits, mealEntries, mealsOn, foodSums as sums } from '../selectors.js';
 
 const plural = (n, a, b, c) => {
   const m = n % 100, d = n % 10;
@@ -18,10 +18,9 @@ const sel = () => S.ui.foodDate || todayISO();
 const dayOf = d => S.food.days[d] || { water: 0, entries: [] };
 const targets = () => S.food.targets;
 
-export const sums = d => (dayOf(d).entries || []).reduce(
-  (a, e) => ({ kcal: a.kcal + (e.kcal || 0), prot: a.prot + (e.prot || 0), fat: a.fat + (e.fat || 0), carb: a.carb + (e.carb || 0) }),
-  { kcal: 0, prot: 0, fat: 0, carb: 0 },
-);
+// Сумма за день считается в selectors.js — там же, где её берут сфера и
+// «Форма». Здесь была её точная копия: два места, где легко разъехаться.
+export { sums };
 
 export function render() {
   const date = sel();

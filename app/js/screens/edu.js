@@ -5,13 +5,12 @@
 import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, touchTracker, nameTaken } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, dayShort, diffDays } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, money } from '../ui.js';
 import { liveLessons, lessonMonth, lessonLast, lessonAgo, courseProgress, moduleDone, moduleFull } from '../selectors.js';
 import { scheduleBlock, scheduleActions } from '../schedule.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
 const cal = () => S.ui.eduMonth || monthKey(todayISO());
-const money = n => `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ₽`;
 
 const agoLabel = l => {
   const d = lessonAgo(l);
