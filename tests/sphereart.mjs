@@ -6,6 +6,19 @@ await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
 const p = await ctx.newPage();
 const errs = []; let bad = 0;
 const ok = (n, c, extra = '') => { if (!c) bad++; console.log(`${c ? '✓' : '✗'} ${n}${extra ? ' — ' + extra : ''}`); };
+
+// Картинка может быть ещё не догружена: под нагрузкой это секунды, а не
+// миллисекунды, и «прошло 600 мс» тут ничего не гарантирует. Ждём именно
+// решённую картинку — загрузилась или не смогла.
+const decoded = loc => loc.evaluate(e => {
+  if (e.complete) return e.naturalWidth > 0;
+  return new Promise(r => {
+    e.addEventListener('load', () => r(e.naturalWidth > 0), { once: true });
+    e.addEventListener('error', () => r(false), { once: true });
+    setTimeout(() => r(e.naturalWidth > 0), 15000);
+  });
+});
+
 p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
 p.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_|Failed to load resource/.test(m.text())) errs.push('CONSOLE: ' + m.text()); });
 const st = () => p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')));
@@ -63,7 +76,7 @@ ok('путь к файлу в данных не хранится', !JSON.stringi
 // после создания приложение открывает саму сферу — сперва смотрим её шапку
 const hero = p.locator('.hero-img');
 ok('в шапке сферы выбранная обложка', /spheres\/read\.webp/.test(await hero.getAttribute('src')), await hero.getAttribute('src'));
-ok('шапка не битая', await hero.evaluate(e => e.naturalWidth > 0));
+ok('шапка не битая', await decoded(hero));
 await p.screenshot({ path: 'sphereart-hero.png' });
 
 await p.evaluate(() => { location.hash = '#/spheres'; }); await p.waitForTimeout(600);
@@ -71,7 +84,7 @@ const tile = p.locator('.tile', { hasText: 'Музыка' });
 ok('на плитке картинка, а не эмодзи', await tile.locator('img').count() === 1 && await tile.locator('.tile-emoji').count() === 0);
 const src = await tile.locator('img').getAttribute('src');
 ok('плитка взяла выбранную обложку', /spheres\/read\.webp/.test(src), src);
-ok('картинка на плитке не битая', await tile.locator('img').evaluate(e => e.naturalWidth > 0));
+ok('картинка на плитке не битая', await decoded(tile.locator('img')));
 await tile.click(); await p.waitForTimeout(600);
 
 // правка: обложку можно сменить

@@ -1,6 +1,18 @@
 // Смена иконки приложения: выбор виден, сохраняется, подменяет ссылки в документе.
 import { chromium, devices } from './pw.mjs';
 const b = await chromium.launch();
+// Ждём, пока все картинки на странице решатся — загрузятся или не смогут.
+// Проверять naturalWidth сразу нельзя: под нагрузкой картинка ещё в пути, и
+// набор мигает на ровном месте.
+const imagesSettled = pg => pg.evaluate(() => Promise.all([...document.images].map(i => (
+  i.complete ? null : new Promise(r => {
+    i.addEventListener('load', r, { once: true });
+    i.addEventListener('error', r, { once: true });
+    setTimeout(r, 15000);
+  })
+))).then(() => true));
+
+
 const ctx = await b.newContext({ serviceWorkers: 'block',  ...devices['iPhone 13'], locale: 'ru-RU' });
 await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
 const p = await ctx.newPage();
@@ -41,6 +53,7 @@ ok('у каждой обложки есть свой манифест', true, ke
 ok('по умолчанию отмечена жемчужина', await p.locator('.apps .icon-pick.on').getAttribute('data-id') === 'pearl');
 
 // картинки должны существовать, а не висеть битыми
+await imagesSettled(p);
 const broken = await p.locator('.apps .icon-pick img').evaluateAll(els => els.filter(e => !e.naturalWidth).map(e => e.getAttribute('src')));
 ok('все обложки загрузились', broken.length === 0, broken.join(', '));
 

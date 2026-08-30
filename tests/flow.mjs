@@ -1,5 +1,17 @@
 import { chromium } from './pw.mjs';
 const b = await chromium.launch();
+// Ждём, пока все картинки на странице решатся — загрузятся или не смогут.
+// Проверять naturalWidth сразу нельзя: под нагрузкой картинка ещё в пути, и
+// набор мигает на ровном месте.
+const imagesSettled = pg => pg.evaluate(() => Promise.all([...document.images].map(i => (
+  i.complete ? null : new Promise(r => {
+    i.addEventListener('load', r, { once: true });
+    i.addEventListener('error', r, { once: true });
+    setTimeout(r, 15000);
+  })
+))).then(() => true));
+
+
 const ctx = await b.newContext({ serviceWorkers: 'block',  viewport: { width: 900, height: 940 } });
 // Шрифты Google из песочницы недоступны: запрос висит до таймаута и держит
 // загрузку страницы примерно 13 секунд. Обрываем — на проверки они не влияют.
@@ -40,6 +52,7 @@ await p.getByText('☰ Ещё').click();
 await p.waitForTimeout(500);
 await p.getByText('Сферы', { exact: false }).first().click();
 await p.waitForTimeout(700);
+await imagesSettled(p);
 const imgs = await p.evaluate(() => [...document.images].map(i => ({ s: i.getAttribute('src'), ok: i.naturalWidth > 0 })));
 console.log('sphere images:', JSON.stringify(imgs));
 await p.screenshot({ path: 'spheres.png' });

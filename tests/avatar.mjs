@@ -26,9 +26,15 @@ await p.locator('[data-act="edit"]').first().click(); await p.waitForTimeout(500
 console.log('2) в «Персонаже» есть строка аватара:', await p.locator('.av-row').count() === 1);
 await p.locator('.av-row').click(); await p.waitForTimeout(600);
 console.log('3) мини-окно:', await p.locator('.sheet-title').innerText(), '| вариантов:', await p.locator('.av-pick').count());
-console.log('   картинки грузятся:', await p.evaluate(() => {
+console.log('   картинки грузятся:', await p.evaluate(async () => {
   const imgs = [...document.querySelectorAll('.av-pick img')].slice(0, 12);
-  return imgs.every(i => i.complete ? i.naturalWidth > 0 : true);
+  // Ждём каждую: «ещё не загрузилась — значит целая» скрывало бы битые.
+  await Promise.all(imgs.map(i => (i.complete ? null : new Promise(r => {
+    i.addEventListener('load', r, { once: true });
+    i.addEventListener('error', r, { once: true });
+    setTimeout(r, 15000);
+  }))));
+  return imgs.every(i => i.naturalWidth > 0);
 }));
 
 await p.locator('.av-pick').nth(3).click(); await p.waitForTimeout(700);
