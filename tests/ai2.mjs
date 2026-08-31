@@ -101,6 +101,46 @@ ok('незнакомая модель остаётся выбранной, а н
   await ctx2.close();
 }
 
+// ── ошибку показываем настоящую, а не свою догадку ──────────────
+{
+  const ctx3 = await b.newContext({ serviceWorkers: 'block', locale: 'ru-RU', ...devices['iPhone 13'] });
+  await ctx3.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  const p3 = await ctx3.newPage();
+  await p3.addInitScript(() => {
+    window.fetch = (url) => {
+      // Так отвечает OpenAI, когда запрос пришёл из неподдерживаемой страны:
+      // права у ключа при этом любые, и дело вовсе не в модели.
+      if (String(url).includes('api.openai.com')) {
+        return Promise.resolve(new Response(JSON.stringify({
+          error: { message: 'Country, region, or territory not supported' },
+        }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
+      }
+      return Promise.reject(new Error('нет сети'));
+    };
+  });
+  await p3.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
+  await p3.waitForTimeout(700);
+  await p3.getByText('пропустить онбординг').click(); await p3.waitForTimeout(500);
+  await p3.evaluate(() => localStorage.setItem('lifeos.openai.key', 'sk-проверочный-ключ-достаточной-длины'));
+  const said = await p3.evaluate(async () => {
+    const ai = await import('/app/js/ai.js');
+    try { await ai.checkKey(); return 'ошибки не было'; } catch (e) { return e.message; }
+  });
+  ok('показан настоящий ответ, а не догадка про права ключа', /Country, region/.test(said), said);
+  ok('и в нём нет выдумки про модель', !/нет прав на эту модель/.test(said), said);
+
+  // Ответ нашего посредника не выдаётся за ответ OpenAI.
+  await p3.addInitScript(() => {});
+  const mine = await p3.evaluate(async () => {
+    const ai = await import('/app/js/ai.js');
+    window.fetch = () => Promise.resolve(new Response(JSON.stringify({ error: 'ключ OpenAI не задан в функции' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }));
+    try { await ai.checkKey(); return 'ошибки не было'; } catch (e) { return e.message; }
+  });
+  ok('беда облака названа бедой облака', /Облако: ключ OpenAI не задан в функции/.test(mine), mine);
+  await ctx3.close();
+}
+
 await b.close();
 if (errs.length) { console.log(errs.join('\n')); bad += errs.length; }
 console.log(bad ? `✗ ошибок: ${bad}` : '✓ выбор модели и текст про данные в порядке');

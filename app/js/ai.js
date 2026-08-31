@@ -66,14 +66,25 @@ export const maskKey = () => {
   return k ? `${k.slice(0, 6)}…${k.slice(-4)}` : '';
 };
 
+/**
+ * Что показать человеку. Своя догадка — только когда сказать больше нечего:
+ * настоящий ответ полезнее красивой формулировки. Однажды приложение объявило
+ * «у ключа нет прав на эту модель», хотя права были все, а запрос до OpenAI
+ * вовсе не дошёл: код 403 пришёл по дороге, а мы приняли его за ответ OpenAI.
+ *
+ * Наш посредник отвечает иначе, чем OpenAI: у него error — строка, у OpenAI —
+ * ящик с message. По этому и различаем, чтобы не выдавать чужую беду за свою.
+ */
 function humanError(status, body) {
+  if (typeof body?.error === 'string') return `Облако: ${body.error}`;
   const msg = body?.error?.message || '';
+  if (msg) return msg.slice(0, 160);
   if (status === 401) return 'Ключ не принят — проверь, что скопирован целиком';
-  if (status === 403) return 'Доступ запрещён: у ключа нет прав на эту модель';
+  if (status === 403) return `Доступ запрещён (403)${viaCloud() ? ' — ответ пришёл через облако' : ''}`;
   if (status === 404) return `Модель «${getModel()}» недоступна для этого ключа`;
   if (status === 429) return 'Слишком часто или закончился баланс на счету OpenAI';
   if (status >= 500) return 'OpenAI сейчас не отвечает, попробуй позже';
-  return msg ? msg.slice(0, 120) : `Ошибка ${status}`;
+  return `Ошибка ${status}`;
 }
 
 async function callOpenAI(path, init) {
