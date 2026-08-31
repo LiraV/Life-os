@@ -1,6 +1,6 @@
 {
  "пусто": {
-  "v": 52,
+  "v": 53,
   "onboarded": false,
   "user": {
    "name": "",
@@ -485,7 +485,7 @@
   }
  },
  "без версии": {
-  "v": 52,
+  "v": 53,
   "onboarded": true,
   "user": {
    "name": "Лера",
@@ -970,7 +970,7 @@
   }
  },
  "версия из будущего": {
-  "v": 52,
+  "v": 53,
   "onboarded": true,
   "user": {
    "name": "",
@@ -1455,7 +1455,7 @@
   }
  },
  "кривые типы веток": {
-  "v": 52,
+  "v": 53,
   "onboarded": false,
   "user": {
    "name": "",
@@ -1943,7 +1943,7 @@
   }
  },
  "записи без полей": {
-  "v": 52,
+  "v": 53,
   "onboarded": false,
   "user": {
    "name": "",
@@ -2545,7 +2545,7 @@
   }
  },
  "старая копилка в сфере": {
-  "v": 52,
+  "v": 53,
   "onboarded": false,
   "user": {
    "name": "",
@@ -3044,7 +3044,7 @@
   }
  },
  "старые идеи блога": {
-  "v": 52,
+  "v": 53,
   "onboarded": false,
   "user": {
    "name": "",
@@ -3559,7 +3559,7 @@
   }
  },
  "спорт до пилюль": {
-  "v": 52,
+  "v": 53,
   "onboarded": false,
   "user": {
    "name": "",
@@ -3972,7 +3972,7 @@
   }
  },
  "цели со ссылкой на упражнение": {
-  "v": 52,
+  "v": 53,
   "onboarded": false,
   "user": {
    "name": "",
@@ -4469,7 +4469,7 @@
   }
  },
  "темп до отделения от активности": {
-  "v": 52,
+  "v": 53,
   "onboarded": true,
   "user": {
    "name": "Лера",
@@ -4954,7 +4954,7 @@
   }
  },
  "богатое": {
-  "v": 52,
+  "v": 53,
   "onboarded": true,
   "user": {
    "name": "Лера",
@@ -5302,7 +5302,7 @@
   }
  },
  "склеенные ссылки и площадка по названию": {
-  "v": 52,
+  "v": 53,
   "onboarded": false,
   "user": {
    "name": "",
@@ -5904,6 +5904,567 @@
     },
     {
      "id": "id6",
+     "name": "Кружок",
+     "order": 5,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "rubrics": [],
+   "subs": []
+  },
+  "deleted": [],
+  "touched": {},
+  "changedAt": "",
+  "diary": [],
+  "chat": [],
+  "tests": {},
+  "ui": {
+   "tab": "day",
+   "date": "сегодня",
+   "weekAnchor": "сегодня",
+   "monthAnchor": "2026-08",
+   "year": 2026,
+   "habitAnchor": "сегодня",
+   "tips": "ask",
+   "tipsSeen": {},
+   "icon": "pearl",
+   "theme": "dawn",
+   "unpack": 0,
+   "chatBusy": false
+  }
+ },
+ "старые виды дела": {
+  "v": 53,
+  "onboarded": true,
+  "user": {
+   "name": "",
+   "chronotype": "сова",
+   "sleep": 10,
+   "introversion": 55,
+   "activity": 55,
+   "pace": "",
+   "wrist": 0,
+   "traits": [],
+   "xp": 0,
+   "createdAt": "когда-то",
+   "avatar": "",
+   "sex": "f",
+   "cycle": true,
+   "birth": "",
+   "height": 0
+  },
+  "quests": {},
+  "inbox": [],
+  "work": {
+   "jobs": [],
+   "days": {},
+   "tasks": [],
+   "wins": []
+  },
+  "sleep": {},
+  "energy": {},
+  "goals": [],
+  "intentions": {},
+  "tracker": {
+   "rows": [],
+   "values": {},
+   "habitValues": {},
+   "lessonValues": {},
+   "exerciseValues": {},
+   "tagValues": {}
+  },
+  "weeks": {},
+  "years": {},
+  "spheres": {},
+  "customSpheres": [],
+  "spheresHidden": [],
+  "roleOf": {
+   "edu": "scholar",
+   "study": "scholar",
+   "books": "reader",
+   "sport": "athlete",
+   "food": "healer",
+   "health": "healer",
+   "blog": "artist",
+   "biz": "artist",
+   "work": "master",
+   "free": "master",
+   "money": "keeper",
+   "trips": "wanderer"
+  },
+  "habits": [],
+  "health": {
+   "days": {},
+   "measures": [],
+   "symptoms": [],
+   "metrics": []
+  },
+  "lessons": [],
+  "sport": {
+   "workouts": [],
+   "exercises": [
+    {
+     "id": "s1d6pmckf",
+     "name": "Планка",
+     "unit": "сек",
+     "dir": "up",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s1ll9to5f",
+     "name": "Турник",
+     "unit": "раз",
+     "dir": "up",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s15yhu1pe",
+     "name": "Пресс",
+     "unit": "раз",
+     "dir": "up",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s1op97olf",
+     "name": "Шпагат",
+     "unit": "см до пола",
+     "dir": "down",
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "templates": [],
+   "tags": [
+    {
+     "id": "s1frhln99",
+     "name": "Пресс",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s180yalw8",
+     "name": "Руки",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s13jatnyb",
+     "name": "Ягодицы",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "sqnslzb8",
+     "name": "Ноги",
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "sk51la49",
+     "name": "Спина",
+     "order": 4,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s1wvukgza",
+     "name": "Кардио",
+     "order": 5,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "smboippa",
+     "name": "Шпагат",
+     "order": 6,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s1t3ihxpi",
+     "name": "Зал с тренером",
+     "order": 7,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ]
+  },
+  "schedules": [],
+  "travel": {
+   "visits": []
+  },
+  "library": {
+   "books": []
+  },
+  "care": {
+   "items": [],
+   "pet": {
+    "name": "",
+    "kind": "",
+    "birth": "",
+    "note": "",
+    "weights": []
+   }
+  },
+  "study": {
+   "places": [],
+   "subjects": [],
+   "tasks": [],
+   "attend": {}
+  },
+  "budget": {
+   "cats": {
+    "expense": [
+     {
+      "id": "s1fd80otg",
+      "name": "Здоровье",
+      "order": 0,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "s1tfery3c",
+      "name": "Буся",
+      "order": 1,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "s1ps598mg",
+      "name": "Подписки",
+      "order": 2,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "s1kwax65g",
+      "name": "Обучение",
+      "order": 3,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "sc8kwx5d",
+      "name": "Спорт",
+      "order": 4,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "s14w0ow9d",
+      "name": "Жильё",
+      "order": 5,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "sdz7j0ib",
+      "name": "Еда",
+      "order": 6,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "sken92mh",
+      "name": "Транспорт",
+      "order": 7,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "sdatznie",
+      "name": "Одежда",
+      "order": 8,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "sykeruge",
+      "name": "Другое",
+      "order": 9,
+      "createdAt": "",
+      "updatedAt": ""
+     }
+    ],
+    "income": [
+     {
+      "id": "s138uyoie",
+      "name": "От отца",
+      "order": 0,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "sut89xoh",
+      "name": "Подработка",
+      "order": 1,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "s1me0pape",
+      "name": "Фриланс",
+      "order": 2,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "s1b0zya1f",
+      "name": "Моё дело",
+      "order": 3,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "s1z0vgxtd",
+      "name": "Работа",
+      "order": 4,
+      "createdAt": "",
+      "updatedAt": ""
+     },
+     {
+      "id": "s1fziwtdd",
+      "name": "Льготы",
+      "order": 5,
+      "createdAt": "",
+      "updatedAt": ""
+     }
+    ]
+   },
+   "plans": {},
+   "ops": [],
+   "vaults": [
+    {
+     "id": "slnetaij",
+     "name": "Накопительный",
+     "start": 0,
+     "cur": "RUB",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s15ovhx9c",
+     "name": "Сейв 1",
+     "start": 0,
+     "cur": "RUB",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s14uwoucc",
+     "name": "Сейв 2",
+     "start": 0,
+     "cur": "RUB",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "rules": [
+    {
+     "id": "s571ghqi",
+     "text": "Никакой Лавки",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "sobubi314",
+     "text": "По максимуму общественный транспорт",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s1l0epuo10",
+     "text": "Живу красиво только на выходных",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "swbli6k1k",
+     "text": "За неделю планировать, сколько тратить в какой день",
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "sgz9nns1c",
+     "text": "Каждый день класть себе фиксированную сумму",
+     "order": 4,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "s6umhumk",
+     "text": "Не брать в долг",
+     "order": 5,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "smmzgw8j",
+     "text": "Никакого такси",
+     "order": 6,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ],
+   "start": 0,
+   "updatedAt": ""
+  },
+  "food": {
+   "targets": {
+    "kcal": 2000,
+    "prot": 90,
+    "fat": 70,
+    "carb": 220,
+    "water": 2000
+   },
+   "days": {}
+  },
+  "mind": [],
+  "review": {},
+  "biz": {
+   "projects": [
+    {
+     "id": "a",
+     "name": "Планер",
+     "kind": "product",
+     "stage": "live",
+     "link": "",
+     "launched": "2026-05-01",
+     "note": "",
+     "steps": [],
+     "metrics": [],
+     "marks": [],
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "b",
+     "name": "Бот",
+     "kind": "product",
+     "stage": "build",
+     "link": "",
+     "launched": "",
+     "note": "",
+     "steps": [],
+     "metrics": [],
+     "marks": [],
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "c",
+     "name": "Лавка",
+     "kind": "other",
+     "stage": "idea",
+     "link": "",
+     "launched": "",
+     "note": "",
+     "steps": [],
+     "metrics": [],
+     "marks": [],
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "d",
+     "name": "Странное",
+     "kind": "other",
+     "stage": "idea",
+     "link": "",
+     "launched": "",
+     "note": "",
+     "steps": [],
+     "metrics": [],
+     "marks": [],
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "e",
+     "name": "Без вида",
+     "kind": "",
+     "stage": "idea",
+     "link": "",
+     "launched": "",
+     "note": "",
+     "steps": [],
+     "metrics": [],
+     "marks": [],
+     "order": 4,
+     "createdAt": "",
+     "updatedAt": ""
+    }
+   ]
+  },
+  "free": {
+   "orders": [],
+   "places": [],
+   "services": [],
+   "steps": []
+  },
+  "blog": {
+   "posts": [],
+   "formats": [
+    {
+     "id": "id0",
+     "name": "Пост",
+     "order": 0,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id1",
+     "name": "Карусель",
+     "order": 1,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id2",
+     "name": "Рилс",
+     "order": 2,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id3",
+     "name": "Сторис",
+     "order": 3,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id4",
+     "name": "Лонгрид",
+     "order": 4,
+     "createdAt": "",
+     "updatedAt": ""
+    },
+    {
+     "id": "id5",
      "name": "Кружок",
      "order": 5,
      "createdAt": "",

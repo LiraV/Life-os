@@ -1,4 +1,7 @@
-// «Моё дело»: свои проекты — приложения, сайты, сервисы.
+// «Моё дело»: то, что человек делает своим. Не только приложения и сайты —
+// бизнес, комьюнити, студенческая организация, продажи через личный бренд,
+// мероприятия, товары. Механика у всех одна, разные только подсказки: у клуба
+// и у приложения запуск устроен по-разному.
 //
 // У проекта две своих вещи, которых нет больше нигде: шаги до запуска и
 // показатели, за которыми автор следит сам. Общего «успеха» приложение не
@@ -8,7 +11,7 @@ import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, nameTaken } from '../store.js';
 import { todayISO, monthKey, yearOf, dayShort } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet, plural } from '../ui.js';
-import { BIZ_STAGES, BIZ_KINDS, BIZ_METRICS, BIZ_STEPS, stageName } from '../biz.js';
+import { BIZ_STAGES, BIZ_KINDS, bizStepHints, bizMetricHints, stageName, kindName } from '../biz.js';
 import {
   bizProjects, bizById, bizBy, bizLive, bizLaunchedIn, bizSteps, bizStepsLeft, bizProgress,
   bizMetrics, bizMarks, bizLast,
@@ -30,7 +33,7 @@ function list() {
     </div>
     <div class="title">Моё дело</div>
     <div class="sub">${live ? `${live} ${plural(live, 'проект живёт', 'проекта живут', 'проектов живут')}${launched ? ` · запущено за ${y} — ${launched}` : ''}`
-      : 'Пока ничего не запущено. Идея — тоже проект.'}</div>
+      : 'Пока ничего не запущено. Идея — тоже дело.'}</div>
 
     ${BIZ_STAGES.map(st => {
       const mine = bizBy(st.key);
@@ -56,7 +59,7 @@ function projectRow(pr) {
   const last = m ? bizLast(pr, m.id) : null;
   return h`
     <div class="chk-row">
-      <button class="pill" data-act="move" data-id="${pr.id}">${pr.kind || '—'}</button>
+      <button class="pill" data-act="move" data-id="${pr.id}">${kindName(pr.kind) || '—'}</button>
       <span class="grow ellip" data-act="open" data-id="${pr.id}" style="cursor:pointer">${pr.name}</span>
       <span class="lab">${last ? `${last.value} ${m.unit}` : left ? `${left} ${plural(left, 'шаг', 'шага', 'шагов')}` : ''}</span>
       <button class="q-edit" data-act="open" data-id="${pr.id}">›</button>
@@ -77,7 +80,7 @@ function detail(id) {
       <div class="title grow">${pr.name}</div>
       <button class="q-edit" data-act="edit" data-id="${pr.id}">изменить ›</button>
     </div>
-    <div class="sub">${[pr.kind, pr.launched ? `запущено ${dayShort(pr.launched)}` : ''].filter(Boolean).join(' · ') || 'ещё не запущено'}</div>
+    <div class="sub">${[kindName(pr.kind), pr.launched ? `запущено ${dayShort(pr.launched)}` : ''].filter(Boolean).join(' · ') || 'ещё не запущено'}</div>
     ${pr.link ? raw(h`<div class="lab ellip">${pr.link}</div>`) : ''}
 
     <div class="card">
@@ -106,7 +109,7 @@ function detail(id) {
               : 'ещё не отмечали'} ›</span>
           </button>`);
       })}</div>`)
-        : raw('<div class="lab">Пусто. Пользователи, установки, выручка — что именно смотреть, решаешь ты.</div>')}
+        : raw('<div class="lab">Пусто. Что именно смотреть — участников, заказы, выручку, — решаешь ты.</div>')}
       ${bizMetrics(pr).length ? raw('<div class="lab">Тап по показателю записывает новое значение на сегодня.</div>') : ''}
     </div>
 
@@ -120,14 +123,16 @@ function projectSheet(id) {
   const base = pr || { name: '', kind: '', stage: 'idea', link: '', launched: '', note: '' };
   openSheet({
     title: pr ? 'Проект' : 'Новый проект',
-    sub: pr ? stageName(pr.stage) : 'от идеи до того, чем пользуются',
+    sub: pr ? stageName(pr.stage) : 'от идеи до того, чем живут',
     body: [
-      field.text('name', 'Название', base.name, 'например, «Life OS»'),
-      field.opts('kind', 'Что это', BIZ_KINDS.map(k => ({ value: k, label: k })), base.kind || ''),
+      field.text('name', 'Название', base.name, 'как ты его называешь'),
+      field.opts('kind', 'Что это', BIZ_KINDS.map(k => ({ value: k.key, label: k.name })), base.kind || ''),
+      field.note('Вид ничего не ограничивает и ничего не считает — от него зависят только подсказки: '
+        + 'какие шаги предложить и за чем обычно следят. У клуба и у приложения запуск устроен по-разному.'),
       field.opts('stage', 'Стадия', BIZ_STAGES.map(x => ({ value: x.key, label: x.name })), base.stage),
       field.date('launched', 'Когда запущено', base.launched),
       field.note('День запуска нужен, чтобы считать «проектов за год». Пока его нет, проект в этот счёт не идёт, даже если стадия «запущено».'),
-      field.text('link', 'Ссылка', base.link, 'сайт, стор, репозиторий'),
+      field.text('link', 'Ссылка', base.link, 'сайт, страница, чат'),
       field.area('note', 'Заметка', base.note, 'для кого это и чем отличается'),
     ].join(''),
     primary: pr ? 'Сохранить' : 'Добавить',
@@ -138,7 +143,7 @@ function projectSheet(id) {
       if (twin) return toast(`«${twin.name}» уже есть`);
       const next = {
         name,
-        kind: BIZ_KINDS.includes(v.kind) ? v.kind : '',
+        kind: BIZ_KINDS.some(k => k.key === v.kind) ? v.kind : '',
         stage: BIZ_STAGES.some(x => x.key === v.stage) ? v.stage : 'idea',
         launched: (v.launched || '').slice(0, 10),
         link: (v.link || '').trim(),
@@ -197,7 +202,7 @@ export const actions = {
       title: 'Шаги до запуска',
       sub: pr.name,
       body: [
-        BIZ_STEPS.filter(t => !have.has(t)).map(t => h`
+        bizStepHints(pr.kind).filter(t => !have.has(t)).map(t => h`
           <button class="link-row" data-act="stepadd" data-v="${t}">
             <span class="ink grow">${t}</span><span class="lab">взять ›</span></button>`).join('')
           || field.note('Все подсказки уже взяты. Свой шаг можно вписать ниже.'),
@@ -251,7 +256,7 @@ export const actions = {
               <button class="q-edit" data-act="mdel" data-v="${m.id}">×</button>
             </div>`).join('')
             : field.note('Пока ничего. Возьми из подсказок или впиши своё.'),
-          `<div class="pills">${BIZ_METRICS.filter(x => !bizMetrics(pr).some(m => m.name === x.name))
+          `<div class="pills">${bizMetricHints(pr.kind).filter(x => !bizMetrics(pr).some(m => m.name === x.name))
             .map(x => `<button type="button" class="pill" data-act="madd" data-n="${x.name}" data-u="${x.unit}">+ ${x.name}</button>`).join('')}</div>`,
           `<div class="row"><input type="text" class="grow" data-field="mname" placeholder="Свой показатель">
             <input type="text" class="grow" data-field="munit" placeholder="ед." style="max-width:86px">

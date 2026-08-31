@@ -3,7 +3,7 @@
 
 import { BLOG_PLACES, BLOG_FEEDS, atPlace, isOut } from './blog.js';
 import { FREE_STAGES, isPaid, isLost, isLive, netOf } from './free.js';
-import { BIZ_STAGES, stageName as bizStageName } from './biz.js';
+import { BIZ_STAGES, stageName as bizStageName, kindName as bizKindName } from './biz.js';
 import { REVIEW_Q, reviewScore, reviewFilled } from './review.js';
 import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS, energyRec, energyAt, energyOn } from './store.js';
 export { energyRec, energyAt, energyOn };
@@ -1187,7 +1187,7 @@ function sphereLines(t) {
   }
 
   const pr = bizProjects();
-  if (pr.length) out.push(`Моё дело: ${pr.map(x => `${x.name} — ${bizStageName(x.stage)}`).slice(0, 4).join('; ')}.`);
+  if (pr.length) out.push(`Моё дело: ${pr.map(x => `${x.name}${bizKindName(x.kind) ? ` (${bizKindName(x.kind).toLowerCase()})` : ''} — ${bizStageName(x.stage)}`).slice(0, 4).join('; ')}.`);
 
   const reading = booksBy('reading');
   const doneYear = booksDoneYear(yr);

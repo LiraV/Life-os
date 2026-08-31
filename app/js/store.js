@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 52;
+const VERSION = 53;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -25,7 +25,7 @@ export const ROLE_SEED = {
 import { artSrc } from './sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, DEFAULT_FORMATS } from './blog.js';
 import { FREE_STAGES, FREE_KINDS } from './free.js';
-import { BIZ_STAGES, BIZ_KINDS } from './biz.js';
+import { BIZ_STAGES, BIZ_KIND_KEYS } from './biz.js';
 import { REVIEW_Q, REVIEW_OPEN } from './review.js';
 
 // screen — собственный экран сферы. Он же отвечает за подсветку меню:
@@ -237,7 +237,7 @@ export function blank() {
     },
     mind: [],            // осознанность: { id, date, key, minutes, before, after, note }
     review: {},          // недельный анализ: { '2026-W35': { date, scores: {}, open: {} } }
-    biz: {               // моё дело: свои проекты — приложения, сайты, сервисы
+    biz: {               // моё дело: своё — от продукта до комьюнити и организации
       projects: [],      // { id, name, kind, stage, link, launched, note,
                          //   steps: [{id,text,done}], metrics: [{id,name,unit}],
                          //   marks: [{id,metricId,date,value}] }
@@ -849,13 +849,29 @@ export function migrate(s) {
     }]));
 
   // v46 → v47: сфера «Моё дело». Готовых проектов не заводим — ни одного.
+  //
+  // v52 → v53: вид дела стал ключом, а не подписью. Раньше видов было шесть
+  // и все про цифровое — «Приложение», «Сайт», «Бот»; теперь дело может быть
+  // клубом, организацией или продажами через себя, и вид выбирает подсказки.
+  // Старые подписи переводим в ключи, чужое отправляем в «Другое», пустое
+  // оставляем пустым: вид никто не выбирал, и выбирать за человека нечего.
+  const KIND_WAS = {
+    'Приложение': 'product', 'Сайт': 'product', 'Сервис': 'product',
+    'Бот': 'product', 'Инструмент': 'product', 'Другое': 'other',
+  };
+  const bizKind = k => {
+    const s = typeof k === 'string' ? k.trim() : '';
+    if (!s) return '';
+    if (BIZ_KIND_KEYS.includes(s)) return s;
+    return KIND_WAS[s] || 'other';
+  };
   const BG = BIZ_STAGES.map(x => x.key);
   const bz = merged.biz && typeof merged.biz === 'object' ? merged.biz : {};
   const str = (x, d = '') => (typeof x === 'string' ? x.trim() : d);
   merged.biz = {
     projects: (Array.isArray(bz.projects) ? bz.projects : []).map(pr => ({
       id: pr.id || uid(), name: str(pr.name) || 'Проект',
-      kind: BIZ_KINDS.includes(pr.kind) ? pr.kind : '',
+      kind: bizKind(pr.kind),
       stage: BG.includes(pr.stage) ? pr.stage : 'idea',
       link: str(pr.link), launched: str(pr.launched).slice(0, 10), note: str(pr.note),
       steps: (Array.isArray(pr.steps) ? pr.steps : []).filter(x => x && x.text)

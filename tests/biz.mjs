@@ -29,18 +29,18 @@ ok('плитка «Моё дело» есть', await p.locator('.tile', { hasTe
 await p.locator('.tile', { hasText: 'Моё дело' }).click(); await p.waitForTimeout(700);
 ok('открывается свой экран', await p.evaluate(() => location.hash) === '#/biz');
 let t = await scr();
-ok('идея названа проектом', /Идея — тоже проект/.test(t));
+ok('идея названа делом', /Идея — тоже дело/.test(t));
 ok('заморозку на пустой сфере не рисуем', !/Заморожено/.test(t));
 
 // ── 2. проект от идеи до запуска
 await p.locator('[data-act="add"]').first().click(); await p.waitForTimeout(500);
 await p.fill('.sheet input[name="name"]', 'Life OS');
-await p.locator('.sheet .opts[data-name="kind"] .opt', { hasText: 'Приложение' }).click(); await p.waitForTimeout(200);
+await p.locator('.sheet .opts[data-name="kind"] .opt', { hasText: 'Цифровой продукт' }).click(); await p.waitForTimeout(200);
 await p.fill('.sheet input[name="link"]', 'https://lirav.github.io/Life-os/');
 await p.locator('[data-sheet="save"]').click(); await p.waitForTimeout(700);
 let s = await st();
 let pr = s.biz.projects[0];
-ok('проект завёлся идеей', pr.stage === 'idea' && pr.kind === 'Приложение', JSON.stringify({ st: pr.stage, k: pr.kind }));
+ok('проект завёлся идеей', pr.stage === 'idea' && pr.kind === 'product', JSON.stringify({ st: pr.stage, k: pr.kind }));
 ok('дня запуска нет', pr.launched === '', JSON.stringify(pr.launched));
 ok('тёзка не заводится', await p.evaluate(async () => {
   const { S } = await import('./app/js/store.js');
@@ -62,12 +62,12 @@ ok('в подзаголовке видно живой проект', /1 прое
 await p.locator('.chk-row', { hasText: 'Life OS' }).locator('.grow').click(); await p.waitForTimeout(650);
 ok('открылся экран проекта', /#\/biz\//.test(await p.evaluate(() => location.hash)), await p.evaluate(() => location.hash));
 t = await scr();
-ok('видно, что это и когда запущено', /Приложение/.test(t) && /запущено/.test(t));
+ok('видно, что это и когда запущено', /Цифровой продукт/i.test(t) && /запущено/.test(t));
 ok('ссылка показана', /lirav\.github\.io/.test(t));
 
 // ── 4. шаги до запуска
 await p.locator('[data-act="steps"]').click(); await p.waitForTimeout(500);
-ok('десять подсказок шагов', await p.locator('.sheet [data-act="stepadd"]').count() === 10,
+ok('десять подсказок шагов: пять своих и пять общих', await p.locator('.sheet [data-act="stepadd"]').count() === 10,
   String(await p.locator('.sheet [data-act="stepadd"]').count()));
 await p.locator('.sheet [data-act="stepadd"]').first().click(); await p.waitForTimeout(600);
 await p.locator('.sheet [data-act="stepadd"]').first().click(); await p.waitForTimeout(600);
@@ -80,8 +80,11 @@ ok('прогресс шагов виден', /50%/.test(await scr()), (await scr
 
 // ── 5. показатели и отметки
 await p.locator('[data-act="metrics"]').click(); await p.waitForTimeout(500);
-ok('шесть подсказок показателей', await p.locator('.sheet [data-act="madd"]').count() === 6,
-  String(await p.locator('.sheet [data-act="madd"]').count()));
+// Подсказки показателей — свои для вида дела плюс общие: у цифрового
+// продукта это четыре и три. Порядок важен: своё вперёд.
+const hints = await p.locator('.sheet [data-act="madd"]').allTextContents();
+ok('подсказки показателей — свои для вида плюс общие', hints.length === 7, hints.join(', '));
+ok('свои идут первыми', /Пользователи/.test(hints[0]) && /Отзывы/.test(hints[6]), `${hints[0]} … ${hints[6]}`);
 await p.locator('.sheet [data-act="madd"][data-n="Пользователи"]').click(); await p.waitForTimeout(600);
 await p.fill('.sheet [data-field="mname"]', 'Открытий в день');
 await p.fill('.sheet [data-field="munit"]', 'раз');

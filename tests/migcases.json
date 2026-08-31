@@ -286,5 +286,43 @@
       ],
       "places": []
     }
+  },
+  "старые виды дела": {
+    "v": 52,
+    "onboarded": true,
+    "biz": {
+      "projects": [
+        {
+          "id": "a",
+          "name": "Планер",
+          "kind": "Приложение",
+          "stage": "live",
+          "launched": "2026-05-01"
+        },
+        {
+          "id": "b",
+          "name": "Бот",
+          "kind": "Бот",
+          "stage": "build"
+        },
+        {
+          "id": "c",
+          "name": "Лавка",
+          "kind": "Другое",
+          "stage": "idea"
+        },
+        {
+          "id": "d",
+          "name": "Странное",
+          "kind": "Чего-то нового",
+          "stage": "idea"
+        },
+        {
+          "id": "e",
+          "name": "Без вида",
+          "stage": "idea"
+        }
+      ]
+    }
   }
 }
