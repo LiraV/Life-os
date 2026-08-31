@@ -1,5 +1,8 @@
-// Забота и «День»: дело, которому пора, видно в сроках; квест можно привязать
-// к делу; и дело можно отправить в день одной кнопкой.
+// Забота и «День». Главное правило: забота НЕ приходит в день сама. Дело лежит
+// в «Заботе», пока человек не поставит его на конкретный день — приложение
+// показывает, что пора, но не занимает чужой день без спроса.
+//
+// Связь при этом работает в обе стороны: отметка квеста отмечает дело.
 import { chromium, devices } from './pw.mjs';
 const b = await chromium.launch();
 const ctx = await b.newContext({ serviceWorkers: 'block', locale: 'ru-RU', ...devices['iPhone 13'] });
@@ -35,28 +38,19 @@ await p.evaluate(([t, l]) => {
 }, [today, long]);
 await p.waitForTimeout(900);
 
-// ── 1. просроченное дело видно в «Дне» ──────────────────────────
+// ── 1. забота не лезет в день сама ──────────────────────────────
 await day();
 let t = await scr();
-ok('дело, которому пора, попало в сроки', /Стрижка/.test(t), (t.match(/СРОКИ[\s\S]{0,80}/) || [''])[0].replace(/\n/g, ' · '));
-ok('и помечено как забота', /забота/i.test(t));
-ok('то, что не скоро, в день не лезет', !/Диспансеризация/.test(t));
-ok('делу без ритма срок не выдумали', !/Когда-нибудь/.test(t));
-
-// ── 2. отметка прямо из дня, и её можно снять ───────────────────
-await p.locator('.quest', { hasText: 'Стрижка' }).locator('.check').click(); await p.waitForTimeout(600);
+ok('просроченного дела в дне нет — оно ждёт в «Заботе»', !/Стрижка/.test(t),
+  (t.match(/СРОКИ[\s\S]{0,60}/) || ['блока сроков нет'])[0].replace(/\n/g, ' · '));
+ok('и никакой заботы в дне вообще', !/забота/i.test(t));
 let s = await st();
-ok('отметилось сегодняшним днём', s.care.items[0].log.includes(today), JSON.stringify(s.care.items[0].log));
-ok('и «последний раз» стал сегодня', s.care.items[0].last === today, s.care.items[0].last);
-ok('отмеченное не исчезло с глаз', /Стрижка/.test(await scr()));
 
-await p.locator('.quest', { hasText: 'Стрижка' }).locator('.check').click(); await p.waitForTimeout(600);
-s = await st();
-ok('снятая отметка убрала именно этот день', !s.care.items[0].log.includes(today), JSON.stringify(s.care.items[0].log));
-ok('а прошлая запись осталась', s.care.items[0].log.includes(long), JSON.stringify(s.care.items[0].log));
-ok('и «последний раз» вернулся к прошлой', s.care.items[0].last === long, s.care.items[0].last);
+// ── 2. а в «Заботе» оно видно и отмечается ──────────────────────
+await p.evaluate(() => { location.hash = '#/care'; }); await p.waitForTimeout(600);
+ok('в «Заботе» дело на месте', /Стрижка/.test(await scr()));
 
-// ── 3. дело уходит в день квестом ───────────────────────────────
+// ── 3. дело уходит в день квестом — по кнопке, а не само ────────
 await p.evaluate(() => { location.hash = '#/care'; }); await p.waitForTimeout(600);
 await p.locator('.care-row', { hasText: 'Стрижка' }).locator('[data-act="toquest"]').click(); await p.waitForTimeout(600);
 s = await st();
@@ -71,13 +65,11 @@ ok('второй раз то же дело в тот же день не заво
   (s.quests[today] || []).filter(x => x.careId === 'c1').length === 1,
   String((s.quests[today] || []).filter(x => x.careId === 'c1').length));
 
-// ── 4. в сроках дубля нет: дело уже стоит квестом ───────────────
+// ── 4. в дне оно теперь есть — но потому, что его туда поставили ─
 await day();
-t = await scr();
-// Ищем строку сроков по её кнопке, а не по тексту: то же слово есть и у квеста.
-ok('в сроках дела больше нет — оно стоит квестом',
-  await p.locator('[data-act="dueopen"][data-id="c1"]').count() === 0,
-  String(await p.locator('[data-act="dueopen"][data-id="c1"]').count()));
+ok('поставленное дело видно в дне квестом', /Стрижка/.test(await scr()));
+ok('и это квест, а не строка сроков',
+  await p.locator('[data-act="dueopen"][data-id="c1"]').count() === 0);
 
 // ── 5. отметка квеста отмечает дело ─────────────────────────────
 await p.locator('.quest', { hasText: 'Стрижка' }).locator('.check').first().click(); await p.waitForTimeout(700);

@@ -234,8 +234,6 @@ function suggestSheet() {
   });
 }
 
-export function careSheet(item) { return itemSheet(item); }
-
 function itemSheet(item, group) {
   const isNew = !item;
   const it = item || { id: uid(), name: '', group: group || 'health', every: 3, anchor: 0, last: '', log: [], cost: 0, note: '', link: '' };

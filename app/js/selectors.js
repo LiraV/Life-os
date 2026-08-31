@@ -2313,29 +2313,5 @@ export function dueOn(date) {
     });
   });
 
-  // Забота: дело, которому пора. Раньше она жила только на своём экране, и
-  // «раз в три месяца» человек вспоминал, когда уже просрочил на месяц.
-  const asCare = new Set(questsOn(date).map(q => q.careId).filter(Boolean));
-  careItems().forEach(it => {
-    if (asCare.has(it.id)) return;
-    const doneToday = (it.log || []).includes(date);
-    // Срок считаем на момент ДО сегодняшней отметки. Иначе тап прятал бы
-    // строку — следующий раз уехал в будущее, — а «отмечено сегодня» тащило бы
-    // в сроки то, чему вовсе не пора: годовая диспансеризация, сделанная
-    // сегодня, висела бы в дне как дело дня.
-    const before = doneToday ? withoutMark(it, date) : it;
-    const next = careNext(before, date);
-    // Ритма нет и отметок не было — срока у дела не существует. Не выдумываем.
-    if (next.never) return;
-    const due = diffDays(next.date, date);
-    if (due > 0) return;
-    // Просроченное показываем только на сегодня, чтобы не тянуться в прошлое.
-    if (!doneToday && due < 0 && date !== t) return;
-    out.push({
-      kind: 'care', id: it.id, title: it.name, due: next.date, done: doneToday,
-      overdue: due < 0, sub: careGroupName(it.group), tag: 'забота',
-    });
-  });
-
   return out.sort((a, b) => (a.done === b.done ? a.due.localeCompare(b.due) : a.done ? 1 : -1));
 }

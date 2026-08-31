@@ -15,7 +15,7 @@ import {
 } from '../selectors.js';
 import { gv, g } from '../gender.js';
 import { inboxSheet } from './inbox.js';
-import { careSheet, careFlip } from './care.js';
+import { careFlip } from './care.js';
 import { taskSheet as studyTaskSheet } from './study.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -446,7 +446,6 @@ export const actions = {
 
   /** Отметка срока: само задание живёт в «Учёбе», день его только закрывает. */
   duedone: v => {
-    if (v.k === 'care') return careFlip(v.id, curDate());
     update(s => {
       const t = s.study.tasks.find(x => x.id === v.id);
       if (!t) return;
@@ -456,9 +455,7 @@ export const actions = {
       touchTracker(s);
     });
   },
-  dueopen: v => (v.k === 'care'
-    ? careSheet(S.care.items.find(x => x.id === v.id))
-    : studyTaskSheet(S.study.tasks.find(x => x.id === v.id))),
+  dueopen: v => studyTaskSheet(S.study.tasks.find(x => x.id === v.id)),
   toinbox: () => { location.hash = '#/inbox'; },
   prev: () => update(s => { s.ui.date = addDays(curDate(), -1); }),
   next: () => update(s => { s.ui.date = addDays(curDate(), 1); }),
