@@ -78,6 +78,14 @@ export const maskKey = () => {
 function humanError(status, body) {
   if (typeof body?.error === 'string') return `Облако: ${body.error}`;
   const msg = body?.error?.message || '';
+  // Единственный ответ, который мы переводим: он про место, а не про ключ, и
+  // по-английски читается как «что-то не так с доступом». Через облако запрос
+  // идёт из дата-центра, откуда OpenAI не принимает запросы вовсе.
+  if (/country, region, or territory not supported/i.test(msg)) {
+    return viaCloud()
+      ? 'OpenAI не принимает запросы оттуда, где работает функция. Ключ и права ни при чём.'
+      : 'OpenAI не принимает запросы из этой страны. Ключ и права ни при чём.';
+  }
   if (msg) return msg.slice(0, 160);
   if (status === 401) return 'Ключ не принят — проверь, что скопирован целиком';
   if (status === 403) return `Доступ запрещён (403)${viaCloud() ? ' — ответ пришёл через облако' : ''}`;
