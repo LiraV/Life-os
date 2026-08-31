@@ -108,6 +108,7 @@ function careRow(it, withTag = true) {
         <span class="lab ${late ? 'late' : ''}">${dueLabel(it)} · ${everyLabel(Number(it.every) || 1)}${it.cost ? ` · ${num(it.cost)} ₽` : ''}</span>
       </button>
       ${withTag ? raw(h`<span class="tag">${careGroupName(it.group)}</span>`) : ''}
+      <button class="q-edit" data-act="toquest" data-id="${it.id}">в день ›</button>
     </div>`;
 }
 
@@ -233,6 +234,8 @@ function suggestSheet() {
   });
 }
 
+export function careSheet(item) { return itemSheet(item); }
+
 function itemSheet(item, group) {
   const isNew = !item;
   const it = item || { id: uid(), name: '', group: group || 'health', every: 3, anchor: 0, last: '', log: [], cost: 0, note: '', link: '' };
@@ -297,6 +300,34 @@ function doneSheet(it) {
   });
 }
 
+/**
+ * Переключить отметку дела на конкретный день. Не «сделано / не сделано», а
+ * именно день: у заботы есть журнал, и снятая галочка должна убрать этот день,
+ * а не последний по счёту — иначе снятие отметки задним числом стирало бы
+ * чужую запись.
+ *
+ * `want` задаёт желаемое состояние; без него — переключаем.
+ */
+export function careFlip(id, date, want) {
+  const it = S.care.items.find(x => x.id === id);
+  if (!it) return;
+  const has = (it.log || []).includes(date);
+  const next = want === undefined ? !has : !!want;
+  if (next === has) return;
+  if (next) return markDone(id, date);
+  let name = '';
+  update(s => {
+    const x = s.care.items.find(y => y.id === id);
+    if (!x) return;
+    name = x.name;
+    x.log = (x.log || []).filter(d => d !== date);
+    // «Последний раз» — это последняя запись журнала, а не то, что лежало тут.
+    x.last = x.log.length ? x.log[x.log.length - 1] : '';
+    addXp(-XP.measure);
+  });
+  if (name) toast(`${name} · отметка снята`);
+}
+
 export function markDone(id, date) {
   let name = '';
   update(s => {
@@ -357,6 +388,25 @@ export const actions = {
   add: v => itemSheet(null, v.g),
   suggest: () => suggestSheet(),
   edit: v => itemSheet(careItems().find(x => x.id === v.id)),
+
+  /**
+   * Поставить дело квестом на сегодня. Не отмечаем сделанным и не решаем за
+   * человека когда: квест появляется в дне, а тапнет она сама. Второй раз то
+   * же дело в тот же день не заводим — один и тот же уход не делают дважды.
+   */
+  toquest: v => {
+    const it = careItems().find(x => x.id === v.id);
+    if (!it) return;
+    const date = todayISO();
+    if ((S.quests[date] || []).some(q => q.careId === it.id)) return toast('Уже стоит на сегодня');
+    update(s => {
+      (s.quests[date] ||= []).push({
+        id: uid(), title: it.name, time: '', minutes: 20, sphere: '',
+        goalId: '', lessonId: '', studyId: '', careId: it.id, boss: false, done: false,
+      });
+    });
+    toast(`${it.name} · в дне на сегодня`);
+  },
   done: v => doneSheet(careItems().find(x => x.id === v.id)),
   tomeasure: () => { toast('Замеры записываются в разделе «Тело»'); location.hash = '#/health'; },
   petedit: () => petSheet(),

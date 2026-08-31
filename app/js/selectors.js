@@ -974,6 +974,12 @@ export function careNext(it, from = todayISO()) {
   return { date: ym + '-01', exact: false, month: ym };
 }
 
+/** Дело без одной отметки — чтобы спросить «а пора ли было до неё». */
+export const withoutMark = (it, date) => {
+  const log = (it.log || []).filter(d => d !== date);
+  return { ...it, log, last: it.last === date ? (log[log.length - 1] || '') : it.last };
+};
+
 /** Сколько дней осталось: минус — просрочено. */
 export const careDue = (it, from = todayISO()) => diffDays(careNext(it, from).date, from);
 
@@ -2276,6 +2282,30 @@ export function dueOn(date) {
     out.push({
       kind: 'study', id: x.id, title: x.title, due: x.due, done, overdue,
       sub: taskSubject(x).name, tag: 'учёба',
+    });
+  });
+
+  // Забота: дело, которому пора. Раньше она жила только на своём экране, и
+  // «раз в три месяца» человек вспоминал, когда уже просрочил на месяц.
+  const asCare = new Set(questsOn(date).map(q => q.careId).filter(Boolean));
+  careItems().forEach(it => {
+    if (asCare.has(it.id)) return;
+    const doneToday = (it.log || []).includes(date);
+    // Срок считаем на момент ДО сегодняшней отметки. Иначе тап прятал бы
+    // строку — следующий раз уехал в будущее, — а «отмечено сегодня» тащило бы
+    // в сроки то, чему вовсе не пора: годовая диспансеризация, сделанная
+    // сегодня, висела бы в дне как дело дня.
+    const before = doneToday ? withoutMark(it, date) : it;
+    const next = careNext(before, date);
+    // Ритма нет и отметок не было — срока у дела не существует. Не выдумываем.
+    if (next.never) return;
+    const due = diffDays(next.date, date);
+    if (due > 0) return;
+    // Просроченное показываем только на сегодня, чтобы не тянуться в прошлое.
+    if (!doneToday && due < 0 && date !== t) return;
+    out.push({
+      kind: 'care', id: it.id, title: it.name, due: next.date, done: doneToday,
+      overdue: due < 0, sub: careGroupName(it.group), tag: 'забота',
     });
   });
 

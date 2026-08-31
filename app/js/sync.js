@@ -19,48 +19,30 @@
 // наибольший. Он только растёт, и выбрать одну сторону значило бы отнять уже
 // заработанное.
 
+import { blank } from './store.js';
+
 const PERIOD_KEY = /^\d{4}(-\d{2}(-\d{2})?|-W\d{2}|-Q[1-4])?$/;
+
+/**
+ * Пустое состояние — образец «этого никто не выбирал».
+ *
+ * У имени, сна, аватара и прочих одиночных значений своего времени нет, и
+ * побеждает сторона, которую трогали позже. Но устройство, только что
+ * заведённое заново, свежее по определению: его пустое имя затирало бы
+ * настоящее — и уезжало в облако и на второе устройство. Считать такую
+ * сторону «пустой» по числу записей не выходит: заготовок в чистом состоянии
+ * уже четыре десятка.
+ *
+ * Поэтому сравниваем не стороны, а сами значения: то, что равно значению по
+ * умолчанию, никто не выбирал, и оно уступает тому, что кто-то задал.
+ */
+const DEFAULTS = blank();
 const idOf = rec => (rec && typeof rec === 'object' ? rec.id ?? rec.key ?? null : null);
 const isRecordList = v => Array.isArray(v) && v.some(x => idOf(x));
 const clone = v => JSON.parse(JSON.stringify(v));
 
 /** Пустое время значит «раньше всего, что мы считали». */
 const newer = (a, b) => String(a || '') > String(b || '');
-
-/**
- * Сколько в копии вообще всего. Нужно ради одного случая, который дороже всех
- * остальных: устройство потеряло данные — очистили браузер, слетело хранилище —
- * и завело пустое состояние. Оно свежее облачного просто потому, что создано
- * секунду назад, и по времени повело бы слияние: имя, сон, настройки заменились
- * бы значениями по умолчанию, а потом уехали в облако и на второе устройство.
- *
- * Поэтому пустая сторона не ведёт. Записи и отметки всё равно сливаются каждая
- * по своему правилу — меняется только то, у чего своего времени нет.
- */
-function weigh(state) {
-  let n = 0;
-  const walk = (node, depth = 0) => {
-    if (!node || typeof node !== 'object' || depth > 6) return;
-    if (Array.isArray(node)) { for (const x of node) { if (idOf(x)) n++; walk(x, depth + 1); } return; }
-    for (const [k, v] of Object.entries(node)) {
-      if (!depth && (k === 'deleted' || k === 'touched')) continue;
-      if (PERIOD_KEY.test(k)) n++;
-      walk(v, depth + 1);
-    }
-  };
-  walk(state);
-  return n;
-}
-
-/** Кто ведёт слияние: непустая сторона, а при равных — та, что свежее. */
-function leadOf(a, b) {
-  const wa = weigh(a), wb = weigh(b);
-  // «Пустая» — это не «поменьше», а «почти ничего»: у заготовок свой вес.
-  const bare = w => w < 12;
-  if (bare(wa) && !bare(wb)) return [b, a];
-  if (bare(wb) && !bare(wa)) return [a, b];
-  return newer(a.changedAt, b.changedAt) ? [a, b] : [b, a];
-}
 
 /** Когда запись удалили — по следам той стороны, где след есть. */
 const killedAt = (state, id) => (state.deleted || []).find(x => x.id === id)?.at || '';
@@ -70,10 +52,10 @@ const killedAt = (state, id) => (state.deleted || []).find(x => x.id === id)?.at
  * проверяется. Ни одна из копий не меняется.
  */
 export function merge(a, b) {
-  const [lead, other] = leadOf(a, b);
+  const [lead, other] = newer(a.changedAt, b.changedAt) ? [a, b] : [b, a];
   const out = clone(lead);
 
-  mergeNode(out, other, lead, '', { a, b });
+  mergeNode(out, other, lead, '', { a, b }, DEFAULTS);
 
   // Указатели служебные: их сливаем по своим правилам, а не как данные.
   out.touched = {};
@@ -100,7 +82,7 @@ export function merge(a, b) {
  * Слияние ветки. `out` — уже копия ведущей стороны, `other` — вторая копия,
  * `lead` — та же ведущая, но исходная: из неё читаем, в `out` пишем.
  */
-function mergeNode(out, other, lead, path, all) {
+function mergeNode(out, other, lead, path, all, def) {
   if (!other || typeof other !== 'object') return;
   for (const [k, theirs] of Object.entries(other)) {
     if (!path && ['deleted', 'touched', 'changedAt'].includes(k)) continue;
@@ -119,12 +101,13 @@ function mergeNode(out, other, lead, path, all) {
     if (isRecordList(theirs) || isRecordList(mine)) { out[k] = mergeList(mine, theirs, all); continue; }
     if (theirs && typeof theirs === 'object' && !Array.isArray(theirs)) {
       if (!out[k] || typeof out[k] !== 'object') out[k] = clone(theirs);
-      else mergeNode(out[k], theirs, mine, at, all);
+      else mergeNode(out[k], theirs, mine, at, all, def && def[k]);
       continue;
     }
-    // Простое значение: ведущая сторона уже в out, второй стороне слова нет —
-    // кроме случая, когда у ведущей его вовсе не было.
-    if (mine === undefined) out[k] = clone(theirs);
+    // Простое значение. Ведущая сторона уже в out, но своё слово есть у второй,
+    // если у ведущей тут значение по умолчанию: его никто не выбирал.
+    const untouched = mine === undefined || (def && sameAsDefault(mine, def[k]));
+    if (untouched && !(def && sameAsDefault(theirs, def[k]))) out[k] = clone(theirs);
   }
 }
 
@@ -139,6 +122,9 @@ function pickMark(at, mine, theirs, { a, b }) {
   if (val === undefined) return undefined;
   return clone(val);
 }
+
+/** Значение, которого никто не выбирал: ровно такое же, как в пустом состоянии. */
+const sameAsDefault = (v, d) => d !== undefined && JSON.stringify(v) === JSON.stringify(d);
 
 /** Значение по пути вида «habits[hb1].log.2026-08-30». */
 function pathValue(state, path) {

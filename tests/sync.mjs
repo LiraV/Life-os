@@ -94,7 +94,7 @@ const lost = await p.evaluate(async () => {
   // Облако: настоящая жизнь, записанная в 14:26.
   const cloud = {
     v: 52, onboarded: true,
-    user: { name: 'Лера', sleep: 8, xp: 673, chronotype: 'сова' },
+    user: { name: 'Лера', avatar: 'av12', sleep: 8, xp: 673, chronotype: 'сова' },
     goals: Array.from({ length: 27 }, (_, i) => ({ id: `g${i}`, title: `Цель ${i}`, horizon: 'month',
       period: '2026-08', steps: [], slots: [], order: i, createdAt: T(9), updatedAt: T(9) })),
     habits: Array.from({ length: 6 }, (_, i) => ({ id: `h${i}`, name: `Привычка ${i}`, log: {},
@@ -103,18 +103,22 @@ const lost = await p.evaluate(async () => {
     deleted: [], changedAt: T(14),
   };
   // Устройство: только что заведённое пустое состояние, оно же самое свежее.
+  // Устройство, заведённое заново: имя и аватар пустые — это значения по
+  // умолчанию, их никто не выбирал. Заготовок при этом целых четыре десятка,
+  // так что «пустым» по числу записей оно не выглядит.
   const fresh = {
     v: 52, onboarded: true,
-    user: { name: 'Персонаж', sleep: 10, xp: 25, chronotype: 'сова' },
+    user: { name: '', avatar: '', sleep: 10, xp: 25, chronotype: 'сова' },
     goals: [], habits: [], sleep: {}, touched: {}, deleted: [], changedAt: T(16),
   };
   const m = merge(fresh, cloud);
   const m2 = merge(cloud, fresh);
-  return { имя: m.user.name, сон: m.user.sleep, опыт: m.user.xp,
+  return { имя: m.user.name, аватар: m.user.avatar, сон: m.user.sleep, опыт: m.user.xp,
     целей: m.goals.length, привычек: m.habits.length, отметкаСна: m.sleep['2026-08-30'],
     порядокНеВажен: JSON.stringify(m) === JSON.stringify(m2) };
 });
-ok('потерявшее данные устройство не ведёт слияние: имя уцелело', lost.имя === 'Лера', lost.имя);
+ok('пустое имя не затирает настоящее', lost.имя === 'Лера', lost.имя);
+ok('и аватар тоже', lost.аватар === 'av12', lost.аватар);
 ok('и профиль не заменился значениями по умолчанию', lost.сон === 8, String(lost.сон));
 ok('цели вернулись', lost.целей === 27, String(lost.целей));
 ok('привычки вернулись', lost.привычек === 6, String(lost.привычек));

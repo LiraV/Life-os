@@ -11,10 +11,11 @@ import {
   sleepOn, sleepAvg, sleepMarks,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
   workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName, inboxCount, dueOn,
-  liveTasks, taskSubject,
+  liveTasks, taskSubject, careItems, careSorted, careGroupName,
 } from '../selectors.js';
 import { gv, g } from '../gender.js';
 import { inboxSheet } from './inbox.js';
+import { careSheet, careFlip } from './care.js';
 import { taskSheet as studyTaskSheet } from './study.js';
 
 const curDate = () => S.ui.date || todayISO();
@@ -345,7 +346,7 @@ const sphereOpts = () => [{ value: '', label: 'без сферы' }, ...allSpher
 
 export function questSheet(quest, date, onDone) {
   const isNew = !quest;
-  const q = quest || { id: uid(), title: '', time: '', minutes: 45, sphere: '', boss: false, goalId: '', lessonId: '', studyId: '', done: false };
+  const q = quest || { id: uid(), title: '', time: '', minutes: 45, sphere: '', boss: false, goalId: '', lessonId: '', studyId: '', careId: '', done: false };
   // Открытые задания учёбы: связанный квест закроет задание, когда его отметят.
   const stTasks = liveTasks().filter(x => x.stage !== 'done');
   const lessons = liveLessons();
@@ -368,6 +369,11 @@ export function questSheet(quest, date, onDone) {
             ...stTasks.map(x => ({ value: x.id, label: `${x.title} · ${taskSubject(x).name}` }))], q.studyId || '')
         : '',
       stTasks.length ? field.note('Отметишь квест — задание перейдёт в «Сдано». Снимешь отметку — вернётся в работу. Второй раз закрывать его в «Учёбе» не нужно.') : '',
+      careItems().length
+        ? field.select('careId', 'Дело из «Заботы»', [{ value: '', label: 'не связано' },
+            ...careSorted().map(x => ({ value: x.id, label: `${x.name} · ${careGroupName(x.group)}` }))], q.careId || '')
+        : '',
+      careItems().length ? field.note('Отметишь квест — дело отметится тем же днём, и следующий срок отсчитается от него.') : '',
       goals.length
         ? field.select('goalId', 'Зачем — ведёт к цели', [{ value: '', label: 'просто так' }, ...goals.map(g => ({ value: g.id, label: g.title }))], q.goalId || '')
         : field.note('Целей пока нет — связь «зачем» появится, когда добавишь цель в Планах.'),
@@ -387,11 +393,12 @@ export function questSheet(quest, date, onDone) {
         Object.keys(s.quests).forEach(d => { s.quests[d] = s.quests[d].filter(x => x.id !== q.id); });
         const lessonId = v.lessonId || '';
         const studyId = v.studyId || '';
+        const careId = v.careId || '';
         const next = {
           ...q, title, time: v.time || '', minutes: Number(v.minutes) || 45,
           // Связка с занятием сама проставляет сферу: обучение — её дом.
           sphere: v.sphere || (lessonId ? 'edu' : studyId ? 'study' : ''),
-          goalId: v.goalId || '', lessonId, studyId, boss: !!v.boss,
+          goalId: v.goalId || '', lessonId, studyId, careId, boss: !!v.boss,
         };
         (s.quests[target] ||= []).push(next);
         s.quests[target].sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
@@ -438,15 +445,20 @@ export const actions = {
   inbox: () => inboxSheet(),
 
   /** Отметка срока: само задание живёт в «Учёбе», день его только закрывает. */
-  duedone: v => update(s => {
-    const t = s.study.tasks.find(x => x.id === v.id);
-    if (!t) return;
-    const done = t.stage === 'done';
-    t.stage = done ? 'draft' : 'done';
-    addXp(done ? -XP.step : XP.step);
-    touchTracker(s);
-  }),
-  dueopen: v => studyTaskSheet(S.study.tasks.find(x => x.id === v.id)),
+  duedone: v => {
+    if (v.k === 'care') return careFlip(v.id, curDate());
+    update(s => {
+      const t = s.study.tasks.find(x => x.id === v.id);
+      if (!t) return;
+      const done = t.stage === 'done';
+      t.stage = done ? 'draft' : 'done';
+      addXp(done ? -XP.step : XP.step);
+      touchTracker(s);
+    });
+  },
+  dueopen: v => (v.k === 'care'
+    ? careSheet(S.care.items.find(x => x.id === v.id))
+    : studyTaskSheet(S.study.tasks.find(x => x.id === v.id))),
   toinbox: () => { location.hash = '#/inbox'; },
   prev: () => update(s => { s.ui.date = addDays(curDate(), -1); }),
   next: () => update(s => { s.ui.date = addDays(curDate(), 1); }),
@@ -508,6 +520,11 @@ export const actions = {
         touchTracker(s);
       });
       if (name) toast(flipped.done ? `${name} · сдано` : `${name} · снова в работе`);
+    }
+    if (flipped.careId) {
+      // Отметка дня, а не «сделано навсегда»: у заботы есть журнал, и снятая
+      // галочка должна убрать именно этот день, а не последний по счёту.
+      careFlip(flipped.careId, date, flipped.done);
     }
     if (flipped.done && flipped.boss) toast('Босс повержен ✦');
     else if (flipped.done) toast(`+${XP.quest} XP`);
