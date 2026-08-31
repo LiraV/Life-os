@@ -7,7 +7,7 @@
 import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, nameTaken } from '../store.js';
 import { todayISO, monthKey, monthIn, yearOf, dayShort, diffDays } from '../dates.js';
-import { h, raw, field, toast, openSheet, confirmSheet, plural, money } from '../ui.js';
+import { h, raw, field, toast, openSheet, redrawSheet, confirmSheet, plural, money } from '../ui.js';
 import { FREE_STAGES, FREE_KINDS, FREE_PLACES, FREE_STEPS, stageName, netOf } from '../free.js';
 import {
   freeOrders, freeBy, freeLive, freePlaces, freeServices, freeSteps, freeStepsDone,
@@ -212,9 +212,7 @@ function orderSheet(id, preset) {
 
 /** Список именованных записей с числом: площадки и услуги устроены одинаково. */
 function listSheet({ title, sub, get, add, del, unit, suggest, note }) {
-  const draw = () => openSheet({
-    title, sub,
-    body: [
+  const bodyOf = () => [
       get().length ? get().map(x => h`
         <div class="link-row">
           <span class="ink grow ellip">${x.name}</span>
@@ -228,23 +226,26 @@ function listSheet({ title, sub, get, add, del, unit, suggest, note }) {
         <input type="number" class="grow" data-field="lsval" placeholder="${unit.trim() || '0'}" style="max-width:96px">
         <button type="button" class="pill" data-act="ls-add">+</button></div>`,
       field.note(note),
-    ].join(''),
-    onAct: (name, data, close) => {
+    ].join('');
+  openSheet({
+    title, sub,
+    body: bodyOf(),
+    onAct: (name, data) => {
       const put = (nm, val) => {
         const n = (nm || '').trim();
         if (!n) return;
         if (nameTaken(get(), n)) return toast(`«${n}» уже есть`);
         update(s => add(s, n, Math.max(0, Number(val) || 0)));
-        close(); draw();
+        // Меняем середину шторки, а не открываем её заново.
+        redrawSheet(bodyOf());
       };
       if (name === 'ls-sg') return put(data.n, data.v);
       if (name === 'ls-add') return put(document.querySelector('.sheet [data-field="lsname"]')?.value,
         document.querySelector('.sheet [data-field="lsval"]')?.value);
-      if (name === 'ls-del') { update(s => del(s, data.v)); close(); draw(); }
+      if (name === 'ls-del') { update(s => del(s, data.v)); redrawSheet(bodyOf()); }
       return undefined;
     },
   });
-  draw();
 }
 
 export const actions = {
@@ -298,12 +299,9 @@ export const actions = {
   }),
 
   steps: () => {
-    const draw = () => {
-    const have = new Set(freeSteps().map(x => x.text));
-    openSheet({
-      title: 'Путь на фриланс',
-      sub: 'то, что делается один раз, чтобы заказы пошли',
-      body: [
+    const bodyOf = () => {
+      const have = new Set(freeSteps().map(x => x.text));
+      return [
         FREE_STEPS.filter(t => !have.has(t)).map(t => h`
           <button class="link-row" data-act="stepadd" data-v="${t}">
             <span class="ink grow">${t}</span><span class="lab">взять ›</span></button>`).join('')
@@ -311,16 +309,21 @@ export const actions = {
         `<div class="row"><input type="text" class="grow" data-field="stnew" data-act-enter="stepown" placeholder="Свой шаг и Enter">
           <button type="button" class="pill" data-act="stepown">+</button></div>`,
         field.note('Ни один шаг не появится сам — только те, что ты возьмёшь.'),
-      ].join(''),
-      onAct: (name, data, close) => {
+      ].join('');
+    };
+    openSheet({
+      title: 'Путь на фриланс',
+      sub: 'то, что делается один раз, чтобы заказы пошли',
+      body: bodyOf(),
+      onAct: (name, data) => {
         const put = text => {
           const t = (text || '').trim();
           if (!t) return;
           if (freeSteps().some(x => x.text === t)) return toast('Такой шаг уже есть');
           update(s => s.free.steps.push({ id: uid(), text: t, done: false }));
-          // Перерисовываем, а не закрываем: взятый шаг уходит из подсказок,
-          // поле пустеет, и можно взять следующий, не открывая заново.
-          close(); draw();
+          // Меняем середину, а не открываем заново: взятый шаг уходит из
+          // подсказок, поле пустеет, и можно взять следующий.
+          redrawSheet(bodyOf());
           return undefined;
         };
         if (name === 'stepadd') return put(data.v);
@@ -328,8 +331,6 @@ export const actions = {
         return undefined;
       },
     });
-    };
-    draw();
   },
 
   steptick: v => update(s => {

@@ -146,6 +146,27 @@ export function openSheet({ title, sub, body = '', primary = 'Сохранить
   return wrap;
 }
 
+/**
+ * Заменить тело открытой шторки, не закрывая её.
+ *
+ * Списки, из которых берут подсказки по одной — шаги дела, показатели,
+ * площадки, замеры, — раньше делали это через «закрыть и открыть заново».
+ * Работало, но на телефоне шторка на каждый тап уезжала вниз и приезжала
+ * обратно, унося с собой прокрутку: со стороны — «переоткрывается всё время».
+ *
+ * Меняем только середину: сама шторка, её заголовок, кнопки и то, что человек
+ * успел вписать в поля вне списка, остаются на месте. Прокрутку возвращаем —
+ * иначе после каждой подсказки список отматывался бы в начало.
+ */
+export function redrawSheet(body) {
+  const box = sheetEl?.querySelector('.sheet-body');
+  if (!box) return false;
+  const top = box.scrollTop;
+  box.innerHTML = String(body ?? '');
+  box.scrollTop = top;
+  return true;
+}
+
 export function confirmSheet(title, sub, primary, onYes) {
   openSheet({ title, sub, primary, onSave: (_v, close) => { onYes(); close(); } });
 }

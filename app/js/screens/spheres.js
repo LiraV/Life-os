@@ -4,7 +4,7 @@
 import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken } from '../store.js';
 import { todayISO, addDays, monthKey, monthTitle, monthIn, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet, confirmSheet, money } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, redrawSheet, confirmSheet, money } from '../ui.js';
 import { gt } from '../gender.js';
 import { SPHERE_ART, DEFAULT_ART, artSrc } from '../sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, BLOG_FEEDS, placeShort, placeName, PACK, packById, UNPACK, UNPACK_ALL } from '../blog.js';
@@ -809,19 +809,20 @@ function addPack(id) {
  * рубрикатор и форматы — они устроены одинаково, и расходиться им незачем.
  */
 function listSheet({ title, sub, get, add, ren, del, note }) {
+  const bodyOf = () => [
+    get().length ? get().map(x => h`
+      <div class="link-row">
+        <span class="ink grow ellip" data-act="ls-ren" data-v="${x.id}" style="cursor:pointer">${x.name}</span>
+        <button class="q-edit" data-act="ls-del" data-v="${x.id}">×</button>
+      </div>`).join('')
+      : field.note('Пока пусто.'),
+    `<div class="row"><input type="text" class="grow" data-field="lsnew" data-act-enter="ls-add" placeholder="Добавить и Enter">
+      <button type="button" class="pill" data-act="ls-add">+</button></div>`,
+    field.note(note),
+  ].join('');
   const draw = () => openSheet({
     title, sub,
-    body: [
-      get().length ? get().map(x => h`
-        <div class="link-row">
-          <span class="ink grow ellip" data-act="ls-ren" data-v="${x.id}" style="cursor:pointer">${x.name}</span>
-          <button class="q-edit" data-act="ls-del" data-v="${x.id}">×</button>
-        </div>`).join('')
-        : field.note('Пока пусто.'),
-      `<div class="row"><input type="text" class="grow" data-field="lsnew" data-act-enter="ls-add" placeholder="Добавить и Enter">
-        <button type="button" class="pill" data-act="ls-add">+</button></div>`,
-      field.note(note),
-    ].join(''),
+    body: bodyOf(),
     onAct: (name, data, close) => {
       if (name === 'ls-add') {
         const box = document.querySelector('.sheet [data-field="lsnew"]');
@@ -829,7 +830,10 @@ function listSheet({ title, sub, get, add, ren, del, note }) {
         if (!val) return;
         if (nameTaken(get(), val)) return toast(`«${val}» уже есть`);
         update(s2 => add(s2, val));
-        close(); draw();
+        // Меняем середину, а не открываем заново: добавляют по нескольку
+        // подряд. Переименование и удаление уводят в другую шторку — оттуда
+        // возвращаемся полноценным открытием, иначе возвращать было бы некуда.
+        redrawSheet(bodyOf());
         return;
       }
       if (name === 'ls-ren') {

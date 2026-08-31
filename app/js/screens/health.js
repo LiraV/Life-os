@@ -5,7 +5,7 @@
 import { syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, nameTaken, normName } from '../store.js';
 import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle, monthDates, dowIndex, DOW } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, redrawSheet, confirmSheet } from '../ui.js';
 import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, build, energyNeed, waistRisk, age,
   sleepAvg, sleepMarks, bodyRows, bodyMetrics, measureVal, BODY_CORE } from '../selectors.js';
 import { g, gv } from '../gender.js';
@@ -432,10 +432,7 @@ export const actions = {
    * формы, а записанные ею числа остаются в прошлых замерах.
    */
   metrics: () => {
-    const draw = () => openSheet({
-      title: 'Что мерить',
-      sub: 'вес, талия и бёдра есть всегда — их знают формулы',
-      body: [
+    const bodyOf = () => [
         bodyMetrics().length ? bodyMetrics().map(mm => h`
           <div class="link-row">
             <span class="ink grow ellip">${mm.name}</span>
@@ -447,25 +444,29 @@ export const actions = {
           .map(([n, u]) => `<button type="button" class="pill" data-act="mtadd" data-n="${n}" data-u="${u}">+ ${n}</button>`).join('')}</div>`,
         `<div class="row"><input type="text" class="grow" data-field="mtnew" data-act-enter="mtown" placeholder="Своя мерка и Enter">
           <button type="button" class="pill" data-act="mtown">+</button></div>`,
-        field.note('Удалишь мерку — она исчезнет из формы, но числа, записанные ею раньше, останутся в прошлых замерах.'),
-      ].join(''),
-      onAct: (name, data, close) => {
+      field.note('Удалишь мерку — она исчезнет из формы, но числа, записанные ею раньше, останутся в прошлых замерах.'),
+    ].join('');
+    openSheet({
+      title: 'Что мерить',
+      sub: 'вес, талия и бёдра есть всегда — их знают формулы',
+      body: bodyOf(),
+      onAct: (name, data) => {
         const add = (nm, unit) => {
           const n = (nm || '').trim();
           if (!n) return;
           if (nameTaken(bodyMetrics(), n)) return toast(`«${n}» уже есть`);
           update(s => { s.health.metrics.push({ id: uid(), name: n, unit: unit || 'см' }); });
-          close(); draw();
+          // Меняем середину шторки, а не открываем её заново.
+          redrawSheet(bodyOf());
         };
         if (name === 'mtadd') return add(data.n, data.u);
         if (name === 'mtown') return add(document.querySelector('.sheet [data-field="mtnew"]')?.value, 'см');
         if (name === 'mtdel') {
           update(s => { s.health.metrics = s.health.metrics.filter(x => x.id !== data.id); });
-          close(); draw();
+          redrawSheet(bodyOf());
         }
         return undefined;
       },
     });
-    draw();
   },
 };

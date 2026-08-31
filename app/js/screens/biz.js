@@ -10,7 +10,7 @@
 import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, nameTaken } from '../store.js';
 import { todayISO, monthKey, yearOf, dayShort } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet, confirmSheet, plural } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, redrawSheet, confirmSheet, plural } from '../ui.js';
 import { BIZ_STAGES, BIZ_KINDS, bizStepHints, bizMetricHints, stageName, kindName } from '../biz.js';
 import {
   bizProjects, bizById, bizBy, bizLive, bizLaunchedIn, bizSteps, bizStepsLeft, bizProgress,
@@ -194,14 +194,11 @@ export const actions = {
   },
 
   steps: v => {
-    const draw = () => {
-    const pr = bizById(v.id);
-    if (!pr) return;
-    const have = new Set(bizSteps(pr).map(x => x.text));
-    openSheet({
-      title: 'Шаги до запуска',
-      sub: pr.name,
-      body: [
+    const bodyOf = () => {
+      const pr = bizById(v.id);
+      if (!pr) return '';
+      const have = new Set(bizSteps(pr).map(x => x.text));
+      return [
         bizStepHints(pr.kind).filter(t => !have.has(t)).map(t => h`
           <button class="link-row" data-act="stepadd" data-v="${t}">
             <span class="ink grow">${t}</span><span class="lab">взять ›</span></button>`).join('')
@@ -209,15 +206,23 @@ export const actions = {
         `<div class="row"><input type="text" class="grow" data-field="stnew" data-act-enter="stepown" placeholder="Свой шаг и Enter">
           <button type="button" class="pill" data-act="stepown">+</button></div>`,
         field.note('Ни один шаг не появится сам — только те, что ты возьмёшь.'),
-      ].join(''),
-      onAct: (name, data, close) => {
+      ].join('');
+    };
+    const pr = bizById(v.id);
+    if (!pr) return;
+    openSheet({
+      title: 'Шаги до запуска',
+      sub: pr.name,
+      body: bodyOf(),
+      onAct: (name, data) => {
         const put = text => {
           const t = (text || '').trim();
           if (!t) return;
           if (bizSteps(bizById(v.id)).some(x => x.text === t)) return toast('Такой шаг уже есть');
           update(s => s.biz.projects.find(x => x.id === v.id)?.steps.push({ id: uid(), text: t, done: false }));
-          // Перерисовываем, а не закрываем: можно взять несколько подряд.
-          close(); draw();
+          // Меняем середину, а не открываем заново: можно взять несколько
+          // подряд, и шторка при этом не прыгает.
+          redrawSheet(bodyOf());
           return undefined;
         };
         if (name === 'stepadd') return put(data.v);
@@ -225,8 +230,6 @@ export const actions = {
         return undefined;
       },
     });
-    };
-    draw();
   },
 
   steptick: v => update(s => {
@@ -242,50 +245,52 @@ export const actions = {
 
   /** Показатели проекта: свои названия и единицы, подсказки — не список. */
   metrics: v => {
-    const draw = () => {
+    const bodyOf = () => {
       const pr = bizById(v.id);
-      if (!pr) return;
-      openSheet({
-        title: 'Показатели',
-        sub: pr.name,
-        body: [
-          bizMetrics(pr).length ? bizMetrics(pr).map(m => h`
-            <div class="link-row">
-              <span class="ink grow ellip">${m.name}</span>
-              <span class="lab">${m.unit}</span>
-              <button class="q-edit" data-act="mdel" data-v="${m.id}">×</button>
-            </div>`).join('')
-            : field.note('Пока ничего. Возьми из подсказок или впиши своё.'),
-          `<div class="pills">${bizMetricHints(pr.kind).filter(x => !bizMetrics(pr).some(m => m.name === x.name))
-            .map(x => `<button type="button" class="pill" data-act="madd" data-n="${x.name}" data-u="${x.unit}">+ ${x.name}</button>`).join('')}</div>`,
-          `<div class="row"><input type="text" class="grow" data-field="mname" placeholder="Свой показатель">
-            <input type="text" class="grow" data-field="munit" placeholder="ед." style="max-width:86px">
-            <button type="button" class="pill" data-act="mown">+</button></div>`,
-          field.note('Удалённый показатель уходит из списка, а его отметки остаются в данных проекта.'),
-        ].join(''),
-        onAct: (name, data, close) => {
-          const put = (nm, unit) => {
-            const n = (nm || '').trim();
-            if (!n) return;
-            if (nameTaken(bizMetrics(bizById(v.id)), n)) return toast(`«${n}» уже есть`);
-            update(s => s.biz.projects.find(x => x.id === v.id)?.metrics.push({ id: uid(), name: n, unit: (unit || 'шт').trim() }));
-            close(); draw();
-          };
-          if (name === 'madd') return put(data.n, data.u);
-          if (name === 'mown') return put(document.querySelector('.sheet [data-field="mname"]')?.value,
-            document.querySelector('.sheet [data-field="munit"]')?.value);
-          if (name === 'mdel') {
-            update(s => {
-              const pr2 = s.biz.projects.find(x => x.id === v.id);
-              if (pr2) pr2.metrics = pr2.metrics.filter(x => x.id !== data.v);
-            });
-            close(); draw();
-          }
-          return undefined;
-        },
-      });
+      if (!pr) return '';
+      return [
+        bizMetrics(pr).length ? bizMetrics(pr).map(m => h`
+          <div class="link-row">
+            <span class="ink grow ellip">${m.name}</span>
+            <span class="lab">${m.unit}</span>
+            <button class="q-edit" data-act="mdel" data-v="${m.id}">×</button>
+          </div>`).join('')
+          : field.note('Пока ничего. Возьми из подсказок или впиши своё.'),
+        `<div class="pills">${bizMetricHints(pr.kind).filter(x => !bizMetrics(pr).some(m => m.name === x.name))
+          .map(x => `<button type="button" class="pill" data-act="madd" data-n="${x.name}" data-u="${x.unit}">+ ${x.name}</button>`).join('')}</div>`,
+        `<div class="row"><input type="text" class="grow" data-field="mname" placeholder="Свой показатель">
+          <input type="text" class="grow" data-field="munit" placeholder="ед." style="max-width:86px">
+          <button type="button" class="pill" data-act="mown">+</button></div>`,
+        field.note('Удалённый показатель уходит из списка, а его отметки остаются в данных проекта.'),
+      ].join('');
     };
-    draw();
+    const pr = bizById(v.id);
+    if (!pr) return;
+    openSheet({
+      title: 'Показатели',
+      sub: pr.name,
+      body: bodyOf(),
+      onAct: (name, data) => {
+        const put = (nm, unit) => {
+          const n = (nm || '').trim();
+          if (!n) return;
+          if (nameTaken(bizMetrics(bizById(v.id)), n)) return toast(`«${n}» уже есть`);
+          update(s => s.biz.projects.find(x => x.id === v.id)?.metrics.push({ id: uid(), name: n, unit: (unit || 'шт').trim() }));
+          redrawSheet(bodyOf());
+        };
+        if (name === 'madd') return put(data.n, data.u);
+        if (name === 'mown') return put(document.querySelector('.sheet [data-field="mname"]')?.value,
+          document.querySelector('.sheet [data-field="munit"]')?.value);
+        if (name === 'mdel') {
+          update(s => {
+            const pr2 = s.biz.projects.find(x => x.id === v.id);
+            if (pr2) pr2.metrics = pr2.metrics.filter(x => x.id !== data.v);
+          });
+          redrawSheet(bodyOf());
+        }
+        return undefined;
+      },
+    });
   },
 
   /** Отметка показателя: число на дату. Прошлые отметки не трогаются. */
