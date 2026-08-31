@@ -12,8 +12,6 @@
 import { CLOUD, cloudReady } from './cloud-config.js';
 import { signedIn, authHeader } from './cloud.js';
 
-/** Через посредника — когда есть облако и вход. Иначе напрямую по своему ключу. */
-export const viaCloud = () => cloudReady() && signedIn();
 
 const KEY_STORE = 'lifeos.openai.key';
 const MODEL_STORE = 'lifeos.openai.model';
@@ -43,6 +41,16 @@ const rememberModels = ids => {
 
 export const getKey = () => { try { return localStorage.getItem(KEY_STORE) || ''; } catch { return ''; } };
 export const hasKey = () => getKey().trim().length > 20;
+
+/**
+ * Через посредника — только когда своего ключа на устройстве нет.
+ *
+ * Ключ на устройстве главнее намеренно: посредник живёт в дата-центре, а
+ * OpenAI принимает запросы не отовсюду. Своё устройство человек знает — оно
+ * либо достаёт до OpenAI, либо нет; чужой дата-центр он не выбирал, и
+ * молча уводить запрос туда, где его отвергнут, — худший из вариантов.
+ */
+export const viaCloud = () => cloudReady() && signedIn() && !hasKey();
 /** Готов ли ИИ работать: через облако или по своему ключу. */
 export const aiReady = () => viaCloud() || hasKey();
 export const getModel = () => { try { return localStorage.getItem(MODEL_STORE) || DEFAULT_MODEL; } catch { return DEFAULT_MODEL; } };

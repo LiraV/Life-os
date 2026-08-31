@@ -142,6 +142,60 @@ ok('незнакомая модель остаётся выбранной, а н
   await ctx3.close();
 }
 
+// ── ключ на устройстве главнее облака ───────────────────────────
+{
+  const ctx4 = await b.newContext({ serviceWorkers: 'block', locale: 'ru-RU', ...devices['iPhone 13'] });
+  await ctx4.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  const p4 = await ctx4.newPage();
+  await p4.route('**/app/js/cloud-config.js', route => route.fulfill({
+    status: 200, contentType: 'application/javascript',
+    body: "export const CLOUD = { api: 'https://фейк.apigw.yandexcloud.net', clientId: 'test' };\nexport const cloudReady = () => true;\n",
+  }));
+  // Кто получил запрос: облако или сам OpenAI.
+  let wentTo = '';
+  await p4.addInitScript(() => {
+    window.__where = '';
+    const real = window.fetch;
+    window.fetch = (url, init) => {
+      const u = String(url);
+      if (u.includes('api.openai.com')) {
+        window.__where = 'openai';
+        return Promise.resolve(new Response(JSON.stringify({ data: [{ id: 'gpt-4o-mini' }] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      if (u.includes('apigw.yandexcloud.net')) {
+        window.__where = 'облако';
+        return Promise.resolve(new Response(JSON.stringify({ data: [{ id: 'gpt-4o-mini' }] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      return real(url, init);
+    };
+  });
+  await p4.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
+  await p4.waitForTimeout(700);
+  await p4.getByText('пропустить онбординг').click(); await p4.waitForTimeout(500);
+  // Вошла в облако, своего ключа нет — идём через облако.
+  await p4.evaluate(() => {
+    localStorage.setItem('lifeos.cloud', JSON.stringify({ access_token: 'y0_тест', expires_at: Date.now() + 9e9, account: { email: 'lera@yandex.ru' }, syncedAt: '' }));
+    const s = JSON.parse(localStorage.getItem('lifeos.state')); s.ui.tips = 'off'; localStorage.setItem('lifeos.state', JSON.stringify(s));
+    location.reload();
+  });
+  await p4.waitForTimeout(800);
+  await p4.evaluate(async () => { const ai = await import('/app/js/ai.js'); try { await ai.checkKey(); } catch {} });
+  wentTo = await p4.evaluate(() => window.__where);
+  ok('без своего ключа запрос идёт через облако', wentTo === 'облако', wentTo);
+
+  // Появился свой ключ — запрос идёт мимо облака, прямо в OpenAI.
+  await p4.evaluate(() => { localStorage.setItem('lifeos.openai.key', 'sk-проверочный-ключ-достаточной-длины'); window.__where = ''; });
+  await p4.evaluate(async () => { const ai = await import('/app/js/ai.js'); try { await ai.checkKey(); } catch {} });
+  wentTo = await p4.evaluate(() => window.__where);
+  ok('свой ключ главнее облака: запрос идёт прямо в OpenAI', wentTo === 'openai', wentTo);
+
+  await p4.evaluate(() => { location.hash = '#/settings'; }); await p4.waitForTimeout(500);
+  ok('и в настройках видно, что ключ на устройстве', /Ключ\s*\n?\s*sk-/i.test(await p4.locator('#scr').innerText()));
+  await ctx4.close();
+}
+
 await b.close();
 if (errs.length) { console.log(errs.join('\n')); bad += errs.length; }
 console.log(bad ? `✗ ошибок: ${bad}` : '✓ выбор модели и текст про данные в порядке');

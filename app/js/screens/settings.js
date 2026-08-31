@@ -104,11 +104,13 @@ export function render() {
     <div class="card">
       <div class="caps">ИИ · OpenAI</div>
       ${viaCloud() ? raw(h`
-        <div class="ink">Работает через твоё облако.</div>
-        <div class="lab" style="margin-top:6px">Ключ лежит в настройках функции и в браузер не попадает —
-          значит, и вводить его на каждом устройстве не нужно.</div>
+        <div class="ink">Своего ключа здесь нет — попробую через твоё облако.</div>
+        <div class="lab" style="margin-top:6px">Там ключ лежит в настройках функции и в браузер не попадает.
+          Но запрос уходит из дата-центра, а OpenAI принимает запросы не отовсюду: если откажет по региону —
+          добавь ключ сюда, тогда запросы пойдут прямо с этого устройства.</div>
         <div class="row between" style="margin-top:8px"><span class="ink">Модель</span><span class="lab">${getModel()}</span></div>
-        <button class="add" data-act="aikey">Выбрать модель</button>`)
+        <button class="add" data-act="aikey">Выбрать модель</button>
+        <button class="btn-ghost" data-act="aikey" data-local="1">Добавить ключ на это устройство</button>`)
       : hasKey() ? raw(h`
         <div class="row between"><span class="ink">Ключ</span><span class="lab">${maskKey()}</span></div>
         <div class="row between"><span class="ink">Модель</span><span class="lab">${getModel()}</span></div>
@@ -205,14 +207,16 @@ export const actions = {
     toast(`Иконка · ${iconById(key).name}`);
   },
   tips: () => { if (tipsOn()) { tipsDisable(); toast('Выключила'); } else { tipsReset(); toast('Подсказки вернулись'); } },
-  aikey: () => {
+  aikey: (v = {}) => {
+    // «Своим ключом» — когда просят явно: облако есть, но человек хочет здесь.
+    const local = !!v.local || !viaCloud();
     const wrap = openSheet({
     title: 'Ключ OpenAI',
     sub: 'создаётся на platform.openai.com → API keys',
     body: [
-      viaCloud() ? '' : field.text('key', 'Ключ', '', 'sk-...'),
+      local ? field.text('key', 'Ключ', '', 'sk-...') : '',
       modelField(),
-      viaCloud() ? field.note('Ключ живёт в твоей функции — здесь только выбор модели.') : field.note(hasKey()
+      !local ? field.note('Ключ живёт в твоей функции — здесь только выбор модели.') : field.note(hasKey()
         ? 'Ключ уже задан и показан выше звёздочками. Оставь поле пустым — он останется прежним, можно менять только модель. Удаляется отдельной кнопкой внизу.'
         : 'Ключ вводится один раз и остаётся на этом устройстве.'),
     ].join(''),
