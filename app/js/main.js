@@ -275,33 +275,51 @@ function renderNav() {
       g.items.map(i => item(i.key, i.label)).join('')}`).join('')}`;
 }
 
-function renderDrawer() {
-  document.querySelector('.drawer-wrap')?.remove();
-  if (!drawerOpen) return;
+function drawerInner() {
   const act = navKey(menuKeys());
-  const wrap = document.createElement('div');
-  wrap.className = 'drawer-wrap';
-  wrap.innerHTML = `
-    <div class="drawer">
-      <div class="drawer-head">
-        ${avatarHtml(S.user)}
-        <div>
-          <div class="ink" style="font-weight:500">${S.user.name || 'Персонаж'}</div>
-          <div class="lab">${S.user.chronotype} · ур. ${level(S.user.xp)}</div>
-        </div>
+  return `
+    <div class="drawer-head">
+      ${avatarHtml(S.user)}
+      <div>
+        <div class="ink" style="font-weight:500">${S.user.name || 'Персонаж'}</div>
+        <div class="lab">${S.user.chronotype} · ур. ${level(S.user.xp)}</div>
       </div>
-      ${MENU().map(g => `${g.head ? `<div class="menu-head">${g.head}</div>` : '<div class="menu-sep"></div>'}${
-        g.items.map(d => {
-          // Тихий счётчик: рабочее на сегодня видно, только когда открываешь меню.
-          // На «Дне» рабочих задач нет намеренно — они не должны отвлекать.
-          const n = d.key === 'work' ? workTodayCount() : 0;
-          return `<button class="item ${act === d.key ? 'on' : ''}" data-drawer="${d.key}">${d.label}${
-            n ? `<span class="item-n">${n}</span>` : ''}</button>`;
-        }).join('')}`).join('')}
-    </div>`;
-  app.appendChild(wrap);
-  wrap.addEventListener('click', e => {
-    if (e.target === wrap) { drawerOpen = false; renderDrawer(); return; }
+    </div>
+    ${MENU().map(g => `${g.head ? `<div class="menu-head">${g.head}</div>` : '<div class="menu-sep"></div>'}${
+      g.items.map(d => {
+        // Тихий счётчик: рабочее на сегодня видно, только когда открываешь меню.
+        // На «Дне» рабочих задач нет намеренно — они не должны отвлекать.
+        const n = d.key === 'work' ? workTodayCount() : 0;
+        return `<button class="item ${act === d.key ? 'on' : ''}" data-drawer="${d.key}">${d.label}${
+          n ? `<span class="item-n">${n}</span>` : ''}</button>`;
+      }).join('')}`).join('')}`;
+}
+
+/**
+ * Меню открывается выездом слева — и этот выезд играет ровно один раз.
+ *
+ * Пока меню пересобиралось на каждую перерисовку, анимация начиналась заново:
+ * приложение перерисовывается и от синхронизации, и от смены минуты, и от
+ * любой правки, поэтому открытое меню ездило туда-сюда без остановки. Пока оно
+ * открыто, меняем только содержимое, и то лишь когда оно правда изменилось:
+ * так на месте остаются и выезд, и прокрутка списка.
+ */
+let drawerSig = '';
+function renderDrawer() {
+  const wrap = document.querySelector('.drawer-wrap');
+  if (!drawerOpen) { wrap?.remove(); drawerSig = ''; return; }
+  const inner = drawerInner();
+  if (wrap) {
+    if (drawerSig !== inner) { wrap.querySelector('.drawer').innerHTML = inner; drawerSig = inner; }
+    return;
+  }
+  const box = document.createElement('div');
+  box.className = 'drawer-wrap';
+  box.innerHTML = `<div class="drawer">${inner}</div>`;
+  drawerSig = inner;
+  app.appendChild(box);
+  box.addEventListener('click', e => {
+    if (e.target === box) { drawerOpen = false; renderDrawer(); return; }
     const btn = e.target.closest('[data-drawer]');
     if (btn) { drawerOpen = false; go(btn.dataset.drawer); }
   });
