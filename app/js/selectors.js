@@ -1405,8 +1405,10 @@ export function waistRisk() {
 const kop = n => Math.round((Number(n) || 0) * 100);
 const rub = k => k / 100;
 
+/** В копилке — то, что в ней есть. Итог месяца сюда не идёт по той же причине,
+ *  что и в остаток: отложенное за май уже лежит в её стартовой сумме. */
 export const vaultBalance = v => rub((S.budget.ops || [])
-  .filter(o => o.kind === 'save' && o.vaultId === v?.id)
+  .filter(o => !o.bulk && o.kind === 'save' && o.vaultId === v?.id)
   .reduce((a, o) => a + kop(o.sum), kop(v?.start)));
 
 // ── цели, которые считают себя сами ─────────────────────────────
@@ -1434,7 +1436,10 @@ export const sumBy = (m, kind) => rub(S.budget.ops
  */
 export function balanceAt(m) {
   const end = m + '-32';
-  return rub(S.budget.ops.filter(o => (o.date || '') < end).reduce((acc, o) => {
+  // Итог за месяц в остаток не идёт: он про уже прожитое, а те деньги давно
+  // внутри стартовой суммы. Иначе одно и то же считалось бы дважды —
+  // остаток подскакивал на всё, что человек «вспомнил» про май.
+  return rub(S.budget.ops.filter(o => !o.bulk && (o.date || '') < end).reduce((acc, o) => {
     if (o.kind === 'income') return acc + kop(o.sum);
     // Расход уходит совсем, отложенное — с баланса в копилку: для остатка это
     // одно и то же движение, поэтому и знак один.

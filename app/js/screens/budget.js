@@ -63,7 +63,7 @@ function monthView() {
   const ops = opsOf(m);
 
   const weeks = [1, 2, 3, 4, 5].map(w => {
-    const list = ops.filter(o => weekOfMonth(o.date) === w);
+    const list = ops.filter(o => !o.bulk && weekOfMonth(o.date) === w);
     return {
       w,
       exp: list.filter(o => o.kind === 'expense').reduce((a, o) => a + o.sum, 0),
@@ -71,6 +71,11 @@ function monthView() {
       sav: list.filter(o => o.kind === 'save').reduce((a, o) => a + o.sum, 0),
     };
   }).filter(x => x.exp || x.inc || x.sav);
+
+  // Итог месяца — память о прожитом, а не движение денег: те суммы уже внутри
+  // стартовой суммы. Показываем их отдельной строкой, чтобы остаток не удивлял.
+  const bulk = ops.filter(o => o.bulk);
+  const bulkInc = bulk.filter(o => o.kind === 'income').reduce((a, o) => a + o.sum, 0);
 
   return h`
     <div class="stepper">
@@ -89,6 +94,9 @@ function monthView() {
         <span class="ink"><b>Остаток</b></span><span class="ink"><b>${money(balanceAt(m))}</b></span></div>
       <div class="lab">Остаток считается из операций: стартовая сумма плюс доходы, минус расходы и отложенное.
         <span data-act="startset" style="text-decoration:underline; cursor:pointer">стартовая сумма</span></div>
+      ${bulk.length ? raw(h`<div class="lab" style="margin-top:6px">Из них итогом за месяц — ${money(bulkInc)}.
+        В остаток они не идут: те деньги уже внутри стартовой суммы, и складывать их дважды нельзя.
+        В целях вроде «заработать столько-то» они считаются.</div>`) : ''}
     </div>
 
     ${weeks.length ? raw(h`
@@ -126,7 +134,9 @@ function catBlock(kind, title, m) {
   const fact = {};
   // Копим в копейках, а показываем в рублях: иначе у суммы вылезает дробный
   // хвост, которого никто не вводил.
-  B().ops.filter(o => o.kind === kind && inMonth(o, m))
+  // Итог месяца по статьям не раскладывается: он про сумму целиком, а статью
+  // ему никто не выбирал — приписать её значило бы выдумать за человека.
+  B().ops.filter(o => !o.bulk && o.kind === kind && inMonth(o, m))
     .forEach(o => { fact[o.catId] = (fact[o.catId] || 0) + Math.round((Number(o.sum) || 0) * 100); });
   Object.keys(fact).forEach(k => { fact[k] /= 100; });
 

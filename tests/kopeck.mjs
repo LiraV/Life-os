@@ -78,6 +78,28 @@ ok('повторный итог заменяет прежний, а не скл�
 
 ok('в списке видно, что это итог', /итог/.test(await p.locator('#scr').innerText()));
 
+// ── итог не двигает остаток, но считается в целях ───────────────
+{
+  const before = await p.evaluate(async () => (await import('/app/js/selectors.js')).balanceAt(
+    new Date().toISOString().slice(0, 7)));
+  await p.locator('[data-act="bulk"]').click(); await p.waitForTimeout(500);
+  await p.fill('.sheet input[name="income"]', '60000');
+  await p.locator('[data-sheet="save"]').click(); await p.waitForTimeout(700);
+  const after = await p.evaluate(async () => {
+    const S = await import('/app/js/selectors.js');
+    const m = new Date().toISOString().slice(0, 7);
+    return { остаток: S.balanceAt(m), доход: S.sumBy(m, 'income'),
+      вЦели: S.SOURCES.income.count('', { from: `${m}-01`, to: `${m}-31` }) };
+  });
+  ok('остаток от итога не изменился', after.остаток === before, `${before} → ${after.остаток}`);
+  ok('но в доходах месяца он виден', after.доход >= 60000, String(after.доход));
+  ok('и в счёт цели «заработать» он идёт', after.вЦели >= 60000, String(after.вЦели));
+  const t2 = await p.locator('#scr').innerText();
+  await p.evaluate(() => { location.hash = '#/budget/month'; }); await p.waitForTimeout(500);
+  ok('на экране объяснено, почему остаток не вырос',
+    /В остаток они не идут/.test(await p.locator('#scr').innerText()));
+}
+
 await b.close();
 if (errs.length) { console.log(errs.join('\n')); bad += errs.length; }
 console.log(bad ? `✗ ошибок: ${bad}` : '✓ копейки целы, итог месяца записывается одной строкой');
