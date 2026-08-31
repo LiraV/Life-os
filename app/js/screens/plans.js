@@ -8,6 +8,7 @@ import {
   monthKey, monthTitle, dayShort, yearOf, quarterKey, quarterMonths, MONTHS,
 } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, num } from '../ui.js';
+import { gv } from '../gender.js';
 import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
   quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
@@ -244,7 +245,7 @@ function srcPicker(horizon, g) {
   const able = countableFor(horizon);
   if (!able.length) return '';
   const cur = g?.src?.kind || '';
-  const opts = [{ value: '', label: 'отмечаю сама' },
+  const opts = [{ value: '', label: `отмечаю ${gv('сам')}` },
     ...able.map(x => ({ value: x.key, label: `${x.group} · ${x.name}` }))];
   const src = able.find(x => x.key === cur);
   const refs = src?.ref ? src.ref() : [];
@@ -704,7 +705,7 @@ export const actions = {
     const able = countableFor('month');
     // Откуда берётся число: сама отмечаю или считает приложение. Список —
     // всё, что оно уже умеет считать: привычки, занятия, спорт, сферы.
-    const srcOpts = [{ value: '', label: 'отмечаю сама' },
+    const srcOpts = [{ value: '', label: `отмечаю ${gv('сам')}` },
       ...able.map(x => ({ value: x.key, label: `${x.group} · ${x.name}` }))];
     const refBlock = key => {
       const src = able.find(x => x.key === key);

@@ -3,7 +3,7 @@
 
 import { BLOG_PLACES, BLOG_FEEDS, atPlace, isOut } from './blog.js';
 import { FREE_STAGES, isPaid, isLost, isLive, netOf } from './free.js';
-import { BIZ_STAGES } from './biz.js';
+import { BIZ_STAGES, stageName as bizStageName } from './biz.js';
 import { REVIEW_Q, reviewScore, reviewFilled } from './review.js';
 import { S, SPHERES, allSpheres, level, levelFloor, isWater, isMeals, MEALS, energyRec, energyAt, energyOn } from './store.js';
 export { energyRec, energyAt, energyOn };
@@ -11,7 +11,7 @@ import { effects, hasTrait, byId as traitById, nameOf } from './traits.js';
 import { COUNTRIES, countryBy, REGIONS } from './countries.js';
 import { isMale } from './gender.js';
 import { isDoneColumn } from './kanban.js';
-import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek } from './dates.js';
+import { todayISO, addDays, weekDates, weekKey, monthDates, diffDays, dayShort, quarterMonths, addMonths, monthKey, daysInMonth, dowIndex, DOW, startOfWeek, monthIn } from './dates.js';
 
 export const questsOn = date => S.quests[date] || [];
 
@@ -1133,9 +1133,84 @@ export function scheduleMonthCount(sc, ym) {
 
 // ── беседа с Летописцем ─────────────────────────────────────────
 /**
+ * Что происходит в сферах — для беседы с Летописцем. Раньше он видел только
+ * день, цели и привычки и потому не мог ответить ни про работу, ни про деньги,
+ * ни про учёбу: половина жизни была для него невидимой.
+ *
+ * Каждая строка появляется, только если в сфере что-то есть: пустые разделы не
+ * стоит перечислять — это шум, за который ещё и платят по счётчику.
+ */
+function sphereLines(t) {
+  const ym = monthKey(t);
+  const yr = t.slice(0, 4);
+  const out = [];
+
+  const job = jobsNow()[0];
+  if (job) {
+    const wk = workWeek(t);
+    const today = workToday();
+    out.push(`Работа: ${job.name}, за неделю ${wk.hours} ч за ${wk.days} дн.`
+      + (today.length ? ` На сегодня задач: ${today.slice(0, 5).map(x => x.title).join(', ')}.` : ' На сегодня задач нет.'));
+  }
+
+  const stu = studyNow(14);
+  if (stu.open.length || stu.overdue.length) {
+    out.push(`Учёба: в работе ${stu.open.length}`
+      + (stu.overdue.length ? `, просрочено ${stu.overdue.length} (${stu.overdue.slice(0, 3).map(x => x.title).join(', ')})` : '')
+      + (stu.due.length ? `, скоро сдавать ${stu.due.slice(0, 3).map(x => x.title).join(', ')}` : '') + '.');
+  }
+
+  const wo = doneWorkouts({ from: `${ym}-01`, to: `${ym}-31` });
+  if (wo.length) out.push(`Спорт: ${wo.length} ${plural(wo.length, 'тренировка', 'тренировки', 'тренировок')} в этом месяце.`);
+
+  const f = foodSums(t);
+  const waterMl = Math.max(0, Number(S.food.days[t]?.water) || 0);
+  const waterAim = Math.max(1, Number(S.food.targets.water) || 1);
+  if (f.kcal || waterMl) out.push(`Еда сегодня: ${f.kcal} ккал, белок ${f.prot} г. Вода ${waterMl} мл из ${waterAim}.`);
+
+  const sl = sleepAvg(30);
+  if (sl != null) out.push(`Сон: в среднем ${String(sl).replace('.', ',')} ч за 30 ночей при норме ${S.user.sleep}.`);
+
+  const inc = sumBy(ym, 'income'), exp = sumBy(ym, 'expense');
+  if (inc || exp || S.budget.start) {
+    out.push(`Деньги в ${monthIn(ym)}: доход ${Math.round(inc)}, расход ${Math.round(exp)}, остаток ${Math.round(balanceAt(ym))}.`);
+  }
+
+  const posts = blogMonth(ym);
+  if (posts || blogBy('idea').length) {
+    out.push(`Блог: ${posts} ${plural(posts, 'пост', 'поста', 'постов')} за месяц, идей в банке ${blogBy('idea').length}, подписчиков ${subsTotal() ?? 'не отмечено'}.`);
+  }
+
+  const paid = freePaidIn(`${ym}-01`, `${ym}-31`);
+  if (paid.length || freeLive().length) {
+    out.push(`Фриланс: оплачено ${paid.length} за месяц на ${Math.round(freeGross(`${ym}-01`, `${ym}-31`))}, в работе ${freeLive().length}.`);
+  }
+
+  const pr = bizProjects();
+  if (pr.length) out.push(`Моё дело: ${pr.map(x => `${x.name} — ${bizStageName(x.stage)}`).slice(0, 4).join('; ')}.`);
+
+  const reading = booksBy('reading');
+  const doneYear = booksDoneYear(yr);
+  if (reading.length || doneYear.length) {
+    out.push(`Книги: читает ${reading.length ? reading.map(b => b.title).slice(0, 3).join(', ') : 'ничего'}, дочитано за год ${doneYear.length}.`);
+  }
+
+  const cy = countriesInYear(Number(yr));
+  if (cy.length || countriesEver().length) out.push(`Страны: за год ${cy.length}, за жизнь ${countriesEver().length}.`);
+
+  const lessons = liveLessons().filter(l => !l.paused);
+  if (lessons.length) {
+    out.push(`Занятия: ${lessons.map(l => `${l.name} — ${lessonMonth(l, ym)} за месяц`).slice(0, 4).join('; ')}.`);
+  }
+
+  if (inboxCount()) out.push(`В инбоксе ${inboxCount()} неразобранных.`);
+  return out;
+}
+
+/**
  * Выжимка данных для разговора: коротко и по делу. Отправляется наружу,
- * поэтому здесь ровно то, что перечислено в интерфейсе, — без дневника,
- * цикла и КБЖУ.
+ * поэтому здесь ровно то, что перечислено в интерфейсе. Цикл и записи «Внутри»
+ * не уходят никогда; дневник — только по тумблеру в самом чате.
  */
 export function chatDigest() {
   const t = todayISO();
@@ -1158,6 +1233,7 @@ export function chatDigest() {
     `Потребности: ${needs().filter(n => n.value != null).map(n => `${n.name} ${n.value}%`).join(', ') || 'нет данных'}.`,
     roles().filter(r => r.low).length ? `Роли без дела: ${roles().filter(r => r.low).map(r => r.name).join(', ')}.` : '',
     late.length ? `Просрочено в заботе: ${late.map(it => it.name).join(', ')}.` : '',
+    ...sphereLines(t),
   ];
   return lines.filter(Boolean).join('\n');
 }

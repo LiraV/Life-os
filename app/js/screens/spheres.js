@@ -5,6 +5,7 @@ import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken } from '../store.js';
 import { todayISO, addDays, monthKey, monthTitle, monthIn, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, confirmSheet, money } from '../ui.js';
+import { gt } from '../gender.js';
 import { SPHERE_ART, DEFAULT_ART, artSrc } from '../sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, BLOG_FEEDS, placeShort, placeName, PACK, packById, UNPACK, UNPACK_ALL } from '../blog.js';
 import { blogPosts, blogBy, blogMonth, blogYear, blogTotal, blogAhead, viewsMonth, viewsRecord,
@@ -619,7 +620,7 @@ function unpackCard() {
     <div class="card">
       <div class="row between"><div class="caps">Распаковка</div>
         <span class="lab">${q.group}</span></div>
-      <div class="ink">${q.q}</div>
+      <div class="ink">${gt(q.q)}</div>
       <div class="pills">
         <button class="pill" data-act="unpacknext">другой вопрос</button>
         <button class="pill on" data-act="unpacktake">взять в идеи</button>
@@ -1012,7 +1013,8 @@ export const actions = {
   unpacknext: () => update(s2 => { s2.ui.unpack = ((s2.ui.unpack ?? 0) + 1) % UNPACK_ALL.length; }),
   unpacktake: () => {
     const q = UNPACK_ALL[S.ui.unpack ?? 0] || UNPACK_ALL[0];
-    postSheet(null, q.q);
+    // В идею уходит уже склонённый вопрос: там он станет заголовком поста.
+    postSheet(null, gt(q.q));
   },
   unpackall: () => openSheet({
     title: 'Распаковка',

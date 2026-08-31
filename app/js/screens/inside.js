@@ -5,6 +5,7 @@ import { tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, monthTitle, monthIn, weekDates, weekKey } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, closeSheet } from '../ui.js';
+import { gv, gt } from '../gender.js';
 import { reviewOf, reviewWeeks, reviewScoreOf, reviewParts, mondayOf,
   weekStats, needs, roles, questsOn, peakLabel, chatDigest, diaryDigest,
   mindLog, mindMinutes, mindDays, mindMonth, mindMonthMinutes, mindStreakWeek, mindShift } from '../selectors.js';
@@ -103,7 +104,7 @@ function wordsCard(done) {
         <div class="link-row" data-act="rev" data-w="${wk}" style="cursor:pointer; flex-direction:column; align-items:flex-start; gap:2px">
           <span class="lab">${weekLabel(wk)}</span>
           ${REVIEW_OPEN.filter(q => reviewOf(wk).open[q.key]).map(q => raw(h`
-            <span class="ink"><i class="lab">${q.q.toLowerCase()}:</i> ${reviewOf(wk).open[q.key]}</span>`))}
+            <span class="ink"><i class="lab">${gt(q.q).toLowerCase()}:</i> ${reviewOf(wk).open[q.key]}</span>`))}
         </div>`))}
       <div class="lab">Через месяц это читается интереснее, чем баллы.</div>
     </div>`;
@@ -116,11 +117,11 @@ function reviewSheet(wk) {
     title: 'Как прошла неделя',
     sub: weekLabel(wk),
     body: [
-      ...REVIEW_Q.map(q => field.opts(q.key, q.q,
+      ...REVIEW_Q.map(q => field.opts(q.key, gt(q.q),
         REVIEW_SCALE.map(v => ({ value: String(v), label: String(v) })), String(rec.scores?.[q.key] ?? ''))),
       field.note(`Шкала одинаковая у всех вопросов: 1 — «${REVIEW_ENDS[0]}», 5 — «${REVIEW_ENDS[1]}». Больше — лучше, поэтому баллы складываются в одно число.`),
       '<div class="caps" style="margin-top:6px">Своими словами</div>',
-      ...REVIEW_OPEN.map(q => field.area(q.key, q.q, rec.open?.[q.key] || '')),
+      ...REVIEW_OPEN.map(q => field.area(q.key, gt(q.q), rec.open?.[q.key] || '')),
       field.note('Эти три — без шкалы и без счёта: они никуда не считаются, их просто можно перечитать. Пустое поле — это пустое поле, а не ноль.'),
     ].join(''),
     primary: 'Сохранить',
@@ -185,9 +186,11 @@ function chatView() {
           <input type="checkbox" data-change="withdiary" ${S.ui.chatDiary ? 'checked' : ''}>
           Показывать последние записи дневника
         </label>
-        <div class="lab">Уйдёт в OpenAI: твои сообщения, нить беседы и выжимка — квесты, энергия, цели, привычки,
-          потребности, просроченная забота${S.ui.chatDiary ? ', последние пять записей дневника' : ''}.
-          Цикл, КБЖУ и бюджет не отправляются${S.ui.chatDiary ? '' : ', дневник тоже'}.</div>
+        <div class="lab">Уйдёт в OpenAI: твои сообщения, нить беседы и выжимка по всем сферам — день и энергия,
+          цели, привычки, работа, учёба, спорт, еда и сон, деньги, блог, фриланс, своё дело, книги, страны, инбокс.
+          Без этого он не может ответить ни про работу, ни про деньги: половина жизни была бы ему невидима.
+          ${S.ui.chatDiary ? 'И последние пять записей дневника — ты включила это тумблером выше.' : ''}</div>
+        <div class="lab">Не уходит: цикл и записи «Внутри»${S.ui.chatDiary ? '' : ', дневник тоже — пока тумблер выключен'}.</div>
       </div>`)
     : raw(h`
       <div class="card mute">
@@ -294,8 +297,8 @@ function testRun(run) {
     const q = t.questions[step];
     return h`
       ${raw(head)}
-      <div class="title" style="font-size:19px">${q.q}</div>
-      ${q.a.map(([label, key]) => raw(h`<button class="card" style="text-align:left" data-act="answer" data-v="${key}"><div class="ink">${label}</div></button>`))}
+      <div class="title" style="font-size:19px">${gt(q.q)}</div>
+      ${q.a.map(([label, key]) => raw(h`<button class="card" style="text-align:left" data-act="answer" data-v="${key}"><div class="ink">${gt(label)}</div></button>`))}
       <div class="lab" style="text-align:center">без правильных ответов</div>
       <button class="btn-ghost" data-act="cancel">выйти</button>`;
   }
@@ -305,7 +308,7 @@ function testRun(run) {
   return h`
     ${raw(head)}
     ${t.intro ? raw(h`<div class="lab">${t.intro}</div>`) : ''}
-    <div class="title" style="font-size:19px">${item.t}</div>
+    <div class="title" style="font-size:19px">${gt(item.t)}</div>
     <div class="scale">
       ${t.scale.map((label, i) => raw(h`
         <button class="card scale-btn" data-act="answer" data-v="${i + 1}">
@@ -596,7 +599,7 @@ function runSheet(p, minutes, before) {
        </div>`,
       `<div class="row between"><span class="lab" id="m_left">${minutes}:00</span>
          <span class="lab" id="m_hint">${isBreath ? 'дыши за кругом' : ''}</span></div>`,
-      field.note('Закончить можно в любой момент — записанным будет то, что успела.'),
+      field.note(`Закончить можно в любой момент — записанным будет то, что ${gv('успел')}.`),
     ].join(''),
     primary: 'Закончить',
     onSave: (_v, close) => {

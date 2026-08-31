@@ -8,6 +8,7 @@ import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, updateQuiet, uid, XP, addXp } from '../store.js';
 import { todayISO, yearOf } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet } from '../ui.js';
+import { gv } from '../gender.js';
 import { COUNTRIES, flagOf, countryName, searchCountries, REGIONS } from '../countries.js';
 import { visits, countriesEver, countriesInYear, regionsEver, travelYears, COUNTRY_TOTAL } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
@@ -106,7 +107,7 @@ function foundList() {
     + (found.length ? h`<div class="list">${found.map(c => raw(h`
         <button class="link-row" data-act="mark" data-v="${c.code}">
           <span class="ink grow">${flagOf(c.code)} ${c.name}</span>
-          <span class="lab">${been.has(c.code) ? 'уже была · ещё раз' : c.region} ›</span>
+          <span class="lab">${been.has(c.code) ? `уже ${gv('был')} · ещё раз` : c.region} ›</span>
         </button>`))}</div>` : '')
     + (!q ? h`<div class="lab">Отмечу текущим годом — ${year()}. Год и заметку можно поправить, тапнув по стране.</div>` : '');
 }

@@ -221,7 +221,7 @@ function suggestSheet() {
     primary: 'Добавить выбранное',
     onSave: (v, close) => {
       const picked = list.filter(x => v['c' + x.i]);
-      if (!picked.length) { close(); return toast('Ничего не добавила'); }
+      if (!picked.length) { close(); return toast(`Ничего не ${gv('добавил')}`); }
       update(s => {
         picked.forEach(x => s.care.items.push({
           id: uid(), name: x.name, group: x.group, every: x.every,
@@ -246,7 +246,7 @@ function itemSheet(item, group) {
       field.select('group', 'Куда отнести', CARE_GROUPS.map(g => ({ value: g.key, label: g.name })), it.group),
       field.select('every', 'Как часто', EVERY, String(it.every)),
       it.link === 'measure'
-        ? field.note('Отметка берётся из раздела «Тело»: записала замеры — дело закрылось само, отдельно отмечать не нужно.')
+        ? field.note(`Отметка берётся из раздела «Тело»: ${gv('записал')} замеры — дело закрылось само, отдельно отмечать не нужно.`)
         : field.date('last', 'Когда делала в последний раз', it.last || ''),
       field.select('anchor', 'Если ни разу не отмечено — с какого месяца считать',
         [{ value: '0', label: 'считать сразу' }, ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))], String(it.anchor || 0)),

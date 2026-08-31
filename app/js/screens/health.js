@@ -8,7 +8,7 @@ import { todayISO, addDays, dayShort, diffDays, monthKey, addMonths, monthTitle,
 import { h, raw, field, bar, toast, openSheet, confirmSheet } from '../ui.js';
 import { cycleInfo, periodBlocks, measureDeltas, formSummary, proteinHint, bmi, build, energyNeed, waistRisk, age,
   sleepAvg, sleepMarks, bodyRows, bodyMetrics, measureVal, BODY_CORE } from '../selectors.js';
-import { g } from '../gender.js';
+import { g, gv } from '../gender.js';
 
 const sign = n => n == null ? '' : n > 0 ? `+${n}` : `${n}`;
 const fmt = (v, unit) => v == null || v === '' ? '—' : `${v} ${unit}`;
@@ -405,7 +405,7 @@ export const actions = {
         field.date('date', 'Когда', todayISO()),
         ...bodyRows().map(r => field.number(r.key, r.name, '', { min: 0, suffix: r.unit })),
         last ? field.note(`Прошлый раз: ${bodyRows().map(r => (measureVal(last, r.key) != null ? `${r.name.toLowerCase()} ${measureVal(last, r.key)} ${r.unit}` : null)).filter(Boolean).join(' · ') || 'ничего не заполнено'}`) : '',
-        field.note('Мерок ровно столько, сколько ты завела: список правится кнопкой «Что мерить». Вес и талия нужны формулам — ИМТ и порогу ВОЗ, — поэтому они есть всегда.'),
+        field.note(`Мерок ровно столько, сколько ты ${gv('завёл')}: список правится кнопкой «Что мерить». Вес и талия нужны формулам — ИМТ и порогу ВОЗ, — поэтому они есть всегда.`),
       ].join(''),
       primary: 'Сохранить · +5 XP',
       onSave: (v, close) => {
