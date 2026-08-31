@@ -260,7 +260,7 @@ function avatarSheet(back) {
     body: h`
       <div class="av-grid">
         <button class="av-pick ${cur === '' ? 'on' : ''}" data-act="pick" data-v="" aria-label="Буква имени">
-          ${raw(avatarHtml({ ...S.user, avatar: '' }, 58))}
+          <span class="av-letter">${(S.user.name || '?').trim().charAt(0).toUpperCase()}</span>
         </button>
         ${AVATARS.map((id, i) => raw(h`
           <button class="av-pick ${cur === id ? 'on' : ''}" data-act="pick" data-v="${id}" aria-label="Аватар ${i + 1}">

@@ -9,6 +9,8 @@ const p = await ctx.newPage();
 const errs = []; p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
 p.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_/.test(m.text())) errs.push('CONSOLE: ' + m.text()); });
 p.on('response', r => { if (r.url().includes('/avatars/') && !r.ok()) errs.push('404: ' + r.url()); });
+let bad = 0;
+const ok = (n, c, extra = '') => { if (!c) bad++; console.log(`${c ? '✓' : '✗'} ${n}${extra ? ' — ' + extra : ''}`); };
 const st = () => p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')));
 
 await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
@@ -68,4 +70,28 @@ console.log('   всего портретов:', (await p.evaluate(async () => (
 console.log('ошибки:', errs.length ? errs : 'нет');
 await p.locator('[data-act="avatar"]').first().click(); await p.waitForTimeout(900);
 await p.screenshot({ path: 'avatar.png' });
+// ── набор портретов сменился, прежний выбор не пропал ───────────
+// Прежние аватарки резали слишком плотно, и круглая маска срезала макушки.
+// Новый набор нарезан с полями и лежит под своими именами: перенумеровать
+// старые значило бы подменить человеку лицо втихую.
+{
+  const list = await p.evaluate(async () => {
+    const a = await import('/app/js/avatars.js');
+    return { набор: a.AVATARS, старыйОткрывается: a.avatarSrc('a17'), новыйОткрывается: a.avatarSrc('b7'),
+      чужойНет: a.avatarSrc('b99') };
+  });
+  ok('в выборе — новый набор', list.набор.length === 40 && list.набор[0] === 'b1', list.набор.slice(0, 3).join(','));
+  ok('прежде выбранный портрет по-прежнему открывается', list.старыйОткрывается === 'assets/avatars/a17.webp', list.старыйОткрывается);
+  ok('новый открывается', list.новыйОткрывается === 'assets/avatars/b7.webp', list.новыйОткрывается);
+  ok('несуществующий не выдумывается', list.чужойНет === '', JSON.stringify(list.чужойНет));
+
+  // Предыдущая часть могла оставить шторку открытой — она перехватывает нажатия.
+  await p.evaluate(async () => { (await import('/app/js/ui.js')).closeSheet(); });
+  await p.evaluate(() => { location.hash = '#/me'; }); await p.waitForTimeout(600);
+  await p.locator('.avatar').first().click(); await p.waitForTimeout(1500);
+  const broken = await p.evaluate(() => [...document.querySelectorAll('.av-pick img')].filter(i => !i.naturalWidth).length);
+  ok('все портреты в выборе загрузились', broken === 0, String(broken));
+  await p.locator('[data-sheet="secondary"], [data-sheet="save"]').first().click().catch(() => {});
+}
+
 await b.close();

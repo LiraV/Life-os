@@ -356,6 +356,11 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
   border:2px solid transparent; line-height:0}
 .av-pick.on{border-color:var(--accent)}
 .av-pick img{width:100%; aspect-ratio:1; border-radius:99px; object-fit:cover; background:var(--track); display:block}
+/* Кружок с буквой — того же размера, что портреты: заданный в пикселях, он
+   болтался мелкой точкой среди больших лиц. */
+.av-letter{width:100%; aspect-ratio:1; border-radius:99px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(160deg,var(--deep),var(--warm)); color:var(--on-accent);
+  font-family:Prata,serif; font-size:clamp(18px,6vw,32px)}
 .av-row{width:100%; gap:9px; padding:9px 2px; border-top:1px solid var(--track); border-bottom:1px solid var(--track)}
 .drawer button.item{text-align:left; font-size:13.5px; color:var(--ink); padding:10px 12px; border-radius:14px; border:1.5px solid transparent}
 .drawer button.item.on{border-color:var(--line); background:var(--soft)}
