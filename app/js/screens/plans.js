@@ -438,9 +438,18 @@ function periodOptions(horizon, current) {
 }
 
 /** Кандидаты в родители: цель может вести только к более крупному горизонту. */
-function parentOptions(horizon, selfId) {
-  const bigger = horizon === 'month' ? ['quarter', 'year'] : horizon === 'quarter' ? ['year'] : [];
-  const list = liveGoals().filter(g => bigger.includes(g.horizon) && g.id !== selfId);
+/**
+ * Куда цель может вести. Только вверх и только **в свой же период**: цель
+ * сентября ведёт к третьему кварталу и к этому году, а не к прошлогоднему.
+ * Раньше предлагались все цели больших горизонтов подряд, и в списке из
+ * десятка кварталов было легко привязаться не туда — а прогресс потом уходил
+ * не в ту сторону.
+ */
+function parentOptions(horizon, period, selfId) {
+  const above = horizon === 'month'
+    ? { quarter: quarterKey(period), year: period.slice(0, 4) }
+    : horizon === 'quarter' ? { year: period.slice(0, 4) } : {};
+  const list = liveGoals().filter(g => above[g.horizon] === g.period && g.id !== selfId);
   return [{ value: '', label: 'ни к чему' }, ...list.map(g => ({ value: g.id, label: `${g.title} · ${periodLabel(g)}` }))];
 }
 
@@ -482,7 +491,7 @@ function goalSheet(goal, preset) {
       field.text('title', 'Цель', g.title, 'например, «Сдать главу 2»'),
       field.opts('horizon', 'Горизонт', Object.entries(HORIZONS).map(([value, label]) => ({ value, label })), horizon0),
       field.select('period', 'Период', periodOptions(horizon0, period0), period0),
-      field.select('parentId', 'Ведёт к', parentOptions(horizon0, g.id), g.parentId || ''),
+      field.select('parentId', 'Ведёт к', parentOptions(horizon0, period0, g.id), g.parentId || ''),
       // Намерение — не родитель: прогресс по этой связи никуда не поднимается.
       // Она про «ради чего», и потому доступна и цели со счётчиком, и обычной.
       horizon0 === 'month' ? intentField(period0, g.intentId || '') : '',
@@ -559,13 +568,19 @@ function goalSheet(goal, preset) {
     },
   });
 
+  let hzNow = horizon0;
+
   // Смена источника перестраивает уточнение: у каждого счёта оно своё.
+  // Смена периода — список «ведёт к»: цель сентября не ведёт к прошлому году.
   wrap.addEventListener('change', e => {
     if (e.target?.name === 'kind') redrawRef(e.target.value);
+    if (e.target?.name === 'period') {
+      const par = wrap.querySelector('select[name="parentId"]');
+      if (par) par.innerHTML = selectHTML(parentOptions(hzNow, e.target.value, g.id), par.value);
+    }
   });
 
   // Смена горизонта перестраивает зависимые списки: период и «ведёт к».
-  let hzNow = horizon0;
   wrap.addEventListener('opt', e => {
     if (e.target.dataset.name !== 'horizon') return;
     const hz = e.detail;
@@ -574,7 +589,8 @@ function goalSheet(goal, preset) {
     const want = convertPeriod(per.value, hzNow, hz);
     const opts = periodOptions(hz, want);
     per.innerHTML = selectHTML(opts, opts.some(o => o.value === want) ? want : opts[0].value);
-    par.innerHTML = selectHTML(parentOptions(hz, g.id), par.value);
+    // Период мог смениться вместе с горизонтом — родителей берём под новый.
+    par.innerHTML = selectHTML(parentOptions(hz, per.value, g.id), par.value);
     wrap.querySelector('.sheet-title').textContent = isNew ? `Новая цель · ${HORIZONS[hz].toLowerCase()}` : 'Цель';
     hzNow = hz;
   });

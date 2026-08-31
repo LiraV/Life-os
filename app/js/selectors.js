@@ -1448,6 +1448,15 @@ export function periodRange(horizon, period) {
 }
 
 const inRange = (d, r) => !!d && d >= r.from && d <= r.to;
+
+/** Месяцы, которые задевает отрезок: значения трекера ведутся помесячно.
+ *  Имя не monthsBetween — та ниже считает их количество, а не перечисляет. */
+function monthKeysIn(from, to) {
+  const out = [];
+  for (let ym = from.slice(0, 7); ym <= to.slice(0, 7); ym = addMonths(ym, 1)) out.push(ym);
+  return out;
+}
+
 const doneWorkouts = r => S.sport.workouts.filter(w => w.done && !w.measure && inRange(w.date, r));
 
 /**
@@ -1557,7 +1566,10 @@ export const SOURCES = {
     // «Пройти модуль». Уроки внутри модуля дат не имеют, поэтому счёт за
     // всё время: срок у такой цели — когда хочется дойти, а не окно.
     sphere: 'edu', name: 'Пройти модуль', unit: 'уроков', horizons: ['year', 'quarter', 'month'], lifetime: true,
-    ref: () => liveLessons().flatMap(l => (l.items || []).map(m => ({ value: m.id, label: `${l.name} · ${m.title}` }))),
+    // Пройденный модуль в списке не нужен: цель на него ничего не изменит.
+    ref: () => liveLessons().flatMap(l => (l.items || [])
+      .filter(m => ((m.lessons || []).length ? !m.lessons.every(x => x.done) : !m.done))
+      .map(m => ({ value: m.id, label: `${l.name} · ${m.title}` }))),
     refName: id => {
       const found = moduleById(id);
       return found ? `${found.lesson.name} · ${found.module.title}` : '';
@@ -1570,6 +1582,31 @@ export const SOURCES = {
       if (!m) return 0;
       return (m.lessons || []).length ? m.lessons.filter(x => x.done).length : (m.done ? 1 : 0);
     },
+  },
+  studyTask: {
+    // «Сдать вот этот этап». Срок у такой цели — когда хочется дойти, а не
+    // окно счёта: этап сдают один раз, и в начале квартала он не сбрасывается.
+    sphere: 'study', name: 'Сдать этап', unit: 'этапов', horizons: ['year', 'quarter', 'month'], lifetime: true,
+    // Предлагаем только несданное: ставить цель на уже закрытое незачем.
+    ref: () => S.study.tasks.filter(x => x.stage !== 'done')
+      .map(x => ({ value: x.id, label: `${x.title} · ${taskSubject(x).name}` })),
+    refName: id => {
+      const x = S.study.tasks.find(y => y.id === id);
+      return x ? `${x.title} · ${taskSubject(x).name}` : '';
+    },
+    suggest: () => 1,
+    count: ref => (S.study.tasks.find(x => x.id === ref)?.stage === 'done' ? 1 : 0),
+  },
+  trackerRow: {
+    // Свои строки трекера: человек ведёт там что угодно своими руками, и цель
+    // на это должна ставиться так же, как на всё остальное.
+    sphere: 'tracker', group: 'Трекер года', name: 'Своя строка трекера', unit: '',
+    horizons: ['year', 'quarter', 'month'],
+    ref: () => (S.tracker.rows || []).map(r => ({ value: r.id, label: r.name })),
+    refName: id => (S.tracker.rows || []).find(r => r.id === id)?.name || '',
+    unitOf: id => (S.tracker.rows || []).find(r => r.id === id)?.unit || '',
+    count: (ref, r) => monthKeysIn(r.from, r.to)
+      .reduce((a, ym) => a + (Number(S.tracker.values?.[ref]?.[ym]) || 0), 0),
   },
   studyDone: {
     sphere: 'study', name: 'Этапов сдано', unit: 'этапов', horizons: ['year', 'quarter', 'month'],
@@ -1587,7 +1624,10 @@ export const SOURCES = {
   },
   courseAll: {
     sphere: 'edu', name: 'Пройти курс', unit: 'модулей', horizons: ['year', 'quarter', 'month'], lifetime: true,
-    ref: () => liveLessons().filter(l => (l.items || []).length).map(l => ({ value: l.id, label: l.name })),
+    ref: () => liveLessons()
+      .filter(l => (l.items || []).length)
+      .filter(l => !l.items.every(m => ((m.lessons || []).length ? m.lessons.every(x => x.done) : m.done)))
+      .map(l => ({ value: l.id, label: l.name })),
     refName: id => liveLessons().find(l => l.id === id)?.name || '',
     suggest: id => (liveLessons().find(l => l.id === id)?.items || []).length || 1,
     count: ref => {

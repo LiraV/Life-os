@@ -49,7 +49,10 @@ const calc = await p.evaluate(async m => {
     подпись: S.SOURCES.studyDone.refName('sb1'),
   };
 }, ym);
-ok('в учёбе появились оба счёта', calc.keys.join(',') === 'studyDone,studyAttend', calc.keys.join(','));
+// Список счётов растёт — проверяем наличие, а не точный состав: иначе каждый
+// новый источник ломает проверку, которая про другое.
+ok('в учёбе есть счёт сданного и посещённого',
+  ['studyDone', 'studyAttend'].every(k => calc.keys.includes(k)), calc.keys.join(','));
 ok('сданное считается по датам', calc.все === 3, String(calc.все));
 ok('сданное без даты в счёт не идёт', calc.все === 3 && calc.диплом === 2, `${calc.все}/${calc.диплом}`);
 ok('пары считаются по журналу', calc.пары === 3 && calc.парыДиплом === 2, `${calc.пары}/${calc.парыДиплом}`);
