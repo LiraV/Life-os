@@ -30,7 +30,13 @@ ok('отметка дня переехала под место', s.work.days['20
 ok('и заметка не потерялась', s.work.days['2026-08-24'][jid].note === 'до миграции');
 
 // ── чистое состояние для остального
-await p.evaluate(() => localStorage.removeItem('lifeos.state'));
+// Копии убираем вместе с сохранением: иначе это уже не «новый человек», а
+// «данные потерялись», и приложение справедливо спросит, а не начнёт молча.
+await p.evaluate(() => (() => {
+  localStorage.removeItem('lifeos.state');
+  localStorage.removeItem('lifeos.state.prev');
+  localStorage.removeItem('lifeos.state.rescue');
+})());
 await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' }); await p.waitForTimeout(700);
 await p.getByText('пропустить онбординг').click(); await p.waitForTimeout(400);
 await p.evaluate(async () => {

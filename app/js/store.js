@@ -1100,16 +1100,47 @@ let saveBlocked = false;
  * говорит вслух, а не делает вид, что всё хорошо.
  */
 export let loadError = null;
+/** Сохранения нет, но копия рядом есть. Ничего не пишем, пока человек не решил. */
+export let dataLost = false;
 export const rescueRaw = () => { try { return localStorage.getItem(RESCUE); } catch { return null; } };
 /** Состояние до последней смены формата — на случай, если новая что-то потеряла. */
 export const prevRaw = () => { try { return localStorage.getItem(PREV); } catch { return null; } };
 export const dropRescue = () => { try { localStorage.removeItem(RESCUE); } catch {} };
 
+/** Вернуть отложенную копию. Единственный путь наружу из «данные потерялись». */
+export function restoreCopy() {
+  const raw = prevRaw() || rescueRaw();
+  if (!raw) throw new Error('копии нет');
+  const parsed = JSON.parse(raw);
+  dataLost = false;
+  saveBlocked = false;
+  adoptState(parsed);
+}
+
+/** Согласиться начать заново: копию не трогаем, она ещё может пригодиться. */
+export function acceptEmpty() {
+  dataLost = false;
+  saveBlocked = false;
+  save();
+}
+
 function load() {
   let raw = null;
   try { raw = localStorage.getItem(KEY); } catch { /* хранилище недоступно */ }
-  // Через migrate проходит и чистое состояние: там же заводятся статьи бюджета.
-  if (!raw) { needsRewrite = true; return migrate(blank()); }
+  if (!raw) {
+    // Сохранения нет, а отложенная копия рядом лежит — значит, это не новый
+    // человек, а потерянные данные: очистили браузер, сбросилось хранилище.
+    // Молча завести пустое состояние и записать его поверх — худшее, что тут
+    // можно сделать: человек увидит чистый лист и решит, что всё пропало.
+    if (prevRaw() || rescueRaw()) {
+      dataLost = true;
+      needsRewrite = false;
+      saveBlocked = true;
+      return migrate(blank());
+    }
+    needsRewrite = true;
+    return migrate(blank());
+  }
   try {
     const parsed = JSON.parse(raw);
     if (parsed.v !== VERSION) {

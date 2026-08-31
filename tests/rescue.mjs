@@ -50,7 +50,13 @@ const s = await p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')
 ok('целые данные прошлой версии не теряются', s.user.name === 'Лера' && s.user.xp === 952 && s.diary.length === 1);
 // Текущую версию спрашиваем у самого приложения: тест про сохранность
 // данных не должен ломаться от каждого обновления формата.
-await p.evaluate(() => localStorage.removeItem('lifeos.state'));
+// Копии убираем вместе с сохранением: иначе это уже не «новый человек», а
+// «данные потерялись», и приложение справедливо спросит, а не начнёт молча.
+await p.evaluate(() => {
+  localStorage.removeItem('lifeos.state');
+  localStorage.removeItem('lifeos.state.prev');
+  localStorage.removeItem('lifeos.state.rescue');
+});
 await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
 await p.waitForTimeout(700);
 const fresh = await p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')).v);

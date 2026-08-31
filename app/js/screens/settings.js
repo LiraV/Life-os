@@ -49,6 +49,7 @@ function syncCard() {
       <div class="ink">Телефон и ноутбук на одних данных.</div>
       <div class="lab" style="margin-top:6px">Всё, что уже записано здесь, при входе никуда не денется:
         оно сольётся с тем, что в облаке, а не заменится им.</div>
+      <div class="lab">От входа зависит и ИИ: ключ OpenAI может лежать в облаке, и тогда он один на все устройства.</div>
       <button class="add" data-act="signin">Войти через Яндекс</button>
     </div>`;
   }
@@ -115,6 +116,8 @@ export function render() {
         <button class="add" data-act="aikey">Изменить</button>`)
       : raw(h`
         <div class="ink">Ключ не задан. Без него работают все экраны, кроме оценки фото и свободных вопросов Летописцу.</div>
+        ${configured() && !signedIn() ? raw(h`<div class="lab" style="margin-top:6px">Если ключ лежит в облаке,
+          он включится сам после входа — тогда вводить его здесь не нужно.</div>`) : ''}
         <button class="add" data-act="aikey">Добавить ключ OpenAI</button>`)}
       <div class="lab">Запросы идут с этого устройства прямо в OpenAI и оплачиваются по твоему счёту —
         на platform.openai.com стоит выставить месячный лимит.</div>

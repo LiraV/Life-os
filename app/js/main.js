@@ -1,7 +1,7 @@
 // Роутер и оболочка: рисует активный экран, нижний бар и drawer,
 // раздаёт клики экрану через data-act.
 
-import { S, SPHERES, visibleSpheres, onChange, update, updateQuiet, level, loadError, rescueRaw, acceptFreshStart } from './store.js';
+import { S, SPHERES, visibleSpheres, onChange, update, updateQuiet, level, loadError, rescueRaw, prevRaw, acceptFreshStart, dataLost, restoreCopy, acceptEmpty } from './store.js';
 import { todayISO } from './dates.js';
 import { go, route, markStep, startHere } from './nav.js';
 import { consumeRedirect, onCloud, pushSoon, pullIfStale, signedIn } from './cloud.js';
@@ -129,6 +129,48 @@ function renderRescue() {
       acceptFreshStart();
       location.reload();
     }
+  };
+}
+
+/**
+ * Данные потерялись, но копия рядом есть. Отдельный экран, а не тост: чистый
+ * лист вместо своей жизни человек прочитает как «всё пропало», и никакие
+ * подписи в настройках он в эту минуту искать не пойдёт. Ничего не пишем на
+ * диск, пока он не решил, — копия важнее удобства.
+ */
+function renderLost() {
+  nav.hidden = true;
+  scr.innerHTML = `
+    <div class="title">Данные не нашлись</div>
+    <div class="card">
+      <div class="ink">Сохранения на этом устройстве нет — похоже, браузер очистил данные сайта.
+        Но рядом лежит отложенная копия, и пока ты не решишь, приложение ничего не записывает.</div>
+      <div class="lab" style="margin-top:8px">Если включена синхронизация, всё есть и в облаке:
+        можно начать заново и войти — данные приедут оттуда.</div>
+      <button class="btn" data-lost="restore">Вернуть из копии</button>
+      <button class="btn-ghost" data-lost="save">Сначала скачать копию файлом</button>
+      <button class="btn-ghost" data-lost="fresh">Начать заново — копию сохранить</button>
+    </div>`;
+  scr.onclick = e => {
+    const b = e.target.closest('[data-lost]');
+    if (!b) return;
+    if (b.dataset.lost === 'save') {
+      const raw = prevRaw() || rescueRaw();
+      if (!raw) return toast('Копии нет');
+      const a2 = document.createElement('a');
+      a2.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+      a2.download = `life-os-copy-${todayISO()}.json`;
+      a2.click();
+      URL.revokeObjectURL(a2.href);
+      toast('Копия скачана');
+      return;
+    }
+    if (b.dataset.lost === 'restore') {
+      try { restoreCopy(); toast('Вернула'); } catch (err) { toast('Не вышло: ' + err.message); }
+      return;
+    }
+    acceptEmpty();
+    render();
   };
 }
 
@@ -296,6 +338,8 @@ export function render() {
   // Сначала — не удалось ли прочитать данные. Иначе человека встретит
   // онбординг поверх целых, но непрочитанных данных: выглядит как «всё стёрлось».
   if (loadError) return renderRescue();
+  // Данных нет, но копия рядом: спрашиваем, а не заводим чистый лист молча.
+  if (dataLost) return renderLost();
   // Режим ноутбука — до всего остального: онбординг тоже экран, и он оставался
   // телефонной колонкой посреди широкого окна.
   applyTheme();

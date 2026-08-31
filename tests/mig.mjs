@@ -16,7 +16,13 @@ p.on('pageerror', e => errs.push(e.message));
 await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
 // Текущую версию спрашиваем у самого приложения: иначе тест ломается
 // от каждого обновления формата, хотя проверяет он не номер.
-await p.evaluate(() => localStorage.removeItem('lifeos.state'));
+// Копии убираем вместе с сохранением: иначе это уже не «новый человек», а
+// «данные потерялись», и приложение справедливо спросит, а не начнёт молча.
+await p.evaluate(() => (() => {
+  localStorage.removeItem('lifeos.state');
+  localStorage.removeItem('lifeos.state.prev');
+  localStorage.removeItem('lifeos.state.rescue');
+})());
 await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
 await p.waitForTimeout(400);
 const NOW = await p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')).v);

@@ -79,6 +79,28 @@ ok('незнакомая модель остаётся выбранной, а н
   await p.locator('.sheet select[name="model"]').inputValue() === 'своя-особая-модель',
   await p.locator('.sheet select[name="model"]').inputValue());
 
+// ── без входа сказано, что вход может включить ИИ сам ───────────
+{
+  const ctx2 = await b.newContext({ serviceWorkers: 'block', locale: 'ru-RU', ...devices['iPhone 13'] });
+  await ctx2.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  const p2 = await ctx2.newPage();
+  await p2.route('**/app/js/cloud-config.js', route => route.fulfill({
+    status: 200, contentType: 'application/javascript',
+    body: "export const CLOUD = { api: 'https://фейк.apigw.yandexcloud.net', clientId: 'test' };\nexport const cloudReady = () => true;\n",
+  }));
+  await p2.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
+  await p2.waitForTimeout(700);
+  await p2.getByText('пропустить онбординг').click(); await p2.waitForTimeout(500);
+  await p2.evaluate(() => { const s = JSON.parse(localStorage.getItem('lifeos.state')); s.ui.tips = 'off'; localStorage.setItem('lifeos.state', JSON.stringify(s)); location.reload(); });
+  await p2.waitForTimeout(800);
+  await p2.evaluate(() => { location.hash = '#/settings'; }); await p2.waitForTimeout(500);
+  const t2 = await p2.locator('#scr').innerText();
+  ok('без входа сказано, что ключ может включиться сам', /включится сам после входа/i.test(t2),
+    (t2.match(/.{0,30}после входа.{0,20}/) || [''])[0]);
+  ok('и в синхронизации сказано, что от входа зависит ИИ', /От входа зависит и ИИ/i.test(t2));
+  await ctx2.close();
+}
+
 await b.close();
 if (errs.length) { console.log(errs.join('\n')); bad += errs.length; }
 console.log(bad ? `✗ ошибок: ${bad}` : '✓ выбор модели и текст про данные в порядке');
