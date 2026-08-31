@@ -156,7 +156,7 @@ function jobToday(j, t) {
       </div>
       ${rec ? raw(h`
         <div class="ink"><b>${typeName(rec.type)}</b>${rec.type === 'work'
-          ? `<span class="lab"> · ${hrs(rec.hours)} · ${rec.where === 'office' ? 'в офисе' : 'из дома'}</span>` : ''}</div>
+          ? raw(h`<span class="lab"> · ${hrs(rec.hours)} · ${rec.where === 'office' ? 'в офисе' : 'из дома'}</span>`) : ''}</div>
         <button class="q-edit" data-act="mark" data-d="${t}" data-j="${j.id}">изменить ›</button>`)
         : raw(h`
         <div class="lab">Не отмечено. Норма дня — ${hrs(jobDayNorm(j))}.</div>

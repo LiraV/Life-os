@@ -515,8 +515,10 @@ export const actions = {
         if (!t) return;
         name = t.title;
         // Возвращаем в работу, только если этот день не держит другой связанный квест.
-        if (flipped.done) t.stage = 'done';
-        else if (!(s.quests[date] || []).some(x => x.done && x.studyId === flipped.studyId)) t.stage = 'draft';
+        if (flipped.done) { t.stage = 'done'; t.doneAt = t.doneAt || date; }
+        else if (!(s.quests[date] || []).some(x => x.done && x.studyId === flipped.studyId)) {
+          t.stage = 'draft'; t.doneAt = '';
+        }
         touchTracker(s);
       });
       if (name) toast(flipped.done ? `${name} · сдано` : `${name} · снова в работе`);

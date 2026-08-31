@@ -420,6 +420,20 @@ export const livePlaces = () => S.study.places;
 export const liveSubjects = () => S.study.subjects.filter(x => !x.archived);
 export const subjectsOf = placeId => liveSubjects().filter(x => x.placeId === placeId);
 export const subjectById = id => S.study.subjects.find(x => x.id === id);
+
+/** Этапы, сданные в отрезке. Без даты сдачи этап в счёт не идёт: когда его
+ *  сдали, мы не знаем, а выдумывать дату — врать в счёт цели. */
+export const studyDoneIn = (from, to, subjectId = '') => S.study.tasks
+  .filter(x => x.stage === 'done' && x.doneAt && x.doneAt >= from && x.doneAt <= to)
+  .filter(x => !subjectId || x.subjectId === subjectId);
+
+/** Отмеченные пары в отрезке — по журналу посещений расписания. */
+export const studyAttendIn = (from, to, subjectId = '') => {
+  const box = S.study.attend || {};
+  const keys = subjectId ? [subjectId] : Object.keys(box);
+  return keys.reduce((n, k) => n + Object.keys(box[k] || {})
+    .filter(d => box[k][d] && d >= from && d <= to).length, 0);
+};
 export const tasksOf = subjectId => S.study.tasks.filter(t => t.subjectId === subjectId);
 
 /** Этапы живых предметов — доска показывает только их. */
@@ -1556,6 +1570,20 @@ export const SOURCES = {
       if (!m) return 0;
       return (m.lessons || []).length ? m.lessons.filter(x => x.done).length : (m.done ? 1 : 0);
     },
+  },
+  studyDone: {
+    sphere: 'study', name: 'Этапов сдано', unit: 'этапов', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'по всем предметам' },
+      ...liveSubjects().map(x => ({ value: x.id, label: x.name }))],
+    refName: id => liveSubjects().find(x => x.id === id)?.name || 'по всем предметам',
+    count: (ref, r) => studyDoneIn(r.from, r.to, ref).length,
+  },
+  studyAttend: {
+    sphere: 'study', name: 'Пар посещено', unit: 'пар', horizons: ['year', 'quarter', 'month'],
+    ref: () => [{ value: '', label: 'по всем предметам' },
+      ...liveSubjects().map(x => ({ value: x.id, label: x.name }))],
+    refName: id => liveSubjects().find(x => x.id === id)?.name || 'по всем предметам',
+    count: (ref, r) => studyAttendIn(r.from, r.to, ref),
   },
   courseAll: {
     sphere: 'edu', name: 'Пройти курс', unit: 'модулей', horizons: ['year', 'quarter', 'month'], lifetime: true,

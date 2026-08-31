@@ -218,7 +218,7 @@ export function blank() {
     study: {                                             // учёба: заведения → предметы → этапы
       places: [],                                        // { id, name, note }
       subjects: [],                                      // { id, placeId, name, teacher, from, to, grade, archived }
-      tasks: [],                                         // { id, subjectId, title, stage, stageAt, due, note }
+      tasks: [],                                         // { id, subjectId, title, stage, stageAt, doneAt, due, note }
       attend: {},                                        // посещения по расписанию: { предмет: { дата: 1 } }
     },
     budget: {                                            // бюджет: статьи, план по месяцам, операции, копилки
@@ -553,7 +553,10 @@ export function migrate(s) {
   merged.study = {
     places: Array.isArray(stu.places) ? stu.places : [],
     subjects: Array.isArray(stu.subjects) ? stu.subjects : [],
-    tasks: (Array.isArray(stu.tasks) ? stu.tasks : []).map(t => ({ ...t, stage: t.stage || 'todo' })),
+    // doneAt старым заданиям не выдумываем: когда их сдали, мы не знаем, и
+    // подставить «сегодня» значило бы записать неправду в счёт целей.
+    tasks: (Array.isArray(stu.tasks) ? stu.tasks : [])
+      .map(t => ({ ...t, stage: t.stage || 'todo', doneAt: typeof t.doneAt === 'string' ? t.doneAt : '' })),
     // Посещения по расписанию: { предмет: { 'YYYY-MM-DD': 1 } }
     attend: stu.attend && typeof stu.attend === 'object' ? stu.attend : {},
   };

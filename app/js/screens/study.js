@@ -218,6 +218,11 @@ export function taskSheet(task, subjectId) {
           due: v.due || '', note: (v.note || '').trim(),
           // Отсчёт ожидания начинается в момент отправки, а не при любой правке.
           stageAt: stage === 'sent' && (!prev || prev.stage !== 'sent') ? todayISO() : (prev?.stageAt || t.stageAt || null),
+          // Когда сдано — отдельно от «когда отправлено»: по этой дате считается
+          // цель «столько-то этапов за месяц». Ушло из «Сдано» — дата уходит с ним.
+          doneAt: stage === 'done'
+            ? ((prev?.stage === 'done' && prev.doneAt) || t.doneAt || todayISO())
+            : '',
         };
         const i = s.study.tasks.findIndex(x => x.id === t.id);
         if (i >= 0) s.study.tasks[i] = next; else s.study.tasks.push(next);
