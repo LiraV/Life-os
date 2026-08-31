@@ -5179,6 +5179,7 @@
      "kind": "income",
      "sum": 500,
      "date": "2026-08-01",
+     "bulk": false,
      "cur": "RUB",
      "order": 0,
      "createdAt": "когда-то",

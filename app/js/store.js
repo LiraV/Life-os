@@ -224,7 +224,7 @@ export function blank() {
     budget: {                                            // бюджет: статьи, план по месяцам, операции, копилки
       cats: { expense: [], income: [] },
       plans: {},                                         // { 'YYYY-MM': { expense: { id: сумма }, income: {...} } }
-      ops: [],                                           // { id, date, kind: 'expense'|'income'|'save', catId, vaultId, sum, note }
+      ops: [],                                           // { id, date, kind: 'expense'|'income'|'save', catId, vaultId, sum, cur, bulk, note }
       vaults: [],                                        // { id, name, start }
       rules: [],
       start: 0,                                          // баланс, с которого начинается учёт
@@ -585,7 +585,9 @@ export function migrate(s) {
       income: Array.isArray(b.cats?.income) ? b.cats.income : [],
     },
     plans: b.plans && typeof b.plans === 'object' ? b.plans : {},
-    ops: Array.isArray(b.ops) ? b.ops : [],
+    // bulk — «итог за месяц»: одна запись вместо расписанного месяца. Помечена,
+    // чтобы её можно было заменить, а не удвоить, и показать иначе в списке.
+    ops: (Array.isArray(b.ops) ? b.ops : []).map(o => ({ ...o, bulk: !!o.bulk })),
     vaults: Array.isArray(b.vaults) ? b.vaults : [],
     // Правило — такая же запись, как остальные: со своим id. Раньше это были
     // просто строки, и удалялись они по номеру в списке — единственное место,

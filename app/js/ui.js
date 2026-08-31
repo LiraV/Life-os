@@ -17,8 +17,17 @@ export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;'
  * долларах, а расходы при этом остаться в рублях.
  */
 export const CURRENCIES = { RUB: '₽', USD: '$', EUR: '€', GEL: '₾', KZT: '₸', RSD: 'дин.' };
-export const money = (n, cur = 'RUB') =>
-  `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ${CURRENCIES[cur] || CURRENCIES.RUB}`;
+/**
+ * Копейки показываем только когда они есть: «7 458,50 ₽», но «7 000 ₽» —
+ * без хвоста из нулей. Округление до рубля теряло бы их насовсем, а
+ * показывать «,00» в каждой строке значит зашумлять всё ради редкого случая.
+ */
+export const money = (n, cur = 'RUB') => {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  const digits = Number.isInteger(v) ? 0 : 2;
+  const shown = v.toLocaleString('ru-RU', { minimumFractionDigits: digits, maximumFractionDigits: 2 });
+  return `${shown} ${CURRENCIES[cur] || CURRENCIES.RUB}`;
+};
 export const num = n => (Number(n) || 0).toLocaleString('ru-RU');
 
 export const plural = (n, one, few, many) => {
@@ -154,6 +163,17 @@ export const field = {
   number: (name, label, value = '', { min, max, step = 'any', suffix = '' } = {}) => h`
     <label class="fld"><span>${label}${suffix ? raw(h`<i>${suffix}</i>`) : ''}</span>
       <input type="number" name="${name}" value="${value}" ${raw(min != null ? `min="${min}"` : '')} ${raw(max != null ? `max="${max}"` : '')} step="${step}" inputmode="decimal"></label>`,
+
+  /**
+   * Поле для денег. Обычное текстовое, а не числовое: на русской раскладке
+   * телефона десятичный разделитель — запятая, а числовое поле её не принимает
+   * вовсе и отдаёт пустоту. Человек вводит «1200,50» и теряет сумму целиком.
+   * Разбирать запятую умеет тот, кто читает значение.
+   */
+  money: (name, label, value = '', { suffix = '' } = {}) => h`
+    <label class="fld"><span>${label}${suffix ? raw(h`<i>${suffix}</i>`) : ''}</span>
+      <input type="text" name="${name}" value="${value}" inputmode="decimal"
+        autocomplete="off" placeholder="0"></label>`,
 
   date: (name, label, value = '') => h`
     <label class="fld"><span>${label}</span><input type="date" name="${name}" value="${value}"></label>`,

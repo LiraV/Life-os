@@ -1400,10 +1400,14 @@ export function waistRisk() {
 // ── бюджет: остаток копилки ─────────────────────────────────────
 /** Стартовая сумма плюс все пополнения. Живёт здесь, а не в экране бюджета,
  *  потому что то же число нужно целям «накопить столько-то». */
-export const vaultBalance = v =>
-  (Number(v?.start) || 0) + (S.budget.ops || [])
-    .filter(o => o.kind === 'save' && o.vaultId === v?.id)
-    .reduce((a, o) => a + (Number(o.sum) || 0), 0);
+/** Копейки складываются в копейках: 0.1 + 0.2 в дробных даёт 0.30000000000000004,
+ *  и в итоге месяца вылезал бы хвост, которого никто не вводил. */
+const kop = n => Math.round((Number(n) || 0) * 100);
+const rub = k => k / 100;
+
+export const vaultBalance = v => rub((S.budget.ops || [])
+  .filter(o => o.kind === 'save' && o.vaultId === v?.id)
+  .reduce((a, o) => a + kop(o.sum), kop(v?.start)));
 
 // ── цели, которые считают себя сами ─────────────────────────────
 // Обычная цель со счётчиком ждёт, что число впишут руками; такая берёт его
@@ -1419,9 +1423,9 @@ export const vaultBalance = v =>
 // живут здесь, чтобы у остатка было одно определение на приложение.
 const inMonthOp = (op, m) => (op.date || '').startsWith(m);
 
-export const sumBy = (m, kind) => S.budget.ops
+export const sumBy = (m, kind) => rub(S.budget.ops
   .filter(o => o.kind === kind && inMonthOp(o, m))
-  .reduce((a, o) => a + (Number(o.sum) || 0), 0);
+  .reduce((a, o) => a + kop(o.sum), 0));
 
 /**
  * Остаток на конец месяца: стартовая сумма плюс всё, что случилось до конца
@@ -1430,12 +1434,12 @@ export const sumBy = (m, kind) => S.budget.ops
  */
 export function balanceAt(m) {
   const end = m + '-32';
-  return S.budget.ops.filter(o => (o.date || '') < end).reduce((acc, o) => {
-    if (o.kind === 'income') return acc + (Number(o.sum) || 0);
+  return rub(S.budget.ops.filter(o => (o.date || '') < end).reduce((acc, o) => {
+    if (o.kind === 'income') return acc + kop(o.sum);
     // Расход уходит совсем, отложенное — с баланса в копилку: для остатка это
     // одно и то же движение, поэтому и знак один.
-    return acc - (Number(o.sum) || 0);
-  }, S.budget.start);
+    return acc - kop(o.sum);
+  }, kop(S.budget.start)));
 }
 
 export function periodRange(horizon, period) {
@@ -1755,9 +1759,9 @@ export const SOURCES = {
     ref: () => [{ value: '', label: 'все статьи' },
       ...(S.budget.cats.income || []).map(c => ({ value: c.id, label: c.name }))],
     refName: id => (S.budget.cats.income || []).find(c => c.id === id)?.name || '',
-    count: (ref, r) => Math.round(S.budget.ops
+    count: (ref, r) => Math.round(rub(S.budget.ops
       .filter(o => o.kind === 'income' && inRange(o.date, r) && (!ref || o.catId === ref))
-      .reduce((a, o) => a + (Number(o.sum) || 0), 0)),
+      .reduce((a, o) => a + kop(o.sum), 0))),
   },
   vault: {
     sphere: 'money', name: 'Накоплено в копилке', unit: '₽', horizons: ['year', 'quarter', 'month'], lifetime: true,

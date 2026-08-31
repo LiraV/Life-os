@@ -6,7 +6,7 @@
 
 import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, touchBudget, nameTaken } from '../store.js';
-import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort, stampLabel } from '../dates.js';
+import { todayISO, monthKey, addMonths, monthTitle, MONTHS, parseISO, dayShort, stampLabel, daysInMonth } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, money } from '../ui.js';
 import { buildXlsx, saveFile, readXlsx, pickFile } from '../xlsx.js';
 // Остаток копилки считается в selectors: то же число нужно целям «накопить».
@@ -124,7 +124,11 @@ function monthView() {
 function catBlock(kind, title, m) {
   const list = B().cats[kind];
   const fact = {};
-  B().ops.filter(o => o.kind === kind && inMonth(o, m)).forEach(o => { fact[o.catId] = (fact[o.catId] || 0) + (Number(o.sum) || 0); });
+  // Копим в копейках, а показываем в рублях: иначе у суммы вылезает дробный
+  // хвост, которого никто не вводил.
+  B().ops.filter(o => o.kind === kind && inMonth(o, m))
+    .forEach(o => { fact[o.catId] = (fact[o.catId] || 0) + Math.round((Number(o.sum) || 0) * 100); });
+  Object.keys(fact).forEach(k => { fact[k] /= 100; });
 
   return h`
     <div class="card">
@@ -164,6 +168,7 @@ function opsView() {
       <button class="pill grow" style="text-align:center" data-act="opadd" data-k="income">+ Доход</button>
       <button class="pill grow" style="text-align:center" data-act="opadd" data-k="save">В копилку</button>
     </div>
+    <button class="q-edit" data-act="bulk" data-m="${m}">итогом за месяц ›</button>
 
     ${ops.length ? Object.keys(byDate).sort().reverse().map(d => raw(h`
       <div class="card">
@@ -174,7 +179,7 @@ function opsView() {
               <div class="ink">${o.kind === 'save' ? 'В копилку' : catName(o.kind, o.catId)}</div>
               ${o.note ? raw(h`<div class="lab">${o.note}</div>`) : ''}
             </div>
-            <span class="ink" style="color:${o.kind === 'income' ? '#5a7a52' : 'var(--ink)'}">${o.kind === 'income' ? '+' : '−'}${money(Math.abs(o.sum), o.cur)}</span>
+            <span class="ink" style="color:${o.kind === 'income' ? '#5a7a52' : 'var(--ink)'}">${o.kind === 'income' ? '+' : '−'}${money(Math.abs(o.sum), o.cur)}${o.bulk ? ' · итог' : ''}</span>
           </div>`))}
       </div>`))
     : raw('<div class="card dash"><div class="empty">За этот месяц операций нет.</div></div>')}`;
@@ -207,7 +212,58 @@ function vaultsView() {
 }
 
 // ── шторки ──────────────────────────────────────────────────────
-const num = v => Math.max(0, Math.round(Number(String(v ?? '').replace(',', '.')) || 0));
+// Копейки не выбрасываем: округление до рубля теряло их на вводе, и «1 200,50»
+// превращалось в «1 201» ещё до того, как человек нажимал «Сохранить».
+// Запятая и точка равноправны: на телефоне под рукой то одна, то другая.
+const num = v => Math.max(0, Math.round((Number(String(v ?? '').replace(',', '.')) || 0) * 100) / 100);
+
+
+/**
+ * Итог за месяц одной записью. Нужен, когда месяцы прожиты, а расписывать их
+ * по операциям незачем: человек помнит, сколько заработал за май, но не помнит
+ * каждый перевод. Так прошлое попадает в остаток и в счёт целей, не требуя
+ * выдумывать несуществующие подробности.
+ *
+ * Записи помечены как итог и заменяются, а не складываются: нажать дважды —
+ * обычное дело, и удваивать доход за это нельзя.
+ */
+function bulkSheet(m) {
+  const had = B().ops.filter(o => o.bulk && inMonth(o, m));
+  const was = k => had.find(o => o.kind === k)?.sum ?? '';
+  const last = `${m}-${String(daysInMonth(m)).padStart(2, '0')}`;
+  openSheet({
+    title: `Итог за ${monthTitle(m).toLowerCase()}`,
+    sub: had.length ? 'итог уже записан — сохранение его заменит' : 'одной записью, без подробностей',
+    body: [
+      field.money('income', 'Заработано', was('income')),
+      field.money('expense', 'Потрачено', was('expense')),
+      field.money('save', 'Отложено', was('save')),
+      field.note(`Запишется одной строкой на ${dayShort(last)} с пометкой «итог месяца». `
+        + 'Обычные операции этого месяца останутся как есть — итог их не заменяет и не отменяет.'),
+    ].join(''),
+    primary: 'Записать',
+    onSave: (v, close) => {
+      const rows = ['income', 'expense', 'save'].map(k => [k, num(v[k])]).filter(([, s]) => s > 0);
+      upd(s => {
+        s.budget.ops = s.budget.ops.filter(o => !(o.bulk && inMonth(o, m)));
+        rows.forEach(([kind, sum]) => s.budget.ops.push({
+          id: uid(), date: last, kind, sum, bulk: true,
+          catId: kind === 'save' ? '' : (s.budget.cats[kind === 'income' ? 'income' : 'expense'][0]?.id || ''),
+          vaultId: kind === 'save' ? (s.budget.vaults[0]?.id || '') : '',
+          note: 'итог месяца',
+        }));
+      });
+      close();
+      toast(rows.length ? 'Итог записан' : 'Итог убран');
+    },
+    danger: had.length ? 'Убрать итог' : null,
+    onDanger: (_v, close) => {
+      upd(s => { s.budget.ops = s.budget.ops.filter(o => !(o.bulk && inMonth(o, m))); });
+      close();
+      toast('Убрала');
+    },
+  });
+}
 
 function opSheet(op, kind) {
   const isNew = !op;
@@ -218,7 +274,7 @@ function opSheet(op, kind) {
   openSheet({
     title: isNew ? title : `${title} · правка`,
     body: [
-      field.number('sum', 'Сколько', o.sum, { min: 0 }),
+      field.money('sum', 'Сколько', o.sum),
       k === 'save'
         ? (B().vaults.length
           ? field.select('vaultId', 'Копилка', B().vaults.map(v => ({ value: v.id, label: v.name })), o.vaultId)
@@ -276,6 +332,7 @@ export const actions = {
   next: () => update(s => { s.ui.budMonth = addMonths(ym(), 1); }),
 
   opadd: v => opSheet(null, v.k),
+  bulk: v => bulkSheet(v.m),
   opedit: v => opSheet(B().ops.find(x => x.id === v.id)),
 
   catadd: v => openSheet({
@@ -300,7 +357,7 @@ export const actions = {
       title: cat.name,
       sub: `план на ${monthTitle(m).toLowerCase()}`,
       body: [
-        field.number('plan', 'План на месяц', planOf(m, v.k, cat.id) || '', { min: 0 }),
+        field.money('plan', 'План на месяц', planOf(m, v.k, cat.id) || ''),
         field.text('name', 'Название', cat.name),
         field.note('План задаётся на каждый месяц отдельно — в следующем он начнётся с нуля.'),
       ].join(''),
@@ -332,7 +389,7 @@ export const actions = {
   startset: () => openSheet({
     title: 'Стартовая сумма',
     sub: 'сколько было на руках, когда начался учёт',
-    body: field.number('n', 'Сумма', B().start || 0, { min: 0 }),
+    body: field.money('n', 'Сумма', B().start || 0),
     onSave: (v, close) => { upd(s => { s.budget.start = num(v.n); }); close(); toast('Сохранено'); },
   }),
 
@@ -340,7 +397,7 @@ export const actions = {
     title: 'Копилка',
     body: [
       field.text('name', 'На что', '', 'например, «Милан»'),
-      field.number('start', 'Стартовая сумма', 0, { min: 0 }),
+      field.money('start', 'Стартовая сумма', 0),
       field.note('Если в копилке уже что-то есть, впиши это здесь — дальше только пополнения и снятия.'),
     ].join(''),
     primary: 'Добавить',
@@ -361,7 +418,7 @@ export const actions = {
       title: vault.name,
       body: [
         field.text('name', 'Название', vault.name),
-        field.number('start', 'Стартовая сумма', vault.start || 0, { min: 0 }),
+        field.money('start', 'Стартовая сумма', vault.start || 0),
         field.note('Сколько уже лежало в копилке до того, как начался учёт. Пополнения и снятия прибавляются к ней сверху.'),
       ].join(''),
       onSave: (val, close) => {
@@ -386,7 +443,7 @@ export const actions = {
   vaultadd: v => opSheet({ id: uid(), kind: 'save', date: todayISO(), sum: '', note: '', vaultId: v.id }, 'save'),
   vaulttake: v => openSheet({
     title: 'Снять из копилки',
-    body: field.number('n', 'Сколько', '', { min: 0 }),
+    body: field.money('n', 'Сколько', ''),
     primary: 'Снять',
     onSave: (val, close) => {
       const n = num(val.n);
