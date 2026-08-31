@@ -444,7 +444,30 @@ window.addEventListener('hashchange', () => {
   if (consumeRedirect()) { pullIfStale(); render(); return; }
   closeSheet(); drawerOpen = false; markStep(); render();
 });
-onChange(render);
+
+/**
+ * Перерисовка, которая не отнимает у человека клавиатуру.
+ *
+ * Перерисовка собирает экран заново, и поле ввода вместе с фокусом исчезает —
+ * на телефоне это выглядит как «клавиатура закрылась сама посреди слова».
+ * Пока в поле пишут, откладываем: ждём, когда его отпустят.
+ *
+ * Так было с инбоксом: отправка в облако начинается через несколько секунд
+ * после любой правки, сообщает «синхронизирую…» — и сбивала набор следующей
+ * мысли. Человек не должен расплачиваться за то, что приложение с кем-то
+ * переговаривается.
+ */
+let renderWaiting = false;
+function renderSafe() {
+  const el = document.activeElement;
+  const typing = el && scr.contains(el) && /^(INPUT|TEXTAREA)$/.test(el.tagName);
+  if (!typing) return render();
+  if (renderWaiting) return;
+  renderWaiting = true;
+  el.addEventListener('blur', () => { renderWaiting = false; render(); }, { once: true });
+}
+
+onChange(renderSafe);
 
 // Смена суток на открытом экране: перерисовать, чтобы «сегодня» осталось сегодня.
 let seenDay = todayISO();
@@ -470,7 +493,7 @@ setTimeout(offerTips, 600);
 // Облако: перерисовываем, когда меняется состояние входа, забираем чужие
 // правки при запуске и при возвращении на вкладку, а свои отправляем следом
 // за изменением — но не на каждый тап, а чуть погодя.
-onCloud(render);
+onCloud(renderSafe);
 if (signedIn()) setTimeout(pullIfStale, cameBack ? 200 : 1200);
 onChange(() => pushSoon());
 document.addEventListener('visibilitychange', () => {
@@ -485,7 +508,8 @@ async function askAboutBuild() {
   const next = await checkBuild();
   if (!next || toldAboutBuild) return;
   toldAboutBuild = true;
-  render();
+  // Новость о версии — не повод отнимать клавиатуру у того, кто пишет.
+  renderSafe();
   toast('Вышла новая версия. Настройки → Обновить приложение');
 }
 setTimeout(askAboutBuild, 2500);
