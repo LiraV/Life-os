@@ -124,8 +124,10 @@ await p.fill('input[name="date"]', '2026-08-30');
 await p.fill('input[name="ig"]', '1250');
 await p.fill('input[name="tg"]', '');
 await p.locator('[data-sheet="save"]').click(); await p.waitForTimeout(600);
-const last = (await blog()).subs.slice(-1)[0];
-ok('незаполненное осталось пустым, а не нулём', last.tg === null && last.ig === 1250, JSON.stringify(last));
+// Ищем по дате, а не по месту в списке: отметки отсортированы по дате, и
+// «последняя» зависит от того, какое сегодня число.
+const last = (await blog()).subs.find(x => x.date === '2026-08-30');
+ok('незаполненное осталось пустым, а не нулём', last?.tg === null && last?.ig === 1250, JSON.stringify(last));
 ok('и разница у телеграма считается от прошлой его отметки', /Телеграм 340|Телеграм —/.test(await scr()));
 
 // ── 7. цель с автосчётом из постов

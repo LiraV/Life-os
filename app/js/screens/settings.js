@@ -3,6 +3,7 @@
 import { S, update, exportJSON, importJSON, resetAll, level, prevRaw } from '../store.js';
 import { todayISO, stampLabel } from '../dates.js';
 import { BUILD } from '../version.js';
+import { newBuild } from '../update.js';
 import { hasKey, maskKey, setKey, setModel, getModel, checkKey, fetchModels, knownModels, viaCloud, DEFAULT_MODEL } from '../ai.js';
 import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import { tipsOn, tipsReset, tipsDisable } from '../tips.js';
@@ -143,7 +144,9 @@ export function render() {
     <div class="card">
       <div class="caps">Версия</div>
       <div class="row between"><span class="ink">Сборка</span><span class="lab">${BUILD}</span></div>
-      <div class="lab">Приложение обновляется само при запуске. Если номер сборки не меняется после выхода новой версии — обнови вручную.</div>
+      ${newBuild() ? raw(h`<div class="ink" style="margin-top:6px">Вышла новая: ${newBuild()}</div>
+        <div class="lab">Вкладка, открытая давно, продолжает работать на старом коде — обновление её не догоняет.</div>`)
+      : raw(h`<div class="lab">Это самая свежая. Приложение обновляется само при запуске.</div>`)}
       <button class="add" data-act="refresh">Обновить приложение</button>
     </div>
 

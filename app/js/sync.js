@@ -27,6 +27,41 @@ const clone = v => JSON.parse(JSON.stringify(v));
 /** Пустое время значит «раньше всего, что мы считали». */
 const newer = (a, b) => String(a || '') > String(b || '');
 
+/**
+ * Сколько в копии вообще всего. Нужно ради одного случая, который дороже всех
+ * остальных: устройство потеряло данные — очистили браузер, слетело хранилище —
+ * и завело пустое состояние. Оно свежее облачного просто потому, что создано
+ * секунду назад, и по времени повело бы слияние: имя, сон, настройки заменились
+ * бы значениями по умолчанию, а потом уехали в облако и на второе устройство.
+ *
+ * Поэтому пустая сторона не ведёт. Записи и отметки всё равно сливаются каждая
+ * по своему правилу — меняется только то, у чего своего времени нет.
+ */
+function weigh(state) {
+  let n = 0;
+  const walk = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 6) return;
+    if (Array.isArray(node)) { for (const x of node) { if (idOf(x)) n++; walk(x, depth + 1); } return; }
+    for (const [k, v] of Object.entries(node)) {
+      if (!depth && (k === 'deleted' || k === 'touched')) continue;
+      if (PERIOD_KEY.test(k)) n++;
+      walk(v, depth + 1);
+    }
+  };
+  walk(state);
+  return n;
+}
+
+/** Кто ведёт слияние: непустая сторона, а при равных — та, что свежее. */
+function leadOf(a, b) {
+  const wa = weigh(a), wb = weigh(b);
+  // «Пустая» — это не «поменьше», а «почти ничего»: у заготовок свой вес.
+  const bare = w => w < 12;
+  if (bare(wa) && !bare(wb)) return [b, a];
+  if (bare(wb) && !bare(wa)) return [a, b];
+  return newer(a.changedAt, b.changedAt) ? [a, b] : [b, a];
+}
+
 /** Когда запись удалили — по следам той стороны, где след есть. */
 const killedAt = (state, id) => (state.deleted || []).find(x => x.id === id)?.at || '';
 
@@ -35,8 +70,7 @@ const killedAt = (state, id) => (state.deleted || []).find(x => x.id === id)?.at
  * проверяется. Ни одна из копий не меняется.
  */
 export function merge(a, b) {
-  const mineNewer = newer(a.changedAt, b.changedAt);
-  const [lead, other] = mineNewer ? [a, b] : [b, a];
+  const [lead, other] = leadOf(a, b);
   const out = clone(lead);
 
   mergeNode(out, other, lead, '', { a, b });

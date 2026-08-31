@@ -5,6 +5,7 @@ import { S, SPHERES, visibleSpheres, onChange, update, updateQuiet, level, loadE
 import { todayISO } from './dates.js';
 import { go, route, markStep, startHere } from './nav.js';
 import { consumeRedirect, onCloud, pushSoon, pullIfStale, signedIn } from './cloud.js';
+import { checkBuild } from './update.js';
 import { closeSheet, toast } from './ui.js';
 import { reconcile } from './traits.js';
 import { applyAppIcon } from './appicon.js';
@@ -429,8 +430,21 @@ onCloud(render);
 if (signedIn()) setTimeout(pullIfStale, cameBack ? 200 : 1200);
 onChange(() => pushSoon());
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') pullIfStale();
+  if (document.visibilityState === 'visible') { pullIfStale(); askAboutBuild(); }
 });
+
+// Новая версия: сказать вслух один раз за сеанс. Молча ждать, пока человек
+// догадается заглянуть в настройки, — значит оставить его в уверенности, что
+// обещанное не сделано.
+let toldAboutBuild = false;
+async function askAboutBuild() {
+  const next = await checkBuild();
+  if (!next || toldAboutBuild) return;
+  toldAboutBuild = true;
+  render();
+  toast('Вышла новая версия. Настройки → Обновить приложение');
+}
+setTimeout(askAboutBuild, 2500);
 
 // Приложение должно само догонять выложенную версию: спрашиваем воркер об
 // обновлении при запуске и при возврате на вкладку, а когда новый воркер

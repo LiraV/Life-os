@@ -87,6 +87,41 @@ const back = await p.evaluate(async () => {
 });
 ok('правка позже удаления возвращает запись', back.осталась && back.имя === 'Вода, снова', JSON.stringify(back));
 
+// ── устройство потеряло данные: пустая сторона не ведёт ─────────
+const lost = await p.evaluate(async () => {
+  const { merge } = await import('/app/js/sync.js');
+  const T = h => `2026-08-31T${String(h).padStart(2, '0')}:00:00.000Z`;
+  // Облако: настоящая жизнь, записанная в 14:26.
+  const cloud = {
+    v: 52, onboarded: true,
+    user: { name: 'Лера', sleep: 8, xp: 673, chronotype: 'сова' },
+    goals: Array.from({ length: 27 }, (_, i) => ({ id: `g${i}`, title: `Цель ${i}`, horizon: 'month',
+      period: '2026-08', steps: [], slots: [], order: i, createdAt: T(9), updatedAt: T(9) })),
+    habits: Array.from({ length: 6 }, (_, i) => ({ id: `h${i}`, name: `Привычка ${i}`, log: {},
+      order: i, createdAt: T(9), updatedAt: T(9) })),
+    sleep: { '2026-08-30': 7.5 }, touched: { 'sleep.2026-08-30': T(9) },
+    deleted: [], changedAt: T(14),
+  };
+  // Устройство: только что заведённое пустое состояние, оно же самое свежее.
+  const fresh = {
+    v: 52, onboarded: true,
+    user: { name: 'Персонаж', sleep: 10, xp: 25, chronotype: 'сова' },
+    goals: [], habits: [], sleep: {}, touched: {}, deleted: [], changedAt: T(16),
+  };
+  const m = merge(fresh, cloud);
+  const m2 = merge(cloud, fresh);
+  return { имя: m.user.name, сон: m.user.sleep, опыт: m.user.xp,
+    целей: m.goals.length, привычек: m.habits.length, отметкаСна: m.sleep['2026-08-30'],
+    порядокНеВажен: JSON.stringify(m) === JSON.stringify(m2) };
+});
+ok('потерявшее данные устройство не ведёт слияние: имя уцелело', lost.имя === 'Лера', lost.имя);
+ok('и профиль не заменился значениями по умолчанию', lost.сон === 8, String(lost.сон));
+ok('цели вернулись', lost.целей === 27, String(lost.целей));
+ok('привычки вернулись', lost.привычек === 6, String(lost.привычек));
+ok('отметка сна вернулась', lost.отметкаСна === 7.5, String(lost.отметкаСна));
+ok('опыт взят наибольший', lost.опыт === 673, String(lost.опыт));
+ok('порядок сторон по-прежнему не важен', lost.порядокНеВажен);
+
 await b.close();
 if (errs.length) { console.log(errs.join('\n')); bad += errs.length; }
 console.log(bad ? `✗ ошибок: ${bad}` : '✓ две копии сходятся без потерь');

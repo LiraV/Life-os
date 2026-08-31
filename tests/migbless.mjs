@@ -10,6 +10,7 @@ await p.waitForTimeout(700);
 const cases = JSON.parse(readFileSync('./migcases.json', 'utf8'));
 const out = await p.evaluate(async cs => {
   const { migrate } = await import('/app/js/store.js');
+  const today = new Date().toISOString().slice(0, 10);
   const norm = o => {
     const seen = new Map();
     return JSON.parse(JSON.stringify(o, (k, v) => {
@@ -18,6 +19,9 @@ const out = await p.evaluate(async cs => {
         return seen.get(v);
       }
       if (k === 'updatedAt' || k === 'createdAt' || k === 'at') return typeof v === 'string' && v ? 'когда-то' : v;
+      // Сегодняшняя дата подставляется в пустое состояние сама, поэтому эталон
+      // ломался бы каждую полночь. Проверяем не «какое сегодня», а всё прочее.
+      if (typeof v === 'string' && today && (v === today || v.startsWith(`${today}T`))) return 'сегодня';
       return v;
     }));
   };
