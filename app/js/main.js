@@ -367,6 +367,9 @@ export function render() {
   app.classList.toggle('wide', name === 'tracker' || workTab === 'board');
   // Сбой в одном экране не должен оборачиваться пустой страницей: пустой экран
   // невозможно ни понять, ни починить, а сообщение — можно.
+  // Набор переносим только внутри одного экрана: на соседнем поле с тем же
+  // именем — чужое, и подставлять туда недописанное было бы дичью.
+  const typed = key === lastKey ? grabTyping() : null;
   try {
     scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
   } catch (e) {
@@ -381,6 +384,7 @@ export function render() {
   }
   stickHead();
   scr.classList.toggle('scrolled', scr.scrollTop > 2);
+  putTyping(typed);
   SCREENS[name].afterRender?.();
   // Переписка открывается снизу: видно поле ввода и последние сообщения.
   if (SCREENS[name].stickBottom?.(params)) {
@@ -446,28 +450,43 @@ window.addEventListener('hashchange', () => {
 });
 
 /**
- * Перерисовка, которая не отнимает у человека клавиатуру.
+ * Набор, который переживает перерисовку.
  *
- * Перерисовка собирает экран заново, и поле ввода вместе с фокусом исчезает —
- * на телефоне это выглядит как «клавиатура закрылась сама посреди слова».
- * Пока в поле пишут, откладываем: ждём, когда его отпустят.
+ * Перерисовка собирает экран заново, и поле ввода вместе с фокусом, текстом и
+ * кареткой исчезает — на телефоне это выглядит как «клавиатура закрылась сама
+ * посреди слова». Так было с инбоксом: отправка в облако начинается через
+ * несколько секунд после любой правки, сообщает «синхронизирую…» — и сбивала
+ * набор следующей мысли.
  *
- * Так было с инбоксом: отправка в облако начинается через несколько секунд
- * после любой правки, сообщает «синхронизирую…» — и сбивала набор следующей
- * мысли. Человек не должен расплачиваться за то, что приложение с кем-то
- * переговаривается.
+ * Сначала я откладывала перерисовку до конца набора — и этим сломала чат:
+ * человек отправлял сообщение, оно ложилось в данные, а на экране не
+ * появлялось ничего, потому что фокус оставался в поле. Экран, который врёт
+ * про данные, хуже мигнувшей клавиатуры. Поэтому рисуем всегда, а набранное
+ * переносим: поле ищем по имени, значение возвращаем только если новое пусто —
+ * иначе затёрли бы то, что подставил сам экран.
  */
-let renderWaiting = false;
-function renderSafe() {
+function grabTyping() {
   const el = document.activeElement;
-  const typing = el && scr.contains(el) && /^(INPUT|TEXTAREA)$/.test(el.tagName);
-  if (!typing) return render();
-  if (renderWaiting) return;
-  renderWaiting = true;
-  el.addEventListener('blur', () => { renderWaiting = false; render(); }, { once: true });
+  if (!el || !scr.contains(el) || !/^(INPUT|TEXTAREA)$/.test(el.tagName)) return null;
+  const key = el.dataset.field ? `[data-field="${el.dataset.field}"]` : el.name ? `[name="${el.name}"]` : '';
+  if (!key) return null;
+  // Флажки и переключатели значения не набирают: у них состояние в данных.
+  if (/^(checkbox|radio)$/.test(el.type)) return null;
+  return { key, value: el.value, from: el.selectionStart, to: el.selectionEnd };
 }
 
-onChange(renderSafe);
+function putTyping(t) {
+  if (!t) return;
+  const el = scr.querySelector(t.key);
+  if (!el || !/^(INPUT|TEXTAREA)$/.test(el.tagName)) return;
+  if (!el.value && t.value) el.value = t.value;
+  try {
+    el.focus({ preventScroll: true });
+    if (t.from != null && el.value === t.value) el.setSelectionRange(t.from, t.to);
+  } catch { /* поле не принимает каретку — не беда */ }
+}
+
+onChange(render);
 
 // Смена суток на открытом экране: перерисовать, чтобы «сегодня» осталось сегодня.
 let seenDay = todayISO();
@@ -493,7 +512,7 @@ setTimeout(offerTips, 600);
 // Облако: перерисовываем, когда меняется состояние входа, забираем чужие
 // правки при запуске и при возвращении на вкладку, а свои отправляем следом
 // за изменением — но не на каждый тап, а чуть погодя.
-onCloud(renderSafe);
+onCloud(render);
 if (signedIn()) setTimeout(pullIfStale, cameBack ? 200 : 1200);
 onChange(() => pushSoon());
 document.addEventListener('visibilitychange', () => {
@@ -509,7 +528,7 @@ async function askAboutBuild() {
   if (!next || toldAboutBuild) return;
   toldAboutBuild = true;
   // Новость о версии — не повод отнимать клавиатуру у того, кто пишет.
-  renderSafe();
+  render();
   toast('Вышла новая версия. Настройки → Обновить приложение');
 }
 setTimeout(askAboutBuild, 2500);

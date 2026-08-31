@@ -2,6 +2,9 @@
 // поле ввода вместе с фокусом исчезает — на телефоне это выглядит как
 // «клавиатура захлопнулась посреди слова». Так было в инбоксе: отправка в
 // облако начинается через несколько секунд после любой правки и сбивала набор.
+//
+// Чинится переносом набора, а не откладыванием перерисовки: экран, который
+// отстаёт от данных, хуже — на этом однажды сломался чат.
 import { chromium, devices } from './pw.mjs';
 const b = await chromium.launch();
 const ctx = await b.newContext({ serviceWorkers: 'block', locale: 'ru-RU', ...devices['iPhone 13'] });
@@ -44,11 +47,27 @@ await p.type('input[data-field="quick"]', ' и ещё');
 f = await focused();
 ok('можно дописывать дальше', f.значение === 'мысль на середине и ещё', f.значение);
 
-// ── отпустили поле — отложенная перерисовка догоняет ────────────
-await p.locator('.title').first().click(); await p.waitForTimeout(500);
+// ── экран всё это время показывает настоящие данные ─────────────
+// Раньше перерисовка откладывалась до конца набора, и экран отставал от
+// данных. Это сломало чат: отправленное сообщение ложилось в данные и не
+// появлялось на экране. Теперь рисуем сразу, а набранное переносим.
 const xp = await p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')).user.xp);
 const shown = await p.locator('#statusbar').innerText();
-ok('после ухода из поля экран догнал состояние', shown.includes(String(xp)), `${shown} · в данных ${xp}`);
+ok('экран показывает состояние, не дожидаясь конца набора', shown.includes(String(xp)), `${shown} · в данных ${xp}`);
+
+// Граница правила: переносится только то поле, в котором пишут прямо сейчас.
+// Поле, оставленное без фокуса, перерисовка очищает — и так и задумано:
+// вернуть текст в поле, которое экран сам обнулил после добавления записи,
+// значило бы показать человеку мысль, уже лежащую в списке.
+await p.locator('.title').first().click(); await p.waitForTimeout(400);
+await p.evaluate(async () => {
+  const { update } = await import('/app/js/store.js');
+  update(s => { s.user.xp += 1; });
+});
+await p.waitForTimeout(400);
+ok('поле без фокуса перерисовка очищает',
+  await p.inputValue('input[data-field="quick"]') === '',
+  await p.inputValue('input[data-field="quick"]'));
 
 // ── Enter по-прежнему добавляет и очищает поле ──────────────────
 await p.locator('input[data-field="quick"]').click();
