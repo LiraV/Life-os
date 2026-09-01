@@ -392,9 +392,11 @@ export function render() {
   app.classList.toggle('wide', name === 'tracker' || workTab === 'board');
   // Сбой в одном экране не должен оборачиваться пустой страницей: пустой экран
   // невозможно ни понять, ни починить, а сообщение — можно.
-  // Набор переносим только внутри одного экрана: на соседнем поле с тем же
-  // именем — чужое, и подставлять туда недописанное было бы дичью.
-  const typed = key === lastKey ? grabTyping() : null;
+  // Набор и прокрутку переносим только внутри одного экрана: на соседнем поле
+  // с тем же именем — чужое, и подставлять туда недописанное было бы дичью.
+  const same = key === lastKey;
+  const typed = same ? grabTyping() : null;
+  const scrolled = same ? grabScroll() : null;
   try {
     scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
   } catch (e) {
@@ -409,6 +411,7 @@ export function render() {
   }
   stickHead();
   scr.classList.toggle('scrolled', scr.scrollTop > 2);
+  putScroll(scrolled);
   putTyping(typed);
   SCREENS[name].afterRender?.();
   // Переписка открывается снизу: видно поле ввода и последние сообщения.
@@ -498,6 +501,34 @@ function grabTyping() {
   // Флажки и переключатели значения не набирают: у них состояние в данных.
   if (/^(checkbox|radio)$/.test(el.type)) return null;
   return { key, value: el.value, from: el.selectionStart, to: el.selectionEnd };
+}
+
+/**
+ * Прокрутка внутри экрана — доска работы, лента месяцев, таблица трекера,
+ * колонки канбана. Перерисовка собирает экран заново, и всё это отматывается
+ * в начало: доска, отлистанная до «Готово», прыгала на первую колонку при
+ * каждом обновлении. Своя прокрутка экрана переживала перерисовку и раньше —
+ * эти жили внутри и о них никто не позаботился.
+ *
+ * Опознаём по месту в списке прокручиваемых: имена классов у колонок
+ * одинаковые, а id есть не у всех. Если список изменился — структура другая,
+ * и возвращать прокрутку некуда: это уже не тот экран.
+ */
+const SCROLLERS = '.kb-cols, .kb-body, .board, .tr-wrap';
+
+function grabScroll() {
+  return [...scr.querySelectorAll(SCROLLERS)].map(el => [el.scrollLeft, el.scrollTop]);
+}
+
+function putScroll(saved) {
+  if (!saved) return;
+  const now = [...scr.querySelectorAll(SCROLLERS)];
+  if (now.length !== saved.length) return;
+  now.forEach((el, i) => {
+    const [left, top] = saved[i];
+    if (left) el.scrollLeft = left;
+    if (top) el.scrollTop = top;
+  });
 }
 
 function putTyping(t) {
