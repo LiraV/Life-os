@@ -417,10 +417,13 @@ export function questSheet(quest, date, onDone, preset = null) {
         };
         (s.quests[target] ||= []).push(next);
         s.quests[target].sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
-        if (target !== date) s.ui.date = target;
       });
       close();
-      toast(isNew ? 'Квест добавлен' : 'Сохранено');
+      // Раньше экран сам уезжал на выбранный день. Когда планируешь неделю
+      // вперёд, это уносит из сегодня после каждого квеста — поэтому просто
+      // говорим, куда он лёг, и остаёмся там, где были.
+      const away = target !== date ? ` · ${dayShort(target)}` : '';
+      toast((isNew ? 'Квест добавлен' : 'Сохранено') + away);
       onDone?.();
     },
     danger: isNew ? null : 'Удалить квест',
