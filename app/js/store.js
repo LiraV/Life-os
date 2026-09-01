@@ -157,6 +157,9 @@ export function blank() {
       height: 0,                                         // рост, см — без него нет ИМТ
     },
     quests: {},          // { 'YYYY-MM-DD': [quest] }
+                         // квест: { id, title, time, minutes, sphere, boss, done, doneAt,
+                         //   goalId — зачем; lessonId — занятие с полки; unitId — конкретный
+                         //   урок курса; studyId — задание учёбы; careId — дело из «Заботы» }
     inbox: [],           // входящее без даты: { id, text, note, sphere, createdAt }
                          // ничего отсюда не уходит само — переносит человек
     work: {              // сфера «Работа»: наём. Мест работы может быть несколько,

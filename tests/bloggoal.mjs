@@ -11,7 +11,12 @@ p.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_|Failed to load r
 const st = () => p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')));
 const open = async () => { await p.evaluate(() => { location.hash = '#/spheres/blog'; }); await p.waitForTimeout(650); };
 const y = new Date().getFullYear();
-const iso = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+// Дни внутри текущего месяца: счёт за месяц — это счёт по месяцу, а не по
+// последним суткам, и первого числа «вчера» лежит уже в прошлом месяце.
+const ym = new Date().toISOString().slice(0, 7);
+const day = n => `${ym}-${String(n).padStart(2, '0')}`;
+// Заведомо раньше периода — чтобы прирост считался от чего-то старого.
+const longAgo = (() => { const d = new Date(`${ym}-01T12:00:00Z`); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); })();
 
 await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
 await p.waitForTimeout(700);
@@ -29,7 +34,7 @@ await p.evaluate(days => {
     { id: 's2', date: days[1], ig: 1100, tg: null },
   ];
   localStorage.setItem('lifeos.state', JSON.stringify(s));
-}, [iso(0), iso(1), iso(2), iso(3), iso(4), iso(40)]);
+}, [day(1), day(2), day(3), day(4), day(5), longAgo]);
 await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);
 
 // ── 1. счёт в селекторах

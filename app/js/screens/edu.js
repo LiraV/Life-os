@@ -6,7 +6,8 @@ import { goBack } from '../nav.js';
 import { S, update, uid, XP, addXp, addDiary, touchTracker, nameTaken } from '../store.js';
 import { todayISO, monthKey, addMonths, monthTitle, dayShort, diffDays } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, money } from '../ui.js';
-import { liveLessons, lessonMonth, lessonLast, lessonAgo, courseProgress, moduleDone, moduleFull } from '../selectors.js';
+import { liveLessons, lessonMonth, lessonLast, lessonAgo, courseProgress, moduleDone, moduleFull, unitById } from '../selectors.js';
+import { questSheet } from './day.js';
 import { scheduleBlock, scheduleActions } from '../schedule.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalActions } from '../spheregoal.js';
 
@@ -144,6 +145,7 @@ function moduleRow(l, m) {
         <div class="chk-row ${x.done ? 'done' : ''}">
           <button class="check sm ${x.done ? 'on' : ''}" data-act="sub" data-id="${l.id}" data-i="${m.id}" data-s="${x.id}">✓</button>
           <span class="grow lab">${x.title}</span>
+          ${x.done ? '' : raw(h`<button class="q-edit" data-act="subday" data-id="${l.id}" data-s="${x.id}">в день ›</button>`)}
           <button class="q-edit" data-act="subdel" data-id="${l.id}" data-i="${m.id}" data-s="${x.id}">×</button>
         </div>`))}
       <button class="pill" data-act="subadd" data-id="${l.id}" data-i="${m.id}">+ урок</button>
@@ -321,6 +323,22 @@ export const actions = {
       full = m.done; mod = m.title;
     });
     if (full) toast(`Модуль «${mod}» пройден ✦`);
+  },
+
+  /**
+   * Урок в день. Открываем обычную шторку квеста с уже проставленной связкой:
+   * день, время и длину человек ставит сам — приложение показывает, что можно
+   * взять, но не занимает день за него. Название подставляем курсом и уроком,
+   * чтобы в дне было видно, что именно делать.
+   */
+  subday: v => {
+    const found = unitById(v.s);
+    if (!found) return;
+    const { lesson, unit } = found;
+    questSheet(null, todayISO(), null, {
+      title: `${lesson.name} · ${unit.title}`, sphere: 'edu',
+      lessonId: lesson.id, unitId: unit.id,
+    });
   },
 
   subadd: v => openSheet({

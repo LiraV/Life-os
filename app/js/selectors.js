@@ -1560,6 +1560,44 @@ const customName = key => (S.customSpheres || []).find(sp => sp.key === key)?.na
  * уникальное на всё приложение, и одного достаточно: склеенная ссылка ни в
  * какую таблицу не ложится и разъезжается при первом же переносе.
  */
+/**
+ * Урок курса по его id. Как и у модуля, id урока уникален на всё приложение —
+ * склеенная ссылка «курс:модуль:урок» разъехалась бы при первом же переносе.
+ */
+export function unitById(id) {
+  for (const lesson of liveLessons()) {
+    for (const module of lesson.items || []) {
+      const unit = (module.lessons || []).find(x => x.id === id);
+      if (unit) return { lesson, module, unit };
+    }
+  }
+  return null;
+}
+
+/**
+ * Что можно повесить на квест с полки: практика и курс целиком, а у курса —
+ * ещё и каждый его урок. Пройденные уроки в список не идут: их уже незачем
+ * ставить в день. Исключение — тот, что уже стоит на этом квесте: иначе
+ * при правке квеста связка молча слетала бы.
+ */
+export function shelfPicks(keepUnitId = '') {
+  const out = [];
+  for (const l of liveLessons()) {
+    if (l.paused) continue;
+    const mods = l.items || [];
+    const units = mods.flatMap(m => (m.lessons || []).map(x => ({ m, x })));
+    out.push({ value: l.id, label: units.length ? `${l.name} — весь курс` : l.name });
+    for (const { m, x } of units) {
+      if (x.done && x.id !== keepUnitId) continue;
+      out.push({ value: `${l.id}|${x.id}`, label: `   ${m.title} · ${x.title}` });
+    }
+  }
+  return out;
+}
+
+/** Значение выбора для квеста: курс, курс с уроком или пусто. */
+export const shelfValue = q => (q?.unitId ? `${q.lessonId}|${q.unitId}` : q?.lessonId || '');
+
 export function moduleById(id) {
   for (const lesson of liveLessons()) {
     const module = (lesson.items || []).find(m => m.id === id);

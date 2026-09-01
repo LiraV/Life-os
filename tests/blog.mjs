@@ -5,6 +5,12 @@ const ctx = await b.newContext({ serviceWorkers: 'block',  ...devices['iPhone 13
 await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
 const p = await ctx.newPage();
 const errs = []; let bad = 0;
+// Даты, которые должны лежать вне текущего месяца, считаем от сегодня:
+// вписанный руками сентябрь был «будущим» ровно до первого сентября, а потом
+// проверка начала считать этот пост своим.
+const ym = new Date().toISOString().slice(0, 7);
+// «Скоро выходит» смотрит на 30 дней вперёд, поэтому дата должна быть близкой.
+const soon = (() => { const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().slice(0, 10); })();
 const ok = (n, c, extra = '') => { if (!c) bad++; console.log(`${c ? '✓' : '✗'} ${n}${extra ? ' — ' + extra : ''}`); };
 p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
 p.on('console', m => { if (m.type() === 'error' && !/fonts|ERR_|Failed to load resource/.test(m.text())) errs.push('CONSOLE: ' + m.text()); });
@@ -63,7 +69,7 @@ ok('разбивка по площадкам есть', /Телеграм 1/.tes
 // ── 3. свой день выхода не перетирается
 await p.locator('[data-act="postadd"]').click(); await p.waitForTimeout(400);
 await p.fill('input[name="title"]', 'Пост про осень');
-await p.fill('input[name="day"]', '2026-09-03');
+await p.fill('input[name="day"]', soon);
 await p.locator('.opts[data-name="stage"] .opt[data-value="ready"]').click();
 await p.locator('[data-sheet="save"]').click(); await p.waitForTimeout(600);
 t = await scr();
@@ -72,7 +78,7 @@ ok('и сказано, почему не в «Дне»', /не в «Дне»|н�
 const pill2 = p.locator('.card', { hasText: 'Готовы' }).locator('.chk-row', { hasText: 'Пост про осень' }).locator('.pill');
 await pill2.click(); await p.waitForTimeout(500);
 const autumn = (await blog()).posts.find(x => x.title === 'Пост про осень');
-ok('свой день выхода при публикации сохранён', autumn.day === '2026-09-03', autumn.day);
+ok('свой день выхода при публикации сохранён', autumn.day === soon, autumn.day);
 
 // ── 4. рабочая дата не лезет в «День»
 await p.evaluate(() => { location.hash = '#/day'; }); await p.waitForTimeout(600);
@@ -143,9 +149,16 @@ ok('автосчёт считает вышедшие за год', await p.evalu
 
 // ── 8. плитка и трекер
 await p.evaluate(() => { location.hash = '#/spheres'; }); await p.waitForTimeout(600);
-// сентябрьский пост в августовский месяц не попадает — считаем только вышедшие в этом
-ok('на плитке блога — посты за месяц', /1 пост за месяц/.test(await p.locator('.tile', { hasText: 'Блог' }).innerText()),
+// Считаем вышедшие в этом месяце: оба здешних поста идут в счёт, а «Старый
+// хит» позапрошлого года — нет. Раньше тут ждали один пост, потому что день
+// второго был вписан руками как сентябрьский и лежал в будущем месяце; после
+// первого сентября он стал здешним, и проверка развалилась на ровном месте.
+ok('на плитке блога — посты за месяц', /2 поста за месяц/.test(await p.locator('.tile', { hasText: 'Блог' }).innerText()),
   await p.locator('.tile', { hasText: 'Блог' }).innerText());
+ok('а прошлогодний в счёт месяца не идёт', await p.evaluate(async () => {
+  const sel = await import('./app/js/selectors.js');
+  return sel.blogMonth(new Date().toISOString().slice(0, 7));
+}) === 2, 'ждали 2');
 await p.evaluate(() => { location.hash = '#/tracker'; }); await p.waitForTimeout(700);
 ok('в трекере есть строка постов', await p.locator('.tr tbody tr', { hasText: /посты/i }).count() === 1);
 

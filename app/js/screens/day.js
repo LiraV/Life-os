@@ -10,6 +10,7 @@ import {
   questsOn, curveInfo, curveOwn, ENERGY_BLOCKS, energyLabel, peakBlock, chronicler, sphereOf,
   sleepOn, sleepAvg, sleepMarks,
   liveGoals, goalChain, liveHabits, habitTarget, habitCount, habitDone, energyRecent, liveLessons,
+  shelfPicks, shelfValue, unitById,
   workoutsOn, exerciseById, scheduleOn, scheduleDone, scheduleTitle, scheduleMovedFrom, scheduleShiftedOn, tagName, inboxCount, dueOn,
   liveTasks, taskSubject, careItems, careSorted, careGroupName,
 } from '../selectors.js';
@@ -318,6 +319,9 @@ function questRow(q) {
   // «Хранительнице смысла» цепочка нужна на виду, а не в шторке.
   const chain = effects().show === 'why' && q.goalId ? goalChain(q.goalId) : null;
   const lesson = q.lessonId ? liveLessons().find(l => l.id === q.lessonId) : null;
+  // Урок называем вместе с курсом: «Итальянский · Прошедшее время» понятнее,
+  // чем просто «Итальянский», когда в дне стоит именно один урок.
+  const unit = q.unitId ? unitById(q.unitId) : null;
   return h`
     <div class="quest ${q.done ? 'done' : ''}">
       <button class="check ${q.done ? 'on' : ''}" data-act="toggle" data-id="${q.id}" aria-label="Выполнено">✓</button>
@@ -327,7 +331,7 @@ function questRow(q) {
           ${q.time ? raw(h`<span class="q-time">${q.time}${q.minutes ? ` · ${q.minutes} мин` : ''}</span>`) : ''}
           ${sp ? raw(h`<span class="tag">${sp.name}</span>`) : ''}
           ${q.boss ? raw('<span class="tag boss">босс ★</span>') : ''}
-          ${lesson ? raw(h`<span class="tag">${lesson.name}</span>`) : ''}
+          ${lesson ? raw(h`<span class="tag">${lesson.name}${unit ? ` · ${unit.unit.title}` : ''}</span>`) : ''}
         </div>
         ${chain && chain.links.length ? raw(h`<div class="lab">→ ${chain.links.map(l => l.title).join(' → ')}${chain.theme ? ` → «${chain.theme}»` : ''}</div>`) : ''}
       </div>
@@ -344,12 +348,22 @@ const LENGTHS = [10, 15, 30, 45, 60, 90, 120, 180, 240];
 
 const sphereOpts = () => [{ value: '', label: 'без сферы' }, ...allSpheres().map(s => ({ value: s.key, label: s.name }))];
 
-export function questSheet(quest, date, onDone) {
+/**
+ * Шторка квеста. `preset` — заготовка для нового квеста: с полки обучения
+ * приходит уже проставленная связка и название, но квест остаётся новым, и
+ * день, время и длину человек ставит сам.
+ */
+export function questSheet(quest, date, onDone, preset = null) {
   const isNew = !quest;
-  const q = quest || { id: uid(), title: '', time: '', minutes: 45, sphere: '', boss: false, goalId: '', lessonId: '', studyId: '', careId: '', done: false };
+  const q = quest || {
+    id: uid(), title: '', time: '', minutes: 45, sphere: '', boss: false,
+    goalId: '', lessonId: '', unitId: '', studyId: '', careId: '', done: false, ...preset,
+  };
   // Открытые задания учёбы: связанный квест закроет задание, когда его отметят.
   const stTasks = liveTasks().filter(x => x.stage !== 'done');
-  const lessons = liveLessons();
+  // Полка одним списком: практика, курс целиком и каждый незакрытый урок.
+  // Двумя полями это было бы двумя источниками правды об одной связке.
+  const picks = shelfPicks(q.unitId || '');
   const goals = liveGoals();
   const chain = q.goalId ? goalChain(q.goalId) : null;
 
@@ -360,10 +374,11 @@ export function questSheet(quest, date, onDone) {
       field.time('time', 'Когда', q.time),
       field.opts('minutes', 'Длина', LENGTHS.map(m => ({ value: String(m), label: m < 60 ? `${m} мин` : m % 60 === 0 ? `${m / 60} ч` : `${Math.floor(m / 60)} ч ${m % 60}` })), String(q.minutes || 45)),
       field.opts('sphere', 'Сфера', sphereOpts(), q.sphere || ''),
-      lessons.length
-        ? field.select('lessonId', 'Занятие с полки', [{ value: '', label: 'не связано' }, ...lessons.map(l => ({ value: l.id, label: l.name }))], q.lessonId || '')
+      picks.length
+        ? field.select('shelf', 'Занятие с полки', [{ value: '', label: 'не связано' }, ...picks], shelfValue(q))
         : '',
-      lessons.length ? field.note('Связанный квест при выполнении сам отметит занятие: оно попадёт в полку, трекер и статистику сферы. Дважды отмечать не нужно.') : '',
+      picks.length ? field.note('Связанный квест при выполнении сам отметит занятие: оно попадёт в полку, трекер и статистику сферы. '
+        + 'Взяла конкретный урок — он закроется на полке вместе с квестом. Дважды отмечать не нужно.') : '',
       stTasks.length
         ? field.select('studyId', 'Задание учёбы', [{ value: '', label: 'не связано' },
             ...stTasks.map(x => ({ value: x.id, label: `${x.title} · ${taskSubject(x).name}` }))], q.studyId || '')
@@ -391,14 +406,14 @@ export function questSheet(quest, date, onDone) {
       update(s => {
         // Удаляем из старого дня — квест мог переехать на другую дату.
         Object.keys(s.quests).forEach(d => { s.quests[d] = s.quests[d].filter(x => x.id !== q.id); });
-        const lessonId = v.lessonId || '';
+        const [lessonId = '', unitId = ''] = String(v.shelf || '').split('|');
         const studyId = v.studyId || '';
         const careId = v.careId || '';
         const next = {
           ...q, title, time: v.time || '', minutes: Number(v.minutes) || 45,
           // Связка с занятием сама проставляет сферу: обучение — её дом.
           sphere: v.sphere || (lessonId ? 'edu' : studyId ? 'study' : ''),
-          goalId: v.goalId || '', lessonId, studyId, careId, boss: !!v.boss,
+          goalId: v.goalId || '', lessonId, unitId, studyId, careId, boss: !!v.boss,
         };
         (s.quests[target] ||= []).push(next);
         s.quests[target].sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
@@ -500,10 +515,23 @@ export const actions = {
         if (flipped.done) l.log[date] = 1;
         // Снимаем отметку, только если этот день не держит другой связанный квест.
         else if (!(s.quests[date] || []).some(x => x.done && x.lessonId === flipped.lessonId)) delete l.log[date];
+        // Взят конкретный урок — он закрывается вместе с квестом. Открываем
+        // обратно тоже вместе, но только если его не держит другой квест:
+        // один урок можно поставить в день дважды, и снятие одной отметки не
+        // должно отменять то, что закрыто другой.
+        if (flipped.unitId) {
+          for (const m of l.items || []) {
+            const u = (m.lessons || []).find(x => x.id === flipped.unitId);
+            if (!u) continue;
+            if (flipped.done) u.done = true;
+            else if (!Object.values(s.quests).flat().some(x => x.done && x.unitId === flipped.unitId)) u.done = false;
+          }
+        }
         touchTracker(s);
       });
       const l = liveLessons().find(x => x.id === flipped.lessonId);
-      if (l && flipped.done) toast(`${l.name} · занятие засчитано`);
+      const u = flipped.unitId ? unitById(flipped.unitId) : null;
+      if (l && flipped.done) toast(u ? `${u.unit.title} · урок закрыт` : `${l.name} · занятие засчитано`);
     }
     if (flipped.studyId) {
       let name = '';

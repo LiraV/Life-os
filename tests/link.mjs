@@ -77,9 +77,10 @@ await p.screenshot({ path: 'link-tracker.png' });
 await p.evaluate(() => { location.hash = '#/day'; }); await p.waitForTimeout(600);
 await p.getByText('+ Добавить квест').click(); await p.waitForTimeout(400);
 await p.fill('input[name="title"]', 'Конюшня в 18:00');
-const lessonSel = await p.locator('select[name="lessonId"]').evaluate(e => [...e.options].map(o => o.text).join(' | '));
+// Полка в квесте — одно поле: практики, курсы целиком и уроки курсов.
+const lessonSel = await p.locator('select[name="shelf"]').evaluate(e => [...e.options].map(o => o.text).join(' | '));
 console.log('4) выбор занятия в квесте:', lessonSel);
-await p.selectOption('select[name="lessonId"]', await p.locator('select[name="lessonId"]').evaluate(e => [...e.options].find(o => o.text === 'Конный спорт').value));
+await p.selectOption('select[name="shelf"]', await p.locator('select[name="shelf"]').evaluate(e => [...e.options].find(o => o.text.trim() === 'Конный спорт').value));
 await p.locator('[data-sheet="save"]').click(); await p.waitForTimeout(500);
 console.log('   строка квеста:', (await p.locator('.quest').innerText()).replace(/\n+/g, ' | '));
 s = await st();

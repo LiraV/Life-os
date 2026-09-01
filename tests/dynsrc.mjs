@@ -14,7 +14,10 @@ const plans = async t => {
   await p.locator(`.pill:text-is("${t}")`).first().click(); await p.waitForTimeout(600);
 };
 const ym = new Date().toISOString().slice(0, 7);
-const iso = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+// Дни берём внутри текущего месяца, а не «вчера и позавчера»: цели считают за
+// месяц, и первого числа вчерашний день лежит уже в прошлом — проверка,
+// написанная от «сегодня», разваливалась ровно раз в месяц.
+const day = n => `${ym}-${String(n).padStart(2, '0')}`;
 
 await p.goto('http://127.0.0.1:8765/', { waitUntil: 'load' });
 await p.waitForTimeout(700);
@@ -27,7 +30,7 @@ await p.evaluate(days => {
   s.lessons = [{ id: 'l1', name: 'Вокал', kind: 'practice', perMonth: 4, step: 1, log: {}, items: [], cost: 0 }];
   s.lessons[0].log[days[0]] = 1; s.lessons[0].log[days[1]] = 1;
   localStorage.setItem('lifeos.state', JSON.stringify(s));
-}, [iso(0), iso(1), iso(2), iso(5)]);
+}, [day(1), day(2), day(3), day(1)]);
 await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800);
 
 // ── 1. список источников
@@ -69,7 +72,7 @@ await p.evaluate(([d, hid]) => {
   const x = JSON.parse(localStorage.getItem('lifeos.state'));
   x.habits.find(h => h.id === hid).log[d] = 2;
   localStorage.setItem('lifeos.state', JSON.stringify(x));
-}, [iso(3), 'h1']);
+}, [day(4), 'h1']);
 await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(800); await plans('Месяц');
 ok('новая отметка сразу в цели', /4 \/ 20 дней/.test(await p.locator('.scr').innerText()),
   (await p.locator('.scr').innerText()).match(/Чистить[\s\S]{0,30}/)?.[0]?.replace(/\n/g, ' · '));
