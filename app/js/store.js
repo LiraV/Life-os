@@ -1486,9 +1486,20 @@ export function importJSON(text) {
  * не трогаем: записи, пришедшие с другого устройства, менялись там и тогда, а
  * не здесь и сейчас. Проставь мы им нынешнее время — при следующем слиянии
  * они притворились бы самыми свежими и затёрли бы то, что новее на самом деле.
+ *
+ * А вот якоря — открытый день, неделя, месяц, год — приезжать не должны: это
+ * не данные, а место, на котором человек стоит здесь и сейчас. Приложение
+ * подтягивало их вместе со всем остальным, и экран сам уезжал на день, который
+ * последним трогали на другом устройстве. Оставляем свои, а если их нет —
+ * ставим нынешние, как при запуске.
  */
+const ANCHORS = ['date', 'weekAnchor', 'habitAnchor', 'monthAnchor', 'budMonth', 'year', 'trackYear', 'tripYear'];
+
 export function adoptState(raw) {
-  const next = migrate(raw);
+  const mine = {};
+  for (const k of ANCHORS) if (S.ui && S.ui[k] !== undefined) mine[k] = S.ui[k];
+  const next = toNow(migrate(raw));
+  Object.assign(next.ui, mine);
   S_replace(next);
   save();
   listeners.forEach(fn => fn());

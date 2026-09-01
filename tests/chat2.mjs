@@ -24,7 +24,10 @@ await p.evaluate(() => {
   location.hash = '#/inside';
   location.reload();
 });
-await p.waitForTimeout(1000);
+// Ждём готовности, а не «примерно секунду»: под нагрузкой соседних наборов
+// секунды не хватало, и набор падал на пустом экране.
+await p.waitForFunction(() => document.querySelectorAll('#nav button').length > 0, null, { timeout: 20000 });
+await p.waitForTimeout(300);
 
 const box = p.locator('#scr [data-field="ask"]');
 ok('поле ввода на месте', await box.count() === 1);
