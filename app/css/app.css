@@ -811,3 +811,61 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
   --deep-glow:0 10px 22px rgba(111,83,41,.3);
   --drop:0 10px 22px rgba(66,55,40,.3);
 }
+
+/* ── лист целей ───────────────────────────────────────────────
+   Год и его кварталы одной страницей: браузер сохранит её в PDF. Лист лежит
+   в обычном DOM и виден только при печати — отдельное окно на телефоне
+   блокируется, а вкладка с голым HTML выглядит поломкой. */
+#printout{display:none}
+
+@media print{
+  /* Печатаем лист, а не приложение: нижняя панель, меню и шторки на бумаге
+     не нужны, а фон съел бы картридж. */
+  .app, #nav, .overlay, .toast, .drawer-wrap{display:none !important}
+  html, body{background:#fff; height:auto; overflow:visible}
+  #printout{display:block; color:#22201f; font-size:11pt; line-height:1.35;
+    padding:0; max-width:none}
+  @page{margin:14mm 12mm}
+
+  .pg-head{display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom:1.5pt solid #22201f; padding-bottom:6pt; margin-bottom:10pt}
+  .pg-year{font-family:Prata,Georgia,serif; font-size:26pt; line-height:1}
+  .pg-theme{font-size:12pt; margin-top:2pt}
+  .pg-meta{font-size:9.5pt; text-align:right; color:#55504e}
+  .pg-meta div{margin-top:2pt}
+
+  .pg-title{font-size:9pt; letter-spacing:.08em; text-transform:uppercase;
+    color:#55504e; margin-bottom:5pt}
+  .pg-block{margin-bottom:12pt}
+  .pg-sub{font-size:8.5pt; letter-spacing:.06em; text-transform:uppercase;
+    color:#7a7472; margin:5pt 0 2pt}
+  .pg-list{margin:0; padding-left:14pt; font-size:10pt}
+  .pg-list li{margin-bottom:1.5pt}
+  .pg-empty{font-size:10pt; color:#7a7472}
+
+  /* Цель: название и число в строку, под ними доля полосой. Полосу печатаем
+     рамкой с заливкой — фоновая печать у многих отключена, и пустая рамка
+     без заливки хотя бы честно покажет, что доля есть. */
+  .pg-goal{margin-bottom:6pt; break-inside:avoid}
+  .pg-goal-top{display:flex; justify-content:space-between; gap:8pt; align-items:baseline}
+  .pg-goal-name{font-size:11pt}
+  .pg-goal-num{font-size:9.5pt; color:#55504e; white-space:nowrap}
+  .pg-struck .pg-goal-name{text-decoration:line-through; color:#7a7472}
+  .pg-bar{height:4pt; border:.5pt solid #9a9391; border-radius:2pt; margin-top:2pt;
+    overflow:hidden}
+  .pg-bar i{display:block; height:100%; background:#22201f;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .pg-note{font-size:9pt; color:#55504e; margin-top:1pt}
+
+  /* Кварталы в две колонки: четыре штуки в столбик занимают вторую страницу
+     впустую, а рядом они читаются как год целиком. */
+  .pg-quarters{display:grid; grid-template-columns:1fr 1fr; gap:10pt 14pt}
+  .pg-q{break-inside:avoid; border-top:.75pt solid #cfc9c7; padding-top:5pt}
+  .pg-q-head{display:flex; align-items:baseline; gap:6pt; margin-bottom:3pt}
+  .pg-q-name{font-weight:600; font-size:12pt}
+  .pg-q-months{font-size:9pt; color:#7a7472}
+  .pg-q-pct{margin-left:auto; font-size:9.5pt; color:#55504e}
+
+  .pg-foot{margin-top:12pt; padding-top:5pt; border-top:.5pt solid #cfc9c7;
+    font-size:8.5pt; color:#7a7472; text-align:right}
+}

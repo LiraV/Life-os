@@ -38,7 +38,10 @@ const st = p => p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')
     localStorage.removeItem('lifeos.state');
     location.reload();
   });
-  await p.waitForTimeout(1200);
+  // Ждём сам экран потери, а не «примерно секунду»: под нагрузкой соседних
+  // наборов отрисовка не успевала, и набор падал на полупустой странице.
+  await p.waitForFunction(() => /Данные не нашлись/i.test(document.getElementById('scr')?.innerText || ''),
+    null, { timeout: 20000 });
   const t = await p.locator('#scr').innerText();
   ok('приложение говорит, что данные не нашлись', /Данные не нашлись/i.test(t), t.slice(0, 60));
   ok('и что копия рядом', /отложенная копия/i.test(t));
@@ -61,7 +64,7 @@ const st = p => p.evaluate(() => JSON.parse(localStorage.getItem('lifeos.state')
     localStorage.removeItem('lifeos.state');
     location.reload();
   });
-  await p.waitForTimeout(1200);
+  await p.waitForFunction(() => document.querySelector('[data-lost="fresh"]'), null, { timeout: 20000 });
   await p.locator('[data-lost="fresh"]').click(); await p.waitForTimeout(800);
   ok('после «начать заново» приложение работает', !/Данные не нашлись/i.test(await p.locator('#scr').innerText()));
   ok('и копия осталась лежать', await p.evaluate(() => !!localStorage.getItem('lifeos.state.prev')));

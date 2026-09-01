@@ -9,6 +9,7 @@ import {
 } from '../dates.js';
 import { h, raw, field, bar, toast, openSheet, num } from '../ui.js';
 import { gv } from '../gender.js';
+import { printGoals } from '../printout.js';
 import {
   questsOn, weekStats, goalProgress, goalsIn, goalChain, goalChildren, goalById,
   quarterProgress, yearProgress, liveGoals, sphereOf, HORIZONS,
@@ -378,7 +379,15 @@ function yearView() {
           <button class="add" data-act="goaladd" data-h="quarter" data-p="${qk}">+ Цель квартала</button>
           ${raw(intentions(qk, 'Намерения квартала', true))}
         </div>`);
-    })}`;
+    })}
+
+    <div class="card mute">
+      <div class="caps">Лист целей</div>
+      <div class="lab">Год и его кварталы одной страницей — чтобы видеть, к чему всё сходится.
+        На компьютере в окне печати выбери «Сохранить как PDF», на телефоне — «Поделиться → Печать».</div>
+      <button class="add" data-act="printgoals" data-v="${y}">↓ Собрать лист целей</button>
+    </div>
+    <div style="height:4px"></div>`;
 }
 
 const monthsLabel = qk => quarterMonths(qk).map(m => MONTHS[Number(m.slice(5, 7)) - 1].slice(0, 3).toLowerCase()).join('–');
@@ -873,6 +882,9 @@ export const actions = {
 
   yprev: () => update(s => { s.ui.year = year() - 1; }),
   ynext: () => update(s => { s.ui.year = year() + 1; }),
+  /** Лист целей на печать: браузер сохранит страницу в PDF. */
+  printgoals: v => printGoals(Number(v.v) || year()),
+
   theme: () => {
     const y = year();
     openSheet({
