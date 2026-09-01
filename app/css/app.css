@@ -55,6 +55,9 @@ h1,h2,h3{margin:0; font-weight:400}
   background:linear-gradient(175deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
   overflow:hidden;
 }
+/* Телефон в рамке посреди широкого окна — приём для браузера на компьютере,
+   где узкая колонка иначе липнет к верхнему краю. Планшет и ноутбук эту рамку
+   снимают ниже: там приложение занимает экран целиком. */
 @media (min-width:560px) and (min-height:880px){
   body{align-items:center; padding:24px 0}
   .app{height:830px; max-width:400px; border-radius:var(--r-phone); padding:16px 14px 12px;
@@ -599,14 +602,6 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
      читать перечисление слева направо неправильно. */
   .app.desk .scr{display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start;
                  align-content:start; padding:2px 4px 10px}
-  .app.desk .scr > .scr-head, .app.desk .scr > .title, .app.desk .scr > .sub,
-  .app.desk .scr > .pills, .app.desk .scr > .stepper, .app.desk .scr > .kb,
-  .app.desk .scr > .board, .app.desk .scr > .tr-wrap, .app.desk .scr > .grid2,
-  .app.desk .scr > .row, .app.desk .scr > .ai, .app.desk .scr > .chat-box,
-  .app.desk .scr > .quest, .app.desk .scr > .hab-row, .app.desk .scr > .chk-row,
-  .app.desk .scr > .cnt-row, .app.desk .scr > .dyn-row, .app.desk .scr > .care-row,
-  .app.desk .scr > .link-row, .app.desk .scr > .msg, .app.desk .scr > .add,
-  .app.desk .scr > .btn, .app.desk .scr > .btn-ghost, .app.desk .scr > .lab{grid-column:1 / -1}
   .app.desk.wide .scr{display:flex}
   /* Плитки сфер и круг ролей: на всю ширину они растягиваются в полосы,
      поэтому колонок столько, сколько влезает при разумной ширине плитки. */
@@ -614,6 +609,37 @@ input[type=range]{width:100%; accent-color:var(--accent); height:24px; margin:0}
   .app.desk .tile img{height:112px}
   .app.desk .scr-head{background:none; backdrop-filter:none; -webkit-backdrop-filter:none}
   .app.desk .scr.scrolled .scr-head{background:var(--bg1)}
+}
+
+/* Что колонками не делится, и на планшете, и на ноутбуке одинаково: заголовки,
+   вкладки, доски и таблицы — во всю строку, и списки тоже. Перечисление,
+   которое читают слева направо, перестаёт быть перечислением. */
+:is(.app.desk, .app.pad) .scr > :is(.scr-head, .title, .sub, .pills, .stepper, .kb,
+  .board, .tr-wrap, .grid2, .row, .ai, .chat-box, .quest, .hab-row, .chk-row,
+  .cnt-row, .dyn-row, .care-row, .link-row, .msg, .add, .btn, .btn-ghost, .lab){grid-column:1 / -1}
+
+/* ── планшет: экран целиком, но строка не во всю ширину ────────
+   В портрете боковая колонка съела бы половину ширины, поэтому навигация
+   остаётся снизу — меняется только раскладка. Содержимое держим в разумной
+   мере: строка длиной в 800 пикселей не читается, сколько бы места ни было. */
+@media (min-width:600px) and (max-width:899px){
+  body{align-items:stretch; padding:0}
+  .app.pad{max-width:none; height:100dvh; border-radius:0; box-shadow:none;
+           padding:calc(12px + env(safe-area-inset-top)) 22px calc(10px + env(safe-area-inset-bottom))}
+  .app.pad .statusbar, .app.pad .nav{max-width:560px; width:100%; align-self:center}
+  .app.pad .scr{display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start;
+                align-content:start; width:100%; max-width:760px; align-self:center; padding:2px 2px 10px}
+  /* Доска работы и трекер года шире прочего — им отдаём всё, что есть. */
+  .app.pad.wide .scr{display:flex; max-width:none}
+  /* Плитки сфер: столько колонок, сколько влезает при разумной ширине плитки. */
+  .app.pad .scr > .grid2{display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr))}
+  .app.pad .tile img{height:104px}
+  /* Шторка — окно по центру: полоса во всю ширину планшета выглядит потерянной. */
+  .app.pad .overlay{justify-content:center; align-items:center; padding:24px}
+  .app.pad .sheet{max-width:560px; width:100%; border-radius:22px; max-height:84vh;
+                  padding-bottom:16px; box-shadow:0 20px 60px var(--veil)}
+  /* Боковое меню открывается ящиком, как на телефоне, но шире: пунктов много. */
+  .app.pad .drawer{width:300px}
 }
 
 /* Третью колонку не вводим намеренно: карточки становятся узкими, а экран —

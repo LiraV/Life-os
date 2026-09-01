@@ -50,6 +50,10 @@ const NAV = [
 /** Ноутбук: с этой ширины приложение перестаёт быть телефоном в рамке. */
 const DESK = window.matchMedia('(min-width: 900px)');
 export const isDesk = () => DESK.matches;
+// Планшет в портрете: места больше, чем на телефоне, но боковая колонка съела
+// бы половину ширины. Поэтому навигация остаётся снизу, а меняется раскладка.
+const PAD = window.matchMedia('(min-width: 600px) and (max-width: 899px)');
+export const isPad = () => PAD.matches;
 
 /**
  * Меню. Раньше здесь лежала половина экранов, а вторая открывалась только с
@@ -343,9 +347,12 @@ function syncTraits() {
 /** Класс режима на оболочке: по нему всё остальное решает вёрстка. */
 function syncDesk() {
   app.classList.toggle('desk', isDesk());
+  app.classList.toggle('pad', isPad());
   if (isDesk()) { drawerOpen = false; renderDrawer(); }
 }
-DESK.addEventListener('change', () => { syncDesk(); renderNav(); render(); });
+const onMode = () => { syncDesk(); renderNav(); render(); };
+DESK.addEventListener('change', onMode);
+PAD.addEventListener('change', onMode);
 
 // Тему ставим сразу при загрузке модуля, а не только в render: иначе первый
 // кадр успевает мелькнуть цветами рассвета поверх выбранной.
