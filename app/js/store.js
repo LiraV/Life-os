@@ -3,7 +3,7 @@
 // оповещает подписчиков.
 
 import { todayISO, monthKey, yearOf } from './dates.js';
-import { KCOLUMNS, KTYPES } from './kanban.js';
+import { KCOLUMNS, KTYPES, CREATIVE_STATES } from './kanban.js';
 
 const KEY = 'lifeos.state';
 // Куда откладывается сырой текст, если его не удалось прочитать: из него
@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 54;
+const VERSION = 55;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -169,9 +169,15 @@ export function blank() {
                          // без end — значит, работаю там сейчас
       days: {},          // { 'YYYY-MM-DD': { <id места>: { type, hours, where, note } } }
                          // type: 'work' | 'vacation' | 'sick' | 'off'; where: 'office' | 'home'
+      projects: [],      // задачи-зонтики: «Лавка Осенняя 2026» и подобные
+                         // { id, jobId, name, client, note, archived }
+                         // Внутри одной такой задачи живут несколько РК — по площадкам
+                         // и месяцам, — и у каждой свой статус. Поэтому по колонкам
+                         // ходят карточки, а задача их только собирает под одним именем.
       tasks: [],         // карточки доски: процесс МП → РК перенесён из отдельного канбана
-                         // { id, jobId, column, type, title, platforms: [], month, day, deadline,
-                         //   request, budget, split, urgent, links, notes, checklist: [], movedAt }
+                         // { id, jobId, projectId, column, type, title, platforms: [], month,
+                         //   day, deadline, request, budget, split, urgent, links, notes,
+                         //   checklist: [], creatives: [{ id, name, state }], movedAt }
                          // day — день работы (когда делаю), deadline — срок сдачи
       wins: [],          // опыт и победы: { id, date, title, note, jobId }
     },
@@ -751,11 +757,20 @@ export function migrate(s) {
     // v35 → v36: доска стала настоящим процессом — четыре общие стадии
     // заменены колонками канбана. Старые задачи переезжают в «прочие»: они
     // и были прочими, придумывать им место в цепочке РК было бы неправдой.
+    // v54 → v55: задачи-зонтики. В одной задаче — «Лавка Осенняя 2026» —
+    // несколько РК: по площадкам, месяцам, креативам, и у каждой свой статус.
+    // Раньше карточка была и задачей, и позицией сразу, и развести статусы было
+    // негде. Готовых задач не заводим: старые карточки остаются сами по себе,
+    // и это правда — они и были отдельными.
+    projects: (Array.isArray(w.projects) ? w.projects : []).map(x => ({
+      id: x.id || uid(), jobId: x.jobId || mainJob, name: String(x.name || '').trim(),
+      client: String(x.client || '').trim(), note: String(x.note || ''), archived: !!x.archived,
+    })).filter(x => x.name),
     tasks: (Array.isArray(w.tasks) ? w.tasks : []).map(t => {
       const col = KCOLUMNS.some(c => c.id === t.column) ? t.column
         : ({ queue: 'ot-todo', doing: 'ot-progress', review: 'ot-progress', done: 'ot-done' }[t.stage] || 'ot-todo');
       return {
-        id: t.id, jobId: t.jobId || mainJob, column: col,
+        id: t.id, jobId: t.jobId || mainJob, projectId: t.projectId || '', column: col,
         type: KTYPES.includes(t.type) ? t.type : 'Прочее',
         title: t.title || '', platforms: Array.isArray(t.platforms) ? t.platforms : [],
         month: t.month || '', day: t.day || t.due || '', deadline: t.deadline || '',
@@ -764,6 +779,12 @@ export function migrate(s) {
         checklist: (Array.isArray(t.checklist) ? t.checklist : [])
           .map(i => ({ id: i.id || uid(), text: String(i.text || ''), done: !!i.done }))
           .filter(i => i.text),
+        // Креативы модерируются по одному: один принят, другой отклонён, и это
+        // состояние живёт у креатива, а не у всей кампании.
+        creatives: (Array.isArray(t.creatives) ? t.creatives : [])
+          .map(x => ({ id: x.id || uid(), name: String(x.name || '').trim(),
+            state: CREATIVE_STATES.some(s => s.key === x.state) ? x.state : 'work' }))
+          .filter(x => x.name),
         movedAt: t.movedAt || t.stageAt || '',
       };
     }),

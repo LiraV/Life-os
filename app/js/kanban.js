@@ -39,6 +39,19 @@ export const KZONES = [['rk', 'ar'], ['mp'], ['other']];
 
 export const KTYPES = ['МП', 'РК', 'Прочее'];
 
+/**
+ * Состояние креатива. Модерация идёт по одному: один баннер приняли, другой
+ * завернули, и кампания при этом остаётся там же, где стояла. Держать это
+ * состояние у всей карточки значило бы врать про половину материалов.
+ */
+export const CREATIVE_STATES = [
+  { key: 'work', name: 'В работе', emoji: '✏️' },
+  { key: 'sent', name: 'На модерации', emoji: '🛡️' },
+  { key: 'bad', name: 'Отклонён', emoji: '🚫' },
+  { key: 'ok', name: 'Принят', emoji: '✅' },
+];
+export const creativeState = key => CREATIVE_STATES.find(s => s.key === key) || CREATIVE_STATES[0];
+
 export const PLATFORMS = [
   { id: 'ozon', name: 'Озон', cls: 'pf-ozon' },
   { id: 'wb', name: 'WB', cls: 'pf-wb' },

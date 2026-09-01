@@ -12,16 +12,18 @@
 import { goBack, syncTab, goTab, tabOf } from '../nav.js';
 import { S, update, uid, XP, addXp, WORK_KINDS, blankSched, touchTracker, nameTaken } from '../store.js';
 import { todayISO, addDays, dayShort, monthKey, monthTitle, yearOf, MONTHS, weekDates, DOW, dowIndex, diffDays, relativeDay } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet, confirmSheet, num } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, redrawSheet, confirmSheet, plural, num } from '../ui.js';
 import {
   workJobs, jobsNow, jobById, jobName, soleJob, jobDayNorm, jobWeekNorm, weekNormAll, isJobDay,
   dayOfJob, dayEntries, workHours, workedDays, officeDays, workMonth, workWeek, workStreak,
   workOver, jobRate, salaryAll, jobVacation, workTasks, taskById, cardsIn, boardMonths,
   checkDone, deadlineInfo, workToday, workAhead, workDoneIn, workWins, winsIn,
   careerLine, jobSpan, spanLabel, careerTotal, careerGap,
+  workProjects, projectById, projectName, cardsOfProject, projectStat, creativeStat,
 } from '../selectors.js';
 import {
-  KGROUPS, KCOLUMNS, KZONES, KTYPES, PLATFORMS, KTEMPLATES, kColumn, kColumnName,
+  KGROUPS, KCOLUMNS, KZONES, KTYPES, PLATFORMS, KTEMPLATES, CREATIVE_STATES, creativeState,
+  kColumn, kColumnName,
   platformById, isDoneColumn, weeksOfMonth, weeklyText, monthLabel, monthShift,
 } from '../kanban.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
@@ -200,8 +202,8 @@ const dueLabel = due => {
 // трёх зонах. На ноутбуке это настоящая доска с перетаскиванием, на телефоне —
 // те же колонки, но листаются вбок, а фильтры уезжают в шторку.
 
-const F = () => (S.ui.wboard ||= { search: '', type: '', platform: '', month: '', urgent: false });
-const filtersOn = () => { const f = F(); return !!(f.search || f.type || f.platform || f.month || f.urgent); };
+const F = () => (S.ui.wboard ||= { search: '', type: '', platform: '', month: '', urgent: false, project: '' });
+const filtersOn = () => { const f = F(); return !!(f.search || f.type || f.platform || f.month || f.urgent || f.project); };
 
 function boardView() {
   const jid = curJob();
@@ -223,13 +225,19 @@ function boardView() {
 function filterBar() {
   const f = F();
   const chips = [
+    f.project && projectName(f.project),
     f.type && f.type, f.platform && (platformById(f.platform)?.name || ''),
     f.month && monthLabel(f.month), f.urgent && 'срочные', f.search && `«${f.search}»`,
   ].filter(Boolean);
   return h`
     <div class="kb-filters">
+      <button class="pill" data-act="projects">◆ Задачи${workProjects().length ? ` · ${workProjects().length}` : ''}</button>
       <input type="search" class="kb-search" data-field="q" data-act-input="search"
              value="${f.search}" placeholder="Поиск по названию, заметкам, запросу…" autocomplete="off">
+      ${workProjects().length ? raw(h`<select class="kb-sel" data-change="fproject">
+        <option value="" ${raw(f.project ? '' : 'selected')}>Задача: все</option>
+        ${workProjects().map(x => raw(h`<option value="${x.id}" ${raw(f.project === x.id ? 'selected' : '')}>${x.name}</option>`))}
+      </select>`) : ''}
       <select class="kb-sel" data-change="ftype">
         <option value="" ${raw(f.type ? '' : 'selected')}>Тип: все</option>
         ${KTYPES.map(t => raw(h`<option value="${t}" ${raw(f.type === t ? 'selected' : '')}>${t}</option>`))}
@@ -246,6 +254,7 @@ function filterBar() {
       ${filtersOn() ? raw(h`<button class="btn-ghost" data-act="freset">сбросить</button>`) : ''}
     </div>
     <div class="kb-filters-sm">
+      <button class="pill" data-act="projects">◆ Задачи${workProjects().length ? ` · ${workProjects().length}` : ''}</button>
       <button class="pill ${filtersOn() ? 'on' : ''}" data-act="fsheet">Фильтры${chips.length ? ` · ${chips.length}` : ''}</button>
       ${chips.map(c => raw(h`<span class="tag">${c}</span>`))}
       ${filtersOn() ? raw(h`<button class="pill" data-act="freset">сбросить</button>`) : ''}
@@ -283,6 +292,7 @@ function cardView(c) {
   const total = (c.checklist || []).length;
   const done = checkDone(c);
   const typeCls = c.type === 'МП' ? 'k-mp' : c.type === 'РК' ? 'k-rk' : 'k-ot';
+  const cr = creativeStat([c]);
   return h`
     <div class="kb-card" draggable="true" data-card="${c.id}">
       <div class="kb-badges">
@@ -294,12 +304,15 @@ function cardView(c) {
           return p ? raw(h`<span class="pf ${p.cls}">${p.name}</span>`) : '';
         })}
       </div>
+      ${c.projectId && projectName(c.projectId)
+        ? raw(h`<div class="kb-project" data-act="project" data-id="${c.projectId}">◆ ${projectName(c.projectId)}</div>`) : ''}
       <div class="kb-title" data-act="card" data-id="${c.id}">${c.title}</div>
       ${c.split ? raw(h`<div class="kb-split">◫ ${c.split}</div>`) : ''}
       <div class="kb-meta">
         ${dl ? raw(h`<span class="chip ${dl.cls}">📅 ${dl.label}</span>`) : ''}
         ${c.day ? raw(h`<span class="chip">🗓 делаю ${dayShort(c.day)}</span>`) : ''}
         ${total ? raw(h`<span class="chip ${done === total ? 'ok' : ''}">☑ ${done}/${total}</span>`) : ''}
+        ${cr.total ? raw(h`<span class="chip ${cr.ok === cr.total ? 'ok' : cr.bad ? 'late' : ''}">🖼 ${cr.ok}/${cr.total}${cr.bad ? ` · ${cr.bad} 🚫` : ''}</span>`) : ''}
         ${c.request ? raw(h`<span class="chip">🔗 ${c.request}</span>`) : ''}
         ${c.budget ? raw(h`<span class="chip">💰 ${c.budget}</span>`) : ''}
         ${c.notes ? raw('<span class="chip">📝</span>') : ''}
@@ -429,13 +442,6 @@ function winsCard(limit) {
         : raw('<div class="lab">Сюда стоит писать не задачи, а то, чему научилась и что получилось. Через год это будет единственным, что помнишь.</div>')}
     </div>`;
 }
-
-const plural = (n, one, few, many_) => {
-  const a = Math.abs(n) % 100, b = a % 10;
-  if (a > 10 && a < 20) return many_;
-  if (b > 1 && b < 5) return few;
-  return b === 1 ? one : many_;
-};
 
 // ── шторки ──────────────────────────────────────────────────────
 /** Отметка дня у одного места: тип, часы и где. Часы — из графика. */
@@ -578,7 +584,7 @@ function jobSheet(id) {
  * площадки, месяц, дедлайн, код запроса, бюджет, сплит, ссылки, срочность
  * и чек-лист. Плюс «когда делаю» — это то, что связывает карточку с днём.
  */
-export function taskSheet(id, column = 'l1') {
+export function taskSheet(id, column = 'l1', preset = {}) {
   const t = taskById(id);
   const col = t ? t.column : column;
   const g = kColumn(col).group;
@@ -587,15 +593,26 @@ export function taskSheet(id, column = 'l1') {
     type: g === 'rk' ? 'РК' : g === 'other' ? 'Прочее' : 'МП',
     title: '', platforms: [], month: monthKey(todayISO()), day: '', deadline: '',
     request: '', budget: '', split: '', urgent: false, links: '', notes: '',
-    checklist: [], movedAt: '',
+    checklist: [], creatives: [], projectId: preset.projectId || '', movedAt: '',
   };
-  draft = { checklist: it.checklist.map(x => ({ ...x })), platforms: [...(it.platforms || [])] };
+  draft = {
+    checklist: (it.checklist || []).map(x => ({ ...x })),
+    platforms: [...(it.platforms || [])],
+    creatives: (it.creatives || []).map(x => ({ ...x })),
+  };
 
   openSheet({
     title: t ? 'Задача' : 'Новая задача',
     sub: t ? kColumnName(t.column) : kColumnName(col),
     body: [
       field.text('title', 'Название', it.title, 'РК Озон — баннеры на главной, сентябрь'),
+      workProjects().length
+        ? field.select('projectId', 'Задача', [{ value: '', label: 'сама по себе' },
+            ...workProjects().map(x => ({ value: x.id, label: x.name }))], it.projectId || '')
+        : '',
+      workProjects().length
+        ? field.note('Задача собирает под одним именем всё, что к ней относится: свою карточку на каждую площадку и каждый месяц. По колонкам ходят карточки — у них и статусы разные.')
+        : '',
       field.opts('type', 'Тип', KTYPES.map(x => ({ value: x, label: x })), it.type),
       field.select('column', 'Колонка', KCOLUMNS.map(c => ({ value: c.id, label: `${c.emoji} ${c.title}` })), it.column),
       platformPicker(),
@@ -609,6 +626,7 @@ export function taskSheet(id, column = 'l1') {
       field.area('links', 'Ссылки', it.links, 'по одной на строку'),
       `<label class="row tight" style="font-size:13px"><input type="checkbox" name="urgent" ${it.urgent ? 'checked' : ''}> 🔥 Срочная</label>`,
       checklistBlock(),
+      creativeBlock(),
       field.note('«Когда делаю» — день, в который задача попадёт в «На сегодня». Дедлайн — срок сдачи, он только подсвечивается на карточке. При переходе в новую колонку чек-лист этапа добавляется сам.'),
     ].join(''),
     primary: t ? 'Сохранить' : 'Добавить',
@@ -632,6 +650,26 @@ export function taskSheet(id, column = 'l1') {
         const text = (box?.value || '').trim();
         if (!text) return;
         draft.checklist.push({ id: uid(), text, done: false });
+        box.value = '';
+        return redrawDraft();
+      }
+      if (name === 'crmove') {
+        const x = draft.creatives.find(i => i.id === data.v);
+        if (x) {
+          const i = CREATIVE_STATES.findIndex(s => s.key === x.state);
+          x.state = CREATIVE_STATES[(i + 1) % CREATIVE_STATES.length].key;
+        }
+        return redrawDraft();
+      }
+      if (name === 'crdel') {
+        draft.creatives = draft.creatives.filter(i => i.id !== data.v);
+        return redrawDraft();
+      }
+      if (name === 'cradd') {
+        const box = document.querySelector('.sheet [data-field="crnew"]');
+        const nm = (box?.value || '').trim();
+        if (!nm) return undefined;
+        draft.creatives.push({ id: uid(), name: nm, state: 'work' });
         box.value = '';
         return redrawDraft();
       }
@@ -663,8 +701,38 @@ export function taskSheet(id, column = 'l1') {
   });
 }
 
-/** Черновик карточки: площадки и чек-лист живут вне формы, их правят кнопками. */
-let draft = { checklist: [], platforms: [] };
+/** Черновик карточки: площадки, чек-лист и креативы живут вне формы. */
+let draft = { checklist: [], platforms: [], creatives: [] };
+
+/**
+ * Креативы карточки. Модерация идёт по одному: этот приняли, тот завернули, а
+ * кампания стоит там же, где стояла. Тап по значку двигает состояние по кругу —
+ * так же, как пилюля стадии двигает карточку.
+ */
+const creativeBlock = () => {
+  const n = draft.creatives.length;
+  const ok = draft.creatives.filter(x => x.state === 'ok').length;
+  return h`
+    <div class="fld" id="cr_block">
+      <div class="row between"><span>Креативы${n ? ` · ${ok} из ${n} принято` : ''}</span></div>
+      <div class="cl-list">
+        ${draft.creatives.map(x => {
+          const st = creativeState(x.state);
+          return raw(h`
+            <div class="cl-item">
+              <button type="button" class="pill" data-act="crmove" data-v="${x.id}"
+                title="${st.name}">${st.emoji} ${st.name}</button>
+              <span class="grow">${x.name}</span>
+              <button type="button" class="q-edit" data-act="crdel" data-v="${x.id}">×</button>
+            </div>`);
+        })}
+      </div>
+      <div class="row">
+        <input type="text" class="grow" data-field="crnew" data-act-enter="cradd" placeholder="Креатив и Enter">
+        <button type="button" class="pill" data-act="cradd">+</button>
+      </div>
+    </div>`;
+};
 
 const platformPicker = () => h`
   <div class="fld"><span>Площадки</span>
@@ -705,6 +773,8 @@ function redrawDraft() {
     `<button type="button" class="pf-opt ${draft.platforms.includes(p.id) ? 'on' : ''}" data-act="pf" data-v="${p.id}">${p.name}</button>`).join('');
   const cl = document.getElementById('cl_block');
   if (cl) cl.outerHTML = checklistBlock();
+  const cr = document.getElementById('cr_block');
+  if (cr) cr.outerHTML = creativeBlock();
 }
 
 function collect(v, it) {
@@ -718,6 +788,8 @@ function collect(v, it) {
     request: (v.request || '').trim(), budget: (v.budget || '').trim(),
     split: (v.split || '').trim(), notes: v.notes || '', links: (v.links || '').trim(),
     urgent: !!v.urgent, checklist: draft.checklist.map(x => ({ ...x })),
+    projectId: v.projectId || '',
+    creatives: draft.creatives.map(x => ({ ...x })),
   };
 }
 
@@ -926,9 +998,14 @@ export const actions = {
   ftype: v => update(s2 => { F().type = v.value; }),
   fplatform: v => update(s2 => { F().platform = v.value; }),
   fmonth: v => update(s2 => { F().month = v.value; }),
+  fproject: v => update(s2 => { F().project = v.value; }),
   furgent: v => update(s2 => { F().urgent = !!v.checked; }),
-  freset: () => update(s2 => { s2.ui.wboard = { search: '', type: '', platform: '', month: '', urgent: false }; }),
+  freset: () => update(s2 => { s2.ui.wboard = { search: '', type: '', platform: '', month: '', urgent: false, project: '' }; }),
   fsheet: () => filterSheet(),
+
+  projects: () => projectListSheet(),
+  project: v => projectSheet(v.id),
+  projectadd: () => projectSheet(null),
 
   winadd: () => winSheet(null),
   win: v => winSheet(v.id),
@@ -982,12 +1059,199 @@ function moveSheet(id) {
 }
 
 /** Фильтры на телефоне — одной шторкой, чтобы не занимать полэкрана пилюлями. */
+// ── задачи-зонтики ──────────────────────────────────────────────
+/**
+ * «Лавка Осенняя 2026» — не карточка, а имя, под которым живут несколько РК:
+ * своя на каждую площадку и каждый месяц. По колонкам ходят они, у каждой свой
+ * статус; задача показывает, где сейчас кто.
+ */
+function projectListSheet() {
+  const draw = () => {
+    const list = workProjects();
+    openSheet({
+      title: 'Задачи',
+      sub: 'под каждой — свои карточки на доске',
+      body: [
+        list.length ? list.map(x => {
+          const st = projectStat(x.id);
+          return h`
+            <button class="link-row" data-act="open" data-v="${x.id}">
+              <span class="ink grow ellip">${x.name}</span>
+              <span class="lab">${st.total ? `${st.done} из ${st.total}` : 'пусто'} ›</span>
+            </button>`;
+        }).join('')
+          : field.note('Пока ни одной. Задача нужна, когда под одним именем идёт несколько кампаний — по площадкам и месяцам.'),
+        `<div class="row"><input type="text" class="grow" data-field="pnew" data-act-enter="padd" placeholder="Название задачи и Enter">
+          <button type="button" class="pill" data-act="padd">+</button></div>`,
+      ].join(''),
+      onAct: (name, data, close) => {
+        if (name === 'open') { close(); return projectSheet(data.v); }
+        if (name === 'padd') {
+          const box = document.querySelector('.sheet [data-field="pnew"]');
+          const nm = (box?.value || '').trim();
+          if (!nm) return undefined;
+          if (nameTaken(workProjects(), nm)) return toast(`«${nm}» уже есть`);
+          let id = '';
+          update(s2 => {
+            id = uid();
+            s2.work.projects.push({ id, jobId: curJob() || jobsNow()[0]?.id || '', name: nm, client: '', note: '', archived: false });
+          });
+          close();
+          return projectSheet(id);
+        }
+        return undefined;
+      },
+    });
+  };
+  draw();
+}
+
+/** Одна задача: её карточки по статусам и разбор на площадки и месяцы. */
+function projectSheet(id) {
+  const pr = projectById(id);
+  if (!pr) return;
+  const st = projectStat(id);
+  const cards = cardsOfProject(id);
+  openSheet({
+    title: pr.name,
+    sub: st.total ? `${st.total} ${plural(st.total, 'карточка', 'карточки', 'карточек')} · ${st.done} закрыто` : 'карточек пока нет',
+    body: [
+      field.text('name', 'Название', pr.name, 'Лавка Осенняя 2026'),
+      field.text('client', 'Заказчик', pr.client, 'кто просит'),
+      field.area('note', 'Заметка', pr.note),
+      st.total ? `<div class="fld"><span>Где сейчас</span><div class="cl-list">${
+        st.columns.map(x => h`
+          <div class="cl-item"><span class="grow">${kColumnName(x.column)}</span><span class="lab">${x.n}</span></div>`).join('')
+        || field.note('Все карточки закрыты.')
+      }</div></div>` : '',
+      st.creatives.total ? field.note(`Креативы: принято ${st.creatives.ok} из ${st.creatives.total}`
+        + (st.creatives.bad ? `, отклонено ${st.creatives.bad}` : '')
+        + (st.creatives.sent ? `, на модерации ${st.creatives.sent}` : '') + '.') : '',
+      cards.length ? `<div class="fld"><span>Карточки</span><div class="cl-list">${
+        cards.map(c => h`
+          <button class="link-row" data-act="pcard" data-v="${c.id}">
+            <span class="ink grow ellip">${c.title}</span>
+            <span class="lab">${kColumn(c.column).emoji} ›</span>
+          </button>`).join('')
+      }</div></div>` : '',
+      `<div class="pills"><button type="button" class="pill" data-act="pspread">＋ Разложить по площадкам и месяцам</button></div>`,
+      field.note('Разбор заводит по карточке на каждую пару «площадка × месяц» — по одной РК на каждую. Ни одна не появится сама: выберешь, что нужно, и увидишь список до создания.'),
+    ].join(''),
+    primary: 'Сохранить',
+    onAct: (name, data, close) => {
+      if (name === 'pcard') { close(); return taskSheet(data.v); }
+      if (name === 'pspread') { close(); return spreadSheet(id); }
+      return undefined;
+    },
+    onSave: (v, close) => {
+      const nm = (v.name || '').trim();
+      if (!nm) return toast('Нужно название');
+      const twin = nameTaken(workProjects(), nm, id);
+      if (twin) return toast(`«${twin.name}» уже есть`);
+      update(s2 => {
+        const x = s2.work.projects.find(y => y.id === id);
+        if (x) Object.assign(x, { name: nm, client: (v.client || '').trim(), note: v.note || '' });
+      });
+      close();
+      toast('Сохранено');
+    },
+    danger: 'Убрать задачу',
+    onDanger: (_v, close) => {
+      close();
+      confirmSheet(`Убрать «${pr.name}»?`, 'Карточки останутся на доске — они просто перестанут быть частью задачи.', 'Убрать',
+        () => update(s2 => {
+          s2.work.projects = s2.work.projects.filter(x => x.id !== id);
+          s2.work.tasks.forEach(c => { if (c.projectId === id) c.projectId = ''; });
+        }));
+    },
+  });
+}
+
+/**
+ * Разбор задачи на карточки: площадка × месяц. Двенадцать карточек руками —
+ * это не работа, а перепечатывание, но и создавать их молча нельзя: сначала
+ * показываем, что получится, и только потом заводим.
+ */
+function spreadSheet(id) {
+  const pr = projectById(id);
+  if (!pr) return;
+  const pick = { platforms: [], months: [monthKey(todayISO())], column: 'l1', type: 'РК' };
+  const plan = () => pick.platforms.flatMap(p => pick.months.map(m => ({ p, m })));
+  const bodyOf = () => [
+    `<div class="fld"><span>Площадки</span><div class="pf-pick">${
+      PLATFORMS.map(p => `<button type="button" class="pf-opt ${pick.platforms.includes(p.id) ? 'on' : ''}" data-act="sp" data-v="${p.id}">${p.name}</button>`).join('')
+    }</div></div>`,
+    `<div class="fld"><span>Месяцы</span><div class="pf-pick">${
+      [0, 1, 2, 3, 4, 5].map(i => monthShift(monthKey(todayISO()), i)).map(m =>
+        `<button type="button" class="pf-opt ${pick.months.includes(m) ? 'on' : ''}" data-act="sm" data-v="${m}">${monthLabel(m)}</button>`).join('')
+    }</div></div>`,
+    field.opts('type', 'Тип', KTYPES.map(x => ({ value: x, label: x })), pick.type),
+    field.select('column', 'Начальная колонка', KCOLUMNS.map(c => ({ value: c.id, label: `${c.emoji} ${c.title}` })), pick.column),
+    plan().length
+      ? `<div class="fld"><span>Получится ${plan().length} ${plural(plan().length, 'карточка', 'карточки', 'карточек')}</span><div class="cl-list">${
+          plan().map(x => h`<div class="cl-item"><span class="lab">◆ ${pr.name}</span><span class="grow">${platformById(x.p)?.name} · ${monthLabel(x.m)}</span></div>`).join('')
+        }</div></div>`
+      : field.note('Выбери хотя бы одну площадку и один месяц.'),
+  ].join('');
+
+  openSheet({
+    title: 'Разложить задачу',
+    sub: pr.name,
+    body: bodyOf(),
+    primary: 'Завести карточки',
+    onAct: (name, data) => {
+      if (name === 'sp') {
+        pick.platforms = pick.platforms.includes(data.v)
+          ? pick.platforms.filter(x => x !== data.v) : [...pick.platforms, data.v];
+        return redrawSheet(bodyOf());
+      }
+      if (name === 'sm') {
+        pick.months = pick.months.includes(data.v)
+          ? pick.months.filter(x => x !== data.v) : [...pick.months, data.v].sort();
+        return redrawSheet(bodyOf());
+      }
+      return undefined;
+    },
+    onSave: (v, close) => {
+      const type = KTYPES.includes(v.type) ? v.type : 'РК';
+      const column = KCOLUMNS.some(c => c.id === v.column) ? v.column : 'l1';
+      const list = plan();
+      if (!list.length) return toast('Выбери площадку и месяц');
+      const have = new Set(cardsOfProject(id).map(c => `${(c.platforms || [])[0] || ''}|${c.month}`));
+      const fresh = list.filter(x => !have.has(`${x.p}|${x.m}`));
+      if (!fresh.length) return toast('Такие карточки уже есть');
+      update(s2 => {
+        for (const x of fresh) {
+          const card = {
+            id: uid(), jobId: pr.jobId || curJob() || '', projectId: id, column, type,
+            // Имя задачи в заголовок не повторяем: оно и так стоит на карточке
+            // строкой выше. Здесь важно, чем эта карточка отличается от соседних.
+            title: `${platformById(x.p)?.name || ''} · ${monthLabel(x.m)}`,
+            platforms: [x.p], month: x.m, day: '', deadline: '', request: '', budget: '',
+            split: '', urgent: false, links: '', notes: '', checklist: [], creatives: [],
+            movedAt: todayISO(),
+          };
+          applyTemplate(card);
+          s2.work.tasks.push(card);
+        }
+        touchTracker(s2);
+      });
+      close();
+      toast(`Завела ${fresh.length} ${plural(fresh.length, 'карточку', 'карточки', 'карточек')}`);
+    },
+  });
+}
+
 function filterSheet() {
   const f = F();
   openSheet({
     title: 'Фильтры доски',
     body: [
       field.text('search', 'Поиск', f.search, 'по названию, заметкам, запросу'),
+      workProjects().length
+        ? field.select('project', 'Задача', [{ value: '', label: 'все' },
+            ...workProjects().map(x => ({ value: x.id, label: x.name }))], f.project)
+        : '',
       field.opts('type', 'Тип', [{ value: '', label: 'все' }, ...KTYPES.map(t => ({ value: t, label: t }))], f.type),
       field.select('platform', 'Площадка', [{ value: '', label: 'все' },
         ...PLATFORMS.map(p => ({ value: p.id, label: p.name }))], f.platform),
@@ -1000,7 +1264,7 @@ function filterSheet() {
       update(s2 => {
         s2.ui.wboard = {
           search: (v.search || '').trim(), type: v.type || '', platform: v.platform || '',
-          month: v.month || '', urgent: !!v.urgent,
+          month: v.month || '', urgent: !!v.urgent, project: v.project || '',
         };
       });
       close();

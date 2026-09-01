@@ -2065,6 +2065,7 @@ export const taskById = id => S.work.tasks.find(t => t.id === id) || null;
 
 /** Подходит ли карточка под фильтры доски. */
 export function cardMatches(c, f) {
+  if (f.project && c.projectId !== f.project) return false;
   if (f.type && c.type !== f.type) return false;
   if (f.platform && !(c.platforms || []).includes(f.platform)) return false;
   if (f.month && c.month !== f.month) return false;
@@ -2079,6 +2080,47 @@ export function cardMatches(c, f) {
 
 export const cardsIn = (column, jobId, f) => workTasks(jobId)
   .filter(c => c.column === column && cardMatches(c, f));
+
+// ── задачи-зонтики ──────────────────────────────────────────────
+// «Лавка Осенняя 2026» — это не одна карточка, а несколько: своя РК на каждую
+// площадку и каждый месяц, и у всех свой статус. Задача их только собирает под
+// одним именем; по колонкам ходят карточки.
+
+export const workProjects = (jobId = null) => S.work.projects
+  .filter(p => !p.archived && (!jobId || p.jobId === jobId));
+export const projectById = id => S.work.projects.find(p => p.id === id) || null;
+export const projectName = id => projectById(id)?.name || '';
+export const cardsOfProject = id => S.work.tasks.filter(c => c.projectId === id);
+
+/**
+ * Свод по задаче: сколько карточек, сколько закрыто и где стоят остальные.
+ * Общего «процента готовности» не выводим: закрытая колонка — единственное,
+ * что значит «сделано», а остальные стадии не выстраиваются в шкалу.
+ */
+export function projectStat(id) {
+  const cards = cardsOfProject(id);
+  const done = cards.filter(c => isDoneColumn(c.column)).length;
+  const byColumn = new Map();
+  for (const c of cards) {
+    if (isDoneColumn(c.column)) continue;
+    byColumn.set(c.column, (byColumn.get(c.column) || 0) + 1);
+  }
+  return {
+    total: cards.length, done,
+    live: cards.length - done,
+    columns: [...byColumn.entries()].map(([column, n]) => ({ column, n })),
+    platforms: [...new Set(cards.flatMap(c => c.platforms || []))],
+    months: [...new Set(cards.map(c => c.month).filter(Boolean))].sort(),
+    creatives: creativeStat(cards),
+  };
+}
+
+/** Креативы пачкой: сколько принято, сколько ждёт, сколько завернули. */
+export function creativeStat(cards) {
+  const all = cards.flatMap(c => c.creatives || []);
+  const by = k => all.filter(x => x.state === k).length;
+  return { total: all.length, ok: by('ok'), bad: by('bad'), sent: by('sent'), work: by('work') };
+}
 
 /** Месяцы, которые встречаются на доске, — для фильтра. */
 export const boardMonths = () => [...new Set(S.work.tasks.map(c => c.month).filter(Boolean))].sort();

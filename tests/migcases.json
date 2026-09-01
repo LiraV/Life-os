@@ -324,5 +324,39 @@
         }
       ]
     }
+  },
+  "карточка доски до задач": {
+    "v": 54,
+    "onboarded": true,
+    "work": {
+      "jobs": [
+        {
+          "id": "j1",
+          "company": "Студия",
+          "start": "2026-01-01"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "jobId": "j1",
+          "column": "rk-mod",
+          "type": "РК",
+          "title": "Озон · сентябрь",
+          "platforms": [
+            "ozon"
+          ],
+          "month": "2026-09",
+          "request": "OZN",
+          "checklist": [
+            {
+              "id": "c1",
+              "text": "Брони",
+              "done": true
+            }
+          ]
+        }
+      ]
+    }
   }
 }
