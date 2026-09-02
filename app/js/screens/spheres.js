@@ -2,12 +2,14 @@
 // у блога стадии идей, у бюджета копилка, у спорта — статистика из квестов.
 
 import { goBack } from '../nav.js';
-import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken } from '../store.js';
+import { S, update, uid, XP, addXp, SPHERES, addDiary, allSpheres, visibleSpheres, isCustomSphere, sphereKinds, blankSphere, nameTaken, normName } from '../store.js';
 import { todayISO, addDays, monthKey, monthTitle, monthIn, weekDates, dayShort, yearOf, DOW, dowIndex } from '../dates.js';
-import { h, raw, field, bar, toast, openSheet, redrawSheet, confirmSheet, money } from '../ui.js';
+import { h, raw, field, bar, toast, openSheet, closeSheet, redrawSheet, confirmSheet, money } from '../ui.js';
 import { gt } from '../gender.js';
 import { SPHERE_ART, DEFAULT_ART, artSrc } from '../sphereart.js';
 import { BLOG_STAGES, BLOG_PLACES, BLOG_FEEDS, placeShort, placeName, PACK, packById, UNPACK, UNPACK_ALL } from '../blog.js';
+import { UNPACK_Q, unpackResult, unpackLine, unpackDone } from '../unpack.js';
+import { aiReady, unpackIdeas } from '../ai.js';
 import { blogPosts, blogBy, blogMonth, blogYear, blogTotal, blogAhead, viewsMonth, viewsRecord,
   subsLast, subsDelta, subsTotal, sleepAvg, blogFormats, blogRubrics, rubricName, formatName,
   rubricMix, rubricUnsorted, formatMix, blockProgress } from '../selectors.js';
@@ -16,7 +18,7 @@ import { sphereProgress, sphereStatus, questsOn, sphereOf, liveLessons, lessonMo
   sphereLogOn, sphereLogMonth, sphereLogTotal, sphereLogYear, ROLES, roleOfSphere,
   SHELF_STATUS, sphereShelf, shelfBy, BOARD_STAGES, sphereBoard, boardBy,
   sphereColl, collYear, sphereMeas, measLast, measRecord, workWeek, jobsNow } from '../selectors.js';
-import { studyNow, workoutsIn } from '../selectors.js';
+import { studyNow, workoutsIn, chatDigest } from '../selectors.js';
 import { sphereGoalButton, sphereGoalsCard, sphereGoalSheet } from '../spheregoal.js';
 
 const rec = (s, key) => (s.spheres[key] ||= blankSphere());
@@ -615,19 +617,83 @@ function blogBody() {
  * откуда она взялась.
  */
 function unpackCard() {
+  const saved = S.blog.unpack;
+  const done = unpackDone(saved?.picks);
   const q = UNPACK_ALL[S.ui.unpack ?? 0] || UNPACK_ALL[0];
+
+  // Тест не пройден: показываем, зачем он, и один вопрос из банка — чтобы
+  // экран не был пустым обещанием.
+  if (!done) {
+    return h`
+      <div class="card">
+        <div class="caps">Распаковка</div>
+        <div class="ink">Двенадцать вопросов о том, из чего у тебя получается контент:
+          на чём ты стоишь, как звучишь и в какой форме тебе легче. Правильных ответов нет.</div>
+        <button class="add" data-act="unpackstart">Пройти распаковку</button>
+        <div class="row between" style="margin-top:6px"><div class="caps">Пока — вопрос дня</div>
+          <span class="lab">${q.group}</span></div>
+        <div class="ink" data-unpackq>${gt(q.q)}</div>
+        <div class="pills">
+          <button class="pill" data-act="unpacknext">другой</button>
+          <button class="pill on" data-act="unpacktake">взять в идеи</button>
+          <button class="pill" data-act="unpackall">все ${UNPACK_ALL.length}</button>
+        </div>
+        <div class="lab">Вопрос сам ничего не создаёт. Идея появится, только если ты её возьмёшь.</div>
+      </div>`;
+  }
+
+  const r = unpackResult(saved.picks);
   return h`
     <div class="card">
       <div class="row between"><div class="caps">Распаковка</div>
-        <span class="lab">${q.group}</span></div>
-      <div class="ink">${gt(q.q)}</div>
+        <span class="lab">${unpackLine(r)}</span></div>
+      <div class="ink"><b>${r.well.name}.</b> ${r.well.line}.</div>
+      <div class="ink"><b>${r.tone.name} голос.</b> ${r.tone.line}.</div>
+      <div class="ink"><b>${r.form.name}.</b> ${r.form.line}.</div>
+      <div class="lab">Твои рубрики отсюда: ${r.well.rubrics.join(' · ')}.
+        Формы: ${r.form.how.join(', ')}.</div>
+      <div class="lab">Дороже всего даётся «${r.weak.name.toLowerCase()}» — писать об этом можно,
+        просто это будет стоить сил.</div>
       <div class="pills">
-        <button class="pill" data-act="unpacknext">другой вопрос</button>
-        <button class="pill on" data-act="unpacktake">взять в идеи</button>
-        <button class="pill" data-act="unpackall">все ${UNPACK_ALL.length}</button>
+        <button class="pill on" data-act="unpackideas">идеи от Летописца</button>
+        <button class="pill" data-act="unpackrubrics">завести рубрики</button>
+        <button class="pill" data-act="unpackstart">пройти заново</button>
+        <button class="pill" data-act="unpackall">банк вопросов</button>
       </div>
-      <div class="lab">Вопрос сам ничего не создаёт. Идея появится, только если ты её возьмёшь.</div>
     </div>`;
+}
+
+/**
+ * Ход распаковки: один вопрос на шторку. Ответы держим в черновике и пишем
+ * в данные только на последнем шаге — брошенный на середине тест не должен
+ * оставлять после себя половину портрета.
+ */
+function unpackRun(picks) {
+  const step = picks.length;
+  const q = UNPACK_Q[step];
+  if (!q) {
+    update(s2 => { s2.blog.unpack = { at: todayISO(), picks }; });
+    closeSheet();
+    const r = unpackResult(picks);
+    return toast(`Распаковка: ${unpackLine(r)}`);
+  }
+  openSheet({
+    title: 'Распаковка',
+    sub: `вопрос ${step + 1} из ${UNPACK_Q.length} · правильных ответов нет`,
+    body: [
+      h`<div class="title" style="font-size:18px">${gt(q.q)}</div>`,
+      q.a.map(([label, key]) => h`
+        <button class="link-row" data-act="upick" data-v="${key}">
+          <span class="ink grow">${gt(label)}</span><span class="lab">›</span></button>`).join(''),
+      step ? field.note('Можно вернуться на шаг назад — ответ не записан, пока тест не пройден до конца.') : '',
+      step ? '<div class="pills"><button type="button" class="pill" data-act="uback">‹ назад</button></div>' : '',
+    ].join(''),
+    onAct: (name, data) => {
+      if (name === 'upick') return unpackRun([...picks, data.v]);
+      if (name === 'uback') return unpackRun(picks.slice(0, -1));
+      return undefined;
+    },
+  });
 }
 
 /** Рубрикатор и форматы: что есть на самом деле, без долей-обязательств. */
@@ -1015,6 +1081,60 @@ export const actions = {
   /** Распаковка: вопрос меняется по кругу и живёт в настройках вида, а не
    *  в данных — это не запись человека, а то, где он остановился. */
   unpacknext: () => update(s2 => { s2.ui.unpack = ((s2.ui.unpack ?? 0) + 1) % UNPACK_ALL.length; }),
+
+  /** Прохождение теста: по вопросу за шаг, ответы копятся в черновике. */
+  unpackstart: () => unpackRun([]),
+
+  /** Рубрики из распаковки: предлагаем, но заводит их человек. */
+  unpackrubrics: () => {
+    const r = unpackResult(S.blog.unpack.picks);
+    const have = new Set(S.blog.rubrics.map(x => normName(x.name)));
+    const fresh = r.well.rubrics.filter(n => !have.has(normName(n)));
+    if (!fresh.length) return toast('Эти рубрики уже заведены');
+    confirmSheet('Завести рубрики?', fresh.join(' · '), 'Завести', () => {
+      update(s2 => fresh.forEach(name => s2.blog.rubrics.push({ id: uid(), name, note: 'из распаковки' })));
+      toast(`Завела ${fresh.length}`);
+    });
+  },
+
+  /** Идеи от Летописца: он видит портрет и сферы, но придумывает, не сохраняя. */
+  unpackideas: async () => {
+    if (!aiReady()) return toast('Летописец не подключён — ключ в настройках');
+    const r = unpackResult(S.blog.unpack.picks);
+    const portrait = [
+      `На чём стою: ${r.well.name} — ${r.well.line}.`,
+      `Голос: ${r.tone.name} — ${r.tone.line}.`,
+      `Форма: ${r.form.name} — ${r.form.line}.`,
+      `Даётся тяжелее: ${r.weak.name}.`,
+    ].join('\n');
+    openSheet({ title: 'Идеи от Летописца', sub: 'думает…', body: field.note('Секунду.') });
+    let ideas = [];
+    try {
+      ideas = await unpackIdeas(portrait, chatDigest());
+    } catch (e) {
+      closeSheet();
+      return toast('Не получилось: ' + String(e.message || e).slice(0, 80));
+    }
+    if (!ideas.length) { closeSheet(); return toast('Ответ пришёл пустым'); }
+    openSheet({
+      title: 'Идеи от Летописца',
+      sub: unpackLine(r),
+      body: [
+        ideas.map(x => h`<button class="link-row" data-act="ideatake" data-v="${x}">
+          <span class="ink grow">${x}</span><span class="lab">взять ›</span></button>`).join(''),
+        field.note('Придумано под твою распаковку и твои данные. Ни одна не появится в банке сама — только та, что возьмёшь.'),
+      ].join(''),
+      onAct: (name, data, close) => {
+        if (name !== 'ideatake') return undefined;
+        update(s2 => s2.blog.posts.push({
+          id: uid(), title: data.v, place: 'both', stage: 'idea', day: '', link: '', views: null,
+          format: '', rubrics: [], blocks: [], seed: 'распаковка', note: '', movedAt: '',
+        }));
+        toast('В банке идей');
+        return close();
+      },
+    });
+  },
   unpacktake: () => {
     const q = UNPACK_ALL[S.ui.unpack ?? 0] || UNPACK_ALL[0];
     // В идею уходит уже склонённый вопрос: там он станет заголовком поста.

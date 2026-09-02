@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 55;
+const VERSION = 56;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -262,6 +262,9 @@ export function blank() {
       subs: [],          // { id, date, ig, tg } — сколько было на эту дату
       formats: [],       // свой список форматов: [{ id, name }]
       rubrics: [],       // рубрикатор: [{ id, name, note }]
+      unpack: null,      // распаковка автора: { at, picks: [] } — ответы теста.
+                         // Итог не храним: он считается из ответов, а держать
+                         // одно и то же в двух местах значит однажды их развести
     },
                          // before/after — своя отметка напряжения 0..100, обе необязательны
     deleted: [],         // следы удалённых записей: { id, from, at } — чтобы удалённое не вернулось
@@ -846,6 +849,11 @@ export function migrate(s) {
         ig: x.ig == null || x.ig === '' ? null : Math.max(0, Math.round(Number(x.ig) || 0)),
         tg: x.tg == null || x.tg === '' ? null : Math.max(0, Math.round(Number(x.tg) || 0)) }))
       .sort((a2, b2) => (a2.date < b2.date ? -1 : 1)),
+    // v55 → v56: распаковка стала тестом. Храним только ответы — по ним
+    // считается портрет; недопройденный тест это тоже честное состояние.
+    unpack: b0.unpack && Array.isArray(b0.unpack.picks)
+      ? { at: String(b0.unpack.at || ''), picks: b0.unpack.picks.map(x => (typeof x === 'string' ? x : '')) }
+      : null,
   };
   // v49 → v50: намерений в месяце больше нет — они про то, как хочется
   // прожить период, а месяц про дела. Уже написанные не выбрасываем: они

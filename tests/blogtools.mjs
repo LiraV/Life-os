@@ -33,9 +33,12 @@ ok('рубрик по умолчанию нет — их не выдумываю
 let t = await scr();
 ok('карточка распаковки на экране', /РАСПАКОВКА/i.test(t));
 ok('сказано, что вопрос сам ничего не создаёт', /сам ничего не создаёт/.test(t));
-const q1 = (await p.locator('.card', { hasText: 'Распаковка' }).locator('.ink').first().innerText()).trim();
+ok('и зовёт пройти тест', /Пройти распаковку/.test(t));
+// Вопрос дня помечен своим признаком: в карточке несколько строк, и «первая
+// попавшаяся» ломалась бы от любой правки текста рядом.
+const q1 = (await p.locator('[data-unpackq]').innerText()).trim();
 await p.locator('[data-act="unpacknext"]').click(); await p.waitForTimeout(400);
-const q2 = (await p.locator('.card', { hasText: 'Распаковка' }).locator('.ink').first().innerText()).trim();
+const q2 = (await p.locator('[data-unpackq]').innerText()).trim();
 ok('вопрос меняется', q1 !== q2, `${q1.slice(0, 30)} → ${q2.slice(0, 30)}`);
 ok('идей от перелистывания не завелось', (await blog()).posts.length === 0);
 
