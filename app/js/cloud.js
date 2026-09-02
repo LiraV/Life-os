@@ -42,6 +42,12 @@ export const account = () => session?.account || null;
 /** Заголовок для обращения к своей функции — им же ходит посредник к OpenAI. */
 export const authHeader = () => (session ? { Authorization: `OAuth ${session.access_token}` } : {});
 export const lastSync = () => session?.syncedAt || '';
+/**
+ * Токен для виджета на домашнем экране. Он же токен входа: отдельного, узкого
+ * ключа у Яндекс ID нет, и притворяться, что виджету дают что-то безобиднее,
+ * было бы неправдой — поэтому в интерфейсе он назван ключом от данных.
+ */
+export const widgetToken = () => session?.access_token || '';
 export const busy = () => syncing;
 
 /**

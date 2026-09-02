@@ -9,7 +9,7 @@ import { h, raw, field, toast, openSheet, confirmSheet } from '../ui.js';
 import { tipsOn, tipsReset, tipsDisable } from '../tips.js';
 import { APP_ICONS, iconKey, setAppIcon, iconById } from '../appicon.js';
 import { THEMES, themeKey, setTheme, themeById } from '../theme.js';
-import { configured, signedIn, account, lastSync, busy, signIn, signOut, syncNow } from '../cloud.js';
+import { configured, signedIn, account, lastSync, busy, signIn, signOut, syncNow, widgetToken } from '../cloud.js';
 
 
 /**
@@ -62,6 +62,15 @@ function syncCard() {
     <button class="add" data-act="syncnow">Синхронизировать сейчас</button>
     <button class="btn-ghost" data-act="signout">Выйти</button>
     <div class="lab">Выход не трогает записи на устройстве — они остаются здесь.</div>
+  </div>
+
+  <div class="card mute">
+    <div class="caps">Виджет на экран</div>
+    <div class="lab">Календарь месяца и сегодняшний список прямо на домашнем экране айфона.
+      Нужен Scriptable из App Store: положи туда файл widget/lifeos-widget.js из этого проекта,
+      добавь средний виджет и вставь код доступа в поле Parameter. Как — в docs/виджет.md.</div>
+    <button class="btn-ghost" data-act="widgetkey">Показать код доступа</button>
+    <div class="lab">Код — это ключ от твоих данных. Никому не показывай и не выкладывай в скриншотах.</div>
   </div>`;
 }
 
@@ -330,6 +339,32 @@ export const actions = {
     toast('Синхронизирую…');
     const r = await syncNow();
     toast(r.ok ? (r.first ? 'Данные отправлены в облако' : 'Синхронизировано') : `Не вышло: ${r.reason}`);
+  },
+
+  /**
+   * Код для виджета — это токен входа. Держим его закрытым до тапа и говорим,
+   * чем он является: строка, открывающая данные, не должна выглядеть безобидным
+   * набором букв.
+   */
+  widgetkey: () => {
+    const tk = widgetToken();
+    if (!tk) return toast('Сначала войди в облако');
+    openSheet({
+      title: 'Код доступа для виджета',
+      sub: 'вставь его в поле Parameter у виджета',
+      body: [
+        field.area('key', 'Код', tk),
+        field.note('Это ключ от твоих данных: кто его получит, увидит всё, что синхронизируется. '
+          + 'Не выкладывай его в переписках и скриншотах. Если он всё же ушёл — выйди из облака и войди заново, '
+          + 'старый код перестанет работать.'),
+        field.note('Виджет только читает: он ничего не записывает и не меняет.'),
+      ].join(''),
+      primary: 'Скопировать',
+      onSave: (_v, close) => {
+        navigator.clipboard?.writeText(tk).then(() => toast('Скопировала'), () => toast('Скопируй вручную из поля'));
+        close();
+      },
+    });
   },
 
   import: () => {
