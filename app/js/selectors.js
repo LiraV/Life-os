@@ -2143,6 +2143,29 @@ export const workAhead = (within = 14, jobId = null) => workTasks(jobId)
 export const workTodayCount = () => workToday().length;
 
 /** Дедлайн: просрочен, сегодня, скоро — как на исходной доске. */
+/**
+ * Срок, который на самом деле горит. Это либо срок самой карточки, либо
+ * ближайший срок незакрытого пункта — что раньше. Закрытый пункт свой срок
+ * уносит с собой: дело сделано, гореть больше нечему.
+ *
+ * Без этого карточка числилась просроченной из-за одного пункта внутри:
+ * креативы заменили в срок, а она продолжала гореть, пока её не удалили.
+ */
+export function cardDue(c) {
+  const live = (c?.checklist || []).filter(x => !x.done && x.due).map(x => x.due);
+  const all = [c?.deadline, ...live].filter(Boolean).sort();
+  return all[0] || '';
+}
+
+/** Чей это срок — карточки или пункта: на карточке подпись должна объяснять. */
+export function dueOwner(c) {
+  const due = cardDue(c);
+  if (!due) return null;
+  if (due === c.deadline) return { own: true, text: '' };
+  const item = (c.checklist || []).find(x => !x.done && x.due === due);
+  return { own: false, text: item?.text || '' };
+}
+
 export function deadlineInfo(dl) {
   if (!dl) return null;
   const d = diffDays(dl, todayISO());

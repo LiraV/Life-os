@@ -359,6 +359,9 @@ PAD.addEventListener('change', onMode);
 applyTheme();
 
 let lastKey = '';
+// Последняя показанная разметка: по ней видно, изменилось ли что-то на самом
+// деле. Без этого приложение мигало на каждый фоновой пересчёт.
+let lastHtml = '';
 export function render() {
   // Сначала — не удалось ли прочитать данные. Иначе человека встретит
   // онбординг поверх целых, но непрочитанных данных: выглядит как «всё стёрлось».
@@ -397,8 +400,18 @@ export function render() {
   const same = key === lastKey;
   const typed = same ? grabTyping() : null;
   const scrolled = same ? grabScroll() : null;
+  // Человек стоит внизу переписки или отлистал вверх читать — это решается до
+  // перерисовки: после неё высота уже другая.
+  const wasDown = scr.scrollHeight - scr.scrollTop - scr.clientHeight < 60;
+  let changed = true;
   try {
-    scr.innerHTML = tipCard(name) + SCREENS[name].render(params);
+    const html = tipCard(name) + SCREENS[name].render(params);
+    // Разметка та же — не трогаем DOM вообще. Приложение перерисовывается от
+    // синхронизации, от смены минуты, от любой правки; замена innerHTML на
+    // одно и то же каждый раз гасит и заново рисует весь экран, и это видно
+    // как мигание. Сравнение строк дешевле, чем пересборка страницы.
+    changed = html !== lastHtml || !same;
+    if (changed) { scr.innerHTML = html; lastHtml = html; }
   } catch (e) {
     console.error('[lifeos] экран не отрисовался', name, e);
     scr.innerHTML = `
@@ -408,18 +421,26 @@ export function render() {
         <div class="lab" style="margin-top:6px">${String(e?.message || e)}</div>
         <div class="lab">Остальные разделы работают: перейди в другой и вернись.</div>
       </div>`;
+    lastHtml = '';
   }
-  stickHead();
-  scr.classList.toggle('scrolled', scr.scrollTop > 2);
-  putScroll(scrolled);
-  putTyping(typed);
-  SCREENS[name].afterRender?.();
-  // Переписка открывается снизу: видно поле ввода и последние сообщения.
-  if (SCREENS[name].stickBottom?.(params)) {
-    scr.scrollTop = scr.scrollHeight;
-    requestAnimationFrame(() => { scr.scrollTop = scr.scrollHeight; });
-  } else {
-    scr.scrollTop = keep;
+  if (changed) {
+    stickHead();
+    scr.classList.toggle('scrolled', scr.scrollTop > 2);
+    putScroll(scrolled);
+    putTyping(typed);
+    SCREENS[name].afterRender?.();
+    // Переписка открывается снизу: видно поле ввода и последние сообщения.
+    // Но только когда пришла открытая заново или что-то дописалось, пока человек
+    // стоял внизу. Если он отлистал вверх — он читает, и утаскивать его вниз на
+    // каждой перерисовке значит не давать дочитать.
+    if (SCREENS[name].stickBottom?.(params) && (!same || wasDown)) {
+      scr.scrollTop = scr.scrollHeight;
+      requestAnimationFrame(() => { scr.scrollTop = scr.scrollHeight; });
+    } else {
+      // Замена разметки обнуляет прокрутку: на том же экране возвращаем её на
+      // место, на новом keep и так ноль.
+      scr.scrollTop = keep;
+    }
   }
   lastKey = key;
   renderNav();

@@ -13,7 +13,7 @@ const RESCUE = 'lifeos.state.rescue';
 // миграция не падает, а тихо теряет часть данных: тогда упасть некуда, и
 // вернуться можно только отсюда.
 const PREV = 'lifeos.state.prev';
-const VERSION = 56;
+const VERSION = 57;
 
 /** Роль сферы по умолчанию. Дальше живёт в состоянии и правится руками. */
 export const ROLE_SEED = {
@@ -177,7 +177,7 @@ export function blank() {
       tasks: [],         // карточки доски: процесс МП → РК перенесён из отдельного канбана
                          // { id, jobId, projectId, column, type, title, platforms: [], month,
                          //   day, deadline, request, budget, split, urgent, links, notes,
-                         //   checklist: [], creatives: [{ id, name, state }], movedAt }
+                         //   checklist: [{ id, text, done, due }], creatives: [{ id, name, state }], movedAt }
                          // day — день работы (когда делаю), deadline — срок сдачи
       wins: [],          // опыт и победы: { id, date, title, note, jobId }
     },
@@ -774,13 +774,20 @@ export function migrate(s) {
         : ({ queue: 'ot-todo', doing: 'ot-progress', review: 'ot-progress', done: 'ot-done' }[t.stage] || 'ot-todo');
       return {
         id: t.id, jobId: t.jobId || mainJob, projectId: t.projectId || '', column: col,
+        // Откуда карточку закрыли — чтобы снятая галочка вернула её туда же,
+        // а не в начало процесса, где ей уже нечего делать.
+        doneFrom: KCOLUMNS.some(c => c.id === t.doneFrom) ? t.doneFrom : '',
         type: KTYPES.includes(t.type) ? t.type : 'Прочее',
         title: t.title || '', platforms: Array.isArray(t.platforms) ? t.platforms : [],
         month: t.month || '', day: t.day || t.due || '', deadline: t.deadline || '',
         request: t.request || '', budget: t.budget || '', split: t.split || '',
         urgent: !!t.urgent, links: t.links || '', notes: t.notes || t.note || '',
+        // v56 → v57: у пункта свой срок. Срок на всей карточке горел из-за
+        // одного дела внутри: креативы заменили восьмого, а карточка продолжала
+        // числиться просроченной, пока её не удалили целиком.
         checklist: (Array.isArray(t.checklist) ? t.checklist : [])
-          .map(i => ({ id: i.id || uid(), text: String(i.text || ''), done: !!i.done }))
+          .map(i => ({ id: i.id || uid(), text: String(i.text || ''), done: !!i.done,
+            due: typeof i.due === 'string' ? i.due.slice(0, 10) : '' }))
           .filter(i => i.text),
         // Креативы модерируются по одному: один принят, другой отклонён, и это
         // состояние живёт у креатива, а не у всей кампании.

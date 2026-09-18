@@ -20,6 +20,7 @@ import {
   checkDone, deadlineInfo, workToday, workAhead, workDoneIn, workWins, winsIn,
   careerLine, jobSpan, spanLabel, careerTotal, careerGap,
   workProjects, projectById, projectName, cardsOfProject, projectStat, creativeStat,
+  cardDue, dueOwner,
 } from '../selectors.js';
 import {
   KGROUPS, KCOLUMNS, KZONES, KTYPES, PLATFORMS, KTEMPLATES, CREATIVE_STATES, creativeState,
@@ -288,7 +289,10 @@ function zoneView(groupIds, jid, f) {
 }
 
 function cardView(c) {
-  const dl = deadlineInfo(c.deadline);
+  const due = cardDue(c);
+  const dl = deadlineInfo(due);
+  const owner = dueOwner(c);
+  const closed = isDoneColumn(c.column);
   const total = (c.checklist || []).length;
   const done = checkDone(c);
   const typeCls = c.type === 'МП' ? 'k-mp' : c.type === 'РК' ? 'k-rk' : 'k-ot';
@@ -306,10 +310,14 @@ function cardView(c) {
       </div>
       ${c.projectId && projectName(c.projectId)
         ? raw(h`<div class="kb-project" data-act="project" data-id="${c.projectId}">◆ ${projectName(c.projectId)}</div>`) : ''}
-      <div class="kb-title" data-act="card" data-id="${c.id}">${c.title}</div>
+      <div class="kb-row">
+        <button class="check sm ${closed ? 'on' : ''}" data-act="carddone" data-id="${c.id}"
+          aria-label="${closed ? 'Вернуть в работу' : 'Отметить готовой'}">✓</button>
+        <div class="kb-title grow" data-act="card" data-id="${c.id}">${c.title}</div>
+      </div>
       ${c.split ? raw(h`<div class="kb-split">◫ ${c.split}</div>`) : ''}
       <div class="kb-meta">
-        ${dl ? raw(h`<span class="chip ${dl.cls}">📅 ${dl.label}</span>`) : ''}
+        ${dl ? raw(h`<span class="chip ${dl.cls}">📅 ${dl.label}${owner && !owner.own ? ` · ${owner.text}` : ''}</span>`) : ''}
         ${c.day ? raw(h`<span class="chip">🗓 делаю ${dayShort(c.day)}</span>`) : ''}
         ${total ? raw(h`<span class="chip ${done === total ? 'ok' : ''}">☑ ${done}/${total}</span>`) : ''}
         ${cr.total ? raw(h`<span class="chip ${cr.ok === cr.total ? 'ok' : cr.bad ? 'late' : ''}">🖼 ${cr.ok}/${cr.total}${cr.bad ? ` · ${cr.bad} 🚫` : ''}</span>`) : ''}
@@ -619,6 +627,7 @@ export function taskSheet(id, column = 'l1', preset = {}) {
       field.month('month', 'Месяц РК', it.month),
       field.date('day', 'Когда делаю', it.day || ''),
       field.date('deadline', 'Дедлайн', it.deadline || ''),
+      it.deadline ? '<div class="pills"><button type="button" class="pill" data-act="nodl">убрать срок</button></div>' : '',
       field.text('request', 'Код запроса', it.request, 'OZN-SEP — связывает карточки одного запроса'),
       field.text('budget', 'Бюджет', it.budget, '1 200 000 ₽'),
       field.text('split', 'Сплит', it.split, 'ГЕО Москва · статичный баннер'),
@@ -645,11 +654,29 @@ export function taskSheet(id, column = 'l1', preset = {}) {
         draft.checklist = draft.checklist.filter(i => i.id !== data.v);
         return redrawDraft();
       }
+      /** Срок пункта: ставится и снимается тут же, без отдельной шторки. */
+      if (name === 'cldue') {
+        const x = draft.checklist.find(i => i.id === data.v);
+        if (!x) return undefined;
+        const box = document.createElement('input');
+        box.type = 'date';
+        box.value = x.due || todayISO();
+        box.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(box);
+        box.addEventListener('change', () => {
+          x.due = box.value || '';
+          box.remove();
+          redrawDraft();
+        }, { once: true });
+        box.addEventListener('blur', () => setTimeout(() => box.remove(), 200), { once: true });
+        box.showPicker ? box.showPicker() : box.click();
+        return undefined;
+      }
       if (name === 'cladd') {
         const box = document.querySelector('.sheet [data-field="clnew"]');
         const text = (box?.value || '').trim();
         if (!text) return;
-        draft.checklist.push({ id: uid(), text, done: false });
+        draft.checklist.push({ id: uid(), text, done: false, due: '' });
         box.value = '';
         return redrawDraft();
       }
@@ -672,6 +699,11 @@ export function taskSheet(id, column = 'l1', preset = {}) {
         draft.creatives.push({ id: uid(), name: nm, state: 'work' });
         box.value = '';
         return redrawDraft();
+      }
+      if (name === 'nodl') {
+        const box = document.querySelector('.sheet input[name="deadline"]');
+        if (box) box.value = '';
+        return toast('Срок снят — сохрани');
       }
       if (name === 'cltpl') return addTemplate(document.querySelector('.sheet select[name="column"]')?.value || it.column);
       if (name === 'clweek') return addWeekly(document.querySelector('.sheet input[name="month"]')?.value || it.month);
@@ -756,9 +788,12 @@ const checklistBlock = () => {
           <div class="cl-item ${i.done ? 'done' : ''}">
             <button type="button" class="check sm ${i.done ? 'on' : ''}" data-act="cltoggle" data-v="${i.id}">✓</button>
             <span class="grow">${i.text}</span>
+            <button type="button" class="q-edit" data-act="cldue" data-v="${i.id}">${i.due ? dayShort(i.due) : '📅'}</button>
             <button type="button" class="q-edit" data-act="cldel" data-v="${i.id}">×</button>
           </div>`))}
       </div>
+      <div class="lab">Срок можно поставить отдельному пункту: на карточке загорится он, а не вся задача.
+        Отметишь пункт — срок уйдёт вместе с ним.</div>
       <div class="row">
         <input type="text" class="grow" data-field="clnew" data-act-enter="cladd" placeholder="Добавить пункт и Enter">
         <button type="button" class="pill" data-act="cladd">+</button>
@@ -798,7 +833,7 @@ function applyTemplate(card) {
   const tpl = KTEMPLATES[card.column];
   if (!tpl) return;
   const have = new Set(card.checklist.map(i => i.text));
-  tpl.filter(x => !have.has(x)).forEach(x => card.checklist.push({ id: uid(), text: x, done: false }));
+  tpl.filter(x => !have.has(x)).forEach(x => card.checklist.push({ id: uid(), text: x, done: false, due: '' }));
 }
 
 function addTemplate(column) {
@@ -818,7 +853,7 @@ function addWeekly(ym) {
   let n = 0;
   weeksOfMonth(ym).forEach(([a, b], i) => {
     const text = weeklyText(i, a, b);
-    if (!have.has(text)) { draft.checklist.push({ id: uid(), text, done: false }); n++; }
+    if (!have.has(text)) { draft.checklist.push({ id: uid(), text, done: false, due: '' }); n++; }
   });
   redrawDraft();
   toast(n ? `Добавлено отчётов: ${n}` : 'Отчёты этого месяца уже в списке');
@@ -979,18 +1014,37 @@ export const actions = {
   markday: v => pickJobForDay(v.d),
 
   // ── доска
+  /**
+   * Отметить готовой прямо на доске. Раньше закрыть карточку можно было только
+   * переносом в колонку через шторку — человек искал галочку и не находил.
+   * Куда возвращать снятую: в ту колонку, откуда её закрыли, а если это
+   * неизвестно — в начало своей ветки.
+   */
+  carddone: v => {
+    let msg = '';
+    update(s2 => {
+      const c = s2.work.tasks.find(x => x.id === v.id);
+      if (!c) return;
+      if (isDoneColumn(c.column)) {
+        c.column = c.doneFrom || (c.type === 'Прочее' ? 'ot-todo' : c.type === 'РК' ? 'rk-check' : 'l1');
+        c.doneFrom = '';
+        msg = `${c.title} — снова в работе`;
+      } else {
+        c.doneFrom = c.column;
+        c.column = c.type === 'Прочее' ? 'ot-done' : 'done';
+        addXp(XP.step);
+        msg = `${c.title} — готово ✦`;
+      }
+      c.movedAt = todayISO();
+      touchTracker(s2);
+    });
+    if (msg) toast(msg);
+  },
+
   cardadd: v => taskSheet(null, v.col || 'l1'),
   card: v => taskSheet(v.id),
   cardmove: v => moveSheet(v.id),
   /** Отметка «сделано» из списка на сегодня: карточка уходит в закрытую колонку. */
-  carddone: v => update(s2 => {
-    const c = s2.work.tasks.find(x => x.id === v.id);
-    if (!c) return;
-    c.column = c.type === 'Прочее' ? 'ot-done' : 'done';
-    c.movedAt = todayISO();
-    addXp(XP.step);
-    touchTracker(s2);
-  }),
   /** Перетаскивание на ноутбуке — то же перемещение, что и через шторку. */
   drop: (id, col) => moveCard(id, col),
 

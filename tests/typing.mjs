@@ -59,10 +59,13 @@ ok('экран показывает состояние, не дожидаясь 
 // Поле, оставленное без фокуса, перерисовка очищает — и так и задумано:
 // вернуть текст в поле, которое экран сам обнулил после добавления записи,
 // значило бы показать человеку мысль, уже лежащую в списке.
+//
+// Правка должна менять сам экран: с тех пор как одинаковая разметка не
+// заменяет DOM, невидимая правка перерисовки не вызывает — и очищать нечему.
 await p.locator('.title').first().click(); await p.waitForTimeout(400);
 await p.evaluate(async () => {
-  const { update } = await import('/app/js/store.js');
-  update(s => { s.user.xp += 1; });
+  const { update, uid } = await import('/app/js/store.js');
+  update(s => { s.inbox.push({ id: uid(), text: 'чужая мысль', note: '', sphere: '', createdAt: new Date().toISOString().slice(0, 10) }); });
 });
 await p.waitForTimeout(400);
 ok('поле без фокуса перерисовка очищает',
